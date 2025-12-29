@@ -1,6 +1,6 @@
 // Hexagonal Architecture Layers
 mod domain;          // Core business logic (no external dependencies)
-// mod application;  // Use cases (Phase 3)
+mod application;     // Use cases (Phase 3)
 mod infrastructure;  // External implementations (Phase 2)
 // mod adapters;     // Primary adapters: Tauri commands (Phase 4)
 // mod config;       // Configuration (Phase 4)

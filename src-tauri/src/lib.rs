@@ -1,4 +1,11 @@
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+// Hexagonal Architecture Layers
+mod domain;          // Core business logic (no external dependencies)
+// mod application;  // Use cases (Phase 3)
+// mod infrastructure; // External implementations (Phase 2)
+// mod adapters;     // Primary adapters: Tauri commands (Phase 4)
+// mod config;       // Configuration (Phase 4)
+
+// Temporary example command - will be replaced with real commands in Phase 4
 #[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)

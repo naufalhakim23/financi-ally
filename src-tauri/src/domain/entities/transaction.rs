@@ -198,6 +198,28 @@ impl Transaction {
     pub fn has_entries(&self) -> bool {
         !self.entries.is_empty()
     }
+
+    /// Reconstruct a transaction from persistence (for infrastructure layer)
+    /// This is used by the repository to restore transactions from the database
+    #[doc(hidden)]
+    pub fn from_persistence(
+        id: TransactionId,
+        description: Option<String>,
+        occurred_at: Timestamp,
+        scope: Scope,
+        status: TransactionStatus,
+        created_at: Timestamp,
+    ) -> Self {
+        Self {
+            id,
+            description,
+            occurred_at,
+            scope,
+            status,
+            created_at,
+            entries: Vec::new(),
+        }
+    }
 }
 
 #[cfg(test)]

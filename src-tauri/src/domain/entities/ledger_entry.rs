@@ -232,6 +232,31 @@ impl LedgerEntry {
     pub fn is_reversal(&self) -> bool {
         self.is_correction && self.amount.is_negative()
     }
+
+    /// Reconstruct a ledger entry from persistence (for infrastructure layer)
+    /// This is used by the repository to restore entries from the database
+    #[doc(hidden)]
+    pub fn from_persistence(
+        id: TransactionId,
+        transaction_id: TransactionId,
+        amount: Amount,
+        entry_type: TransactionType,
+        is_correction: bool,
+        parent_entry_id: Option<TransactionId>,
+        metadata: EntryMetadata,
+        created_at: Timestamp,
+    ) -> Self {
+        Self {
+            id,
+            transaction_id,
+            amount,
+            entry_type,
+            is_correction,
+            parent_entry_id,
+            metadata,
+            created_at,
+        }
+    }
 }
 
 #[cfg(test)]

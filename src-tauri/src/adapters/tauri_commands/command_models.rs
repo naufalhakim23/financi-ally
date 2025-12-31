@@ -58,7 +58,7 @@ pub struct GetTransactionRequest {
     pub transaction_id: String,
 }
 
-/// Request to list transactions with pagination
+/// Request to list transactions with pagination and filters
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ListTransactionsRequest {
@@ -69,6 +69,24 @@ pub struct ListTransactionsRequest {
     /// Limit/page size (default: 100, max: 1000)
     #[serde(default = "default_limit")]
     pub limit: usize,
+
+    /// Optional filter by transaction type
+    pub filter_type: Option<String>,
+
+    /// Optional filter by scope
+    pub filter_scope: Option<String>,
+
+    /// Optional filter by date from (ISO 8601)
+    pub filter_date_from: Option<String>,
+
+    /// Optional filter by date to (ISO 8601)
+    pub filter_date_to: Option<String>,
+
+    /// Optional filter by category
+    pub filter_category: Option<String>,
+
+    /// Optional filter by payment method
+    pub filter_payment_method: Option<String>,
 }
 
 fn default_limit() -> usize {

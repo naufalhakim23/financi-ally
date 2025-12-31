@@ -2,10 +2,14 @@ use std::sync::Arc;
 
 use crate::{
     application::dtos::TransactionDto,
-    domain::repositories::transaction_repository::{RepositoryError, TransactionRepository},
+    domain::{
+        entities::types::{Scope, TransactionType},
+        repositories::transaction_repository::{RepositoryError, TransactionRepository},
+        value_objects::Timestamp,
+    },
 };
 
-/// Query to list transactions with pagination
+/// Query to list transactions with pagination and filtering
 #[derive(Debug, Clone)]
 pub struct ListTransactionsQuery {
     /// Offset for pagination (default: 0)
@@ -14,11 +18,23 @@ pub struct ListTransactionsQuery {
     /// Limit/page size (default: 100, max: 1000)
     pub limit: usize,
 
-    // Filters will be added in Phase 6
-    // pub filter_type: Option<TransactionType>,
-    // pub filter_scope: Option<Scope>,
-    // pub filter_date_from: Option<Timestamp>,
-    // pub filter_date_to: Option<Timestamp>,
+    /// Filter by transaction type (income or expense)
+    pub filter_type: Option<TransactionType>,
+
+    /// Filter by scope (personal or business)
+    pub filter_scope: Option<Scope>,
+
+    /// Filter by date range - from (inclusive)
+    pub filter_date_from: Option<Timestamp>,
+
+    /// Filter by date range - to (inclusive)
+    pub filter_date_to: Option<Timestamp>,
+
+    /// Filter by category
+    pub filter_category: Option<String>,
+
+    /// Filter by payment method
+    pub filter_payment_method: Option<String>,
 }
 
 impl Default for ListTransactionsQuery {
@@ -26,6 +42,12 @@ impl Default for ListTransactionsQuery {
         Self {
             offset: 0,
             limit: 100,
+            filter_type: None,
+            filter_scope: None,
+            filter_date_from: None,
+            filter_date_to: None,
+            filter_category: None,
+            filter_payment_method: None,
         }
     }
 }
@@ -44,8 +66,29 @@ impl ListTransactionsHandler {
         // Enforce max limit to prevent excessive queries
         let limit = query.limit.min(1000);
 
-        // Retrieve from repository
-        let transactions = self.repository.list(query.offset, limit).await?;
+        // Check if any filters are applied
+        let has_filters = query.filter_type.is_some()
+            || query.filter_scope.is_some()
+            || query.filter_date_from.is_some()
+            || query.filter_date_to.is_some()
+            || query.filter_category.is_some()
+            || query.filter_payment_method.is_some();
+
+        // Use filtered list if filters are present, otherwise use regular list
+        let transactions = if has_filters {
+            self.repository.list_with_filters(
+                query.offset,
+                limit,
+                query.filter_type.as_ref(),
+                query.filter_scope.as_ref(),
+                query.filter_date_from.as_ref(),
+                query.filter_date_to.as_ref(),
+                query.filter_category.as_deref(),
+                query.filter_payment_method.as_deref(),
+            ).await?
+        } else {
+            self.repository.list(query.offset, limit).await?
+        };
 
         // Convert to DTOs
         Ok(transactions.iter().map(TransactionDto::from).collect())
@@ -136,6 +179,7 @@ mod tests {
             .handle(ListTransactionsQuery {
                 offset: 0,
                 limit: 3,
+                ..Default::default()
             })
             .await
             .unwrap();
@@ -146,6 +190,7 @@ mod tests {
             .handle(ListTransactionsQuery {
                 offset: 3,
                 limit: 3,
+                ..Default::default()
             })
             .await
             .unwrap();
@@ -165,6 +210,7 @@ mod tests {
         let query = ListTransactionsQuery {
             offset: 0,
             limit: 5000,  // Should be capped at 1000
+            ..Default::default()
         };
 
         // Should not panic, just cap the limit

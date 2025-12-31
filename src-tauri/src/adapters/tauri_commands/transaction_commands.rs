@@ -139,9 +139,53 @@ pub async fn list_transactions(
     request: ListTransactionsRequest,
     state: State<'_, AppState>,
 ) -> Result<TransactionListResponse, ErrorResponse> {
+    // Parse filter_type
+    let filter_type = match request.filter_type {
+        Some(ref type_str) => match type_str.to_lowercase().as_str() {
+            "income" => Some(TransactionType::Income),
+            "expense" => Some(TransactionType::Expense),
+            _ => None,
+        },
+        None => None,
+    };
+
+    // Parse filter_scope
+    let filter_scope = match request.filter_scope {
+        Some(ref scope_str) => match scope_str.to_lowercase().as_str() {
+            "personal" => Some(Scope::Personal),
+            "business" => Some(Scope::Business),
+            _ => None,
+        },
+        None => None,
+    };
+
+    // Parse filter_date_from
+    let filter_date_from = match request.filter_date_from {
+        Some(ref date_str) => match Timestamp::from_string(date_str) {
+            Ok(ts) => Some(ts),
+            Err(_) => None,
+        },
+        None => None,
+    };
+
+    // Parse filter_date_to
+    let filter_date_to = match request.filter_date_to {
+        Some(ref date_str) => match Timestamp::from_string(date_str) {
+            Ok(ts) => Some(ts),
+            Err(_) => None,
+        },
+        None => None,
+    };
+
     let query = ListTransactionsQuery {
         offset: request.offset,
         limit: request.limit,
+        filter_type,
+        filter_scope,
+        filter_date_from,
+        filter_date_to,
+        filter_category: request.filter_category,
+        filter_payment_method: request.filter_payment_method,
     };
 
     let handler = ListTransactionsHandler::new(state.repository.clone());

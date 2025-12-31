@@ -2,8 +2,11 @@
 	import { onMount } from 'svelte';
 	import { transactionStore } from '$lib/application/stores/transactionStore.svelte';
 	import TransactionForm from '$lib/presentation/components/TransactionForm.svelte';
+	import SearchBar from '$lib/presentation/components/SearchBar.svelte';
+	import FilterPanel from '$lib/presentation/components/FilterPanel.svelte';
 	import { formatAmount, formatDateTime } from '$lib/domain/Transaction';
 	import type { Transaction } from '$lib/domain/Transaction';
+	import { invoke } from '@tauri-apps/api/core';
 
 	// Load transactions on mount
 	onMount(async () => {
@@ -11,10 +14,86 @@
 	});
 
 	// Reactive values from store
-	const transactions = $derived(transactionStore.filteredTransactions);
 	const isLoading = $derived(transactionStore.isLoading);
 	const error = $derived(transactionStore.error);
 	const hasMore = $derived(transactionStore.hasMore);
+
+	// Search state
+	let searchResults = $state<Transaction[]>([]);
+	let isSearchActive = $state(false);
+
+	// Filter state
+	let filterType = $state<string | undefined>(undefined);
+	let filterScope = $state<string | undefined>(undefined);
+	let filterCategory = $state<string | undefined>(undefined);
+	let filterPaymentMethod = $state<string | undefined>(undefined);
+	let filterDateFrom = $state<string | undefined>(undefined);
+	let filterDateTo = $state<string | undefined>(undefined);
+	let filteredResults = $state<Transaction[]>([]);
+	let isFilterActive = $state(false);
+
+	// Determine which transactions to display
+	const transactions = $derived(
+		isSearchActive ? searchResults : isFilterActive ? filteredResults : transactionStore.filteredTransactions
+	);
+
+	/**
+	 * Handle search results
+	 */
+	function handleSearch(results: Transaction[]) {
+		searchResults = results;
+		// If results array is provided and has items, activate search
+		// If empty array is provided (search cleared), deactivate search
+		isSearchActive = results.length > 0;
+		if (isSearchActive) {
+			isFilterActive = false; // Disable filters when searching
+		}
+	}
+
+	/**
+	 * Handle filter changes
+	 */
+	async function handleFilterChange() {
+		const hasFilters =
+			!!filterType ||
+			!!filterScope ||
+			!!filterCategory ||
+			!!filterPaymentMethod ||
+			!!filterDateFrom ||
+			!!filterDateTo;
+
+		if (!hasFilters) {
+			isFilterActive = false;
+			return;
+		}
+
+		try {
+			// Convert date strings to ISO 8601 format with time
+			const dateFromISO = filterDateFrom ? `${filterDateFrom}T00:00:00.000Z` : undefined;
+			const dateToISO = filterDateTo ? `${filterDateTo}T23:59:59.999Z` : undefined;
+
+			const response = (await invoke('list_transactions', {
+				request: {
+					offset: 0,
+					limit: 100,
+					filterType: filterType || undefined,
+					filterScope: filterScope || undefined,
+					filterCategory: filterCategory || undefined,
+					filterPaymentMethod: filterPaymentMethod || undefined,
+					filterDateFrom: dateFromISO,
+					filterDateTo: dateToISO
+				}
+			})) as any;
+
+			if (response.success) {
+				filteredResults = response.data;
+				isFilterActive = true;
+				isSearchActive = false; // Disable search when filtering
+			}
+		} catch (error) {
+			console.error('Filter error:', error);
+		}
+	}
 
 	/**
 	 * Handle load more
@@ -133,6 +212,18 @@
 					{isLoading ? 'Loading...' : 'Refresh'}
 				</button>
 			</div>
+
+			<!-- Search and Filter Components -->
+			<SearchBar onSearch={handleSearch} />
+			<FilterPanel
+				bind:filterType
+				bind:filterScope
+				bind:filterCategory
+				bind:filterPaymentMethod
+				bind:filterDateFrom
+				bind:filterDateTo
+				onFilterChange={handleFilterChange}
+			/>
 
 			<!-- Error message -->
 			{#if error}

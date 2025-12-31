@@ -3,9 +3,9 @@ use sqlx::SqlitePool;
 use std::sync::Arc;
 
 use crate::domain::{
-    entities::{correction::CorrectionResult, transaction::Transaction},
+    entities::{correction::CorrectionResult, transaction::Transaction, types::{Scope, TransactionType}},
     repositories::transaction_repository::{RepositoryError, TransactionRepository},
-    value_objects::TransactionId,
+    value_objects::{Timestamp, TransactionId},
 };
 
 use super::models::{LedgerEntryRow, TransactionRow};
@@ -193,6 +193,131 @@ impl TransactionRepository for SqliteTransactionRepository {
         .await
         .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?;
 
+        let mut transactions = Vec::new();
+
+        for tx_row in tx_rows {
+            let entry_rows: Vec<LedgerEntryRow> = sqlx::query_as(
+                "SELECT id, transaction_id, amount_cents, type, is_correction, parent_entry_id, metadata, created_at
+                 FROM ledger_entries
+                 WHERE transaction_id = ?
+                 ORDER BY created_at ASC"
+            )
+            .bind(&tx_row.id)
+            .fetch_all(&*self.pool)
+            .await
+            .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?;
+
+            let mut transaction = tx_row.to_domain()?;
+
+            for entry_row in entry_rows {
+                let entry = entry_row.to_domain()?;
+                transaction.add_entry(entry)?;
+            }
+
+            transactions.push(transaction);
+        }
+
+        Ok(transactions)
+    }
+
+    async fn list_with_filters(
+        &self,
+        offset: usize,
+        limit: usize,
+        filter_type: Option<&TransactionType>,
+        filter_scope: Option<&Scope>,
+        filter_date_from: Option<&Timestamp>,
+        filter_date_to: Option<&Timestamp>,
+        filter_category: Option<&str>,
+        filter_payment_method: Option<&str>,
+    ) -> Result<Vec<Transaction>, RepositoryError> {
+        // Build dynamic SQL query with WHERE clauses based on filters
+        let mut where_clauses = Vec::new();
+        let mut having_clauses = Vec::new();
+
+        // Transaction-level filters
+        if filter_scope.is_some() {
+            where_clauses.push("t.scope = ?");
+        }
+        if filter_date_from.is_some() {
+            where_clauses.push("t.occurred_at >= ?");
+        }
+        if filter_date_to.is_some() {
+            where_clauses.push("t.occurred_at <= ?");
+        }
+
+        // Entry-level filters (need HAVING clause since we're grouping)
+        if filter_type.is_some() {
+            // Filter transactions that have at least one entry of the specified type
+            having_clauses.push("SUM(CASE WHEN e.type = ? THEN 1 ELSE 0 END) > 0");
+        }
+        if filter_category.is_some() {
+            having_clauses.push("SUM(CASE WHEN json_extract(e.metadata, '$.category') = ? THEN 1 ELSE 0 END) > 0");
+        }
+        if filter_payment_method.is_some() {
+            having_clauses.push("SUM(CASE WHEN json_extract(e.metadata, '$.payment_method') = ? THEN 1 ELSE 0 END) > 0");
+        }
+
+        // Build the SQL query
+        let where_clause = if !where_clauses.is_empty() {
+            format!("WHERE {}", where_clauses.join(" AND "))
+        } else {
+            String::new()
+        };
+
+        let having_clause = if !having_clauses.is_empty() {
+            format!("HAVING {}", having_clauses.join(" AND "))
+        } else {
+            String::new()
+        };
+
+        let sql = format!(
+            "SELECT DISTINCT t.id, t.description, t.occurred_at, t.scope, t.status, t.created_at
+             FROM transactions t
+             LEFT JOIN ledger_entries e ON t.id = e.transaction_id
+             {}
+             GROUP BY t.id
+             {}
+             ORDER BY t.occurred_at DESC
+             LIMIT ? OFFSET ?",
+            where_clause, having_clause
+        );
+
+        // Build the query with bound parameters
+        let mut query = sqlx::query_as::<_, TransactionRow>(&sql);
+
+        // Bind transaction-level filter parameters
+        if let Some(scope) = filter_scope {
+            query = query.bind(scope.as_str());
+        }
+        if let Some(date_from) = filter_date_from {
+            query = query.bind(date_from.as_string());
+        }
+        if let Some(date_to) = filter_date_to {
+            query = query.bind(date_to.as_string());
+        }
+
+        // Bind entry-level filter parameters
+        if let Some(tx_type) = filter_type {
+            query = query.bind(tx_type.as_str());
+        }
+        if let Some(category) = filter_category {
+            query = query.bind(category);
+        }
+        if let Some(payment_method) = filter_payment_method {
+            query = query.bind(payment_method);
+        }
+
+        // Bind pagination parameters
+        query = query.bind(limit as i64).bind(offset as i64);
+
+        // Execute query
+        let tx_rows: Vec<TransactionRow> = query
+            .fetch_all(&*self.pool)
+            .await
+            .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?;
+
+        // Load entries for each transaction
         let mut transactions = Vec::new();
 
         for tx_row in tx_rows {

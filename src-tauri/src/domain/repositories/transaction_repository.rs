@@ -1,9 +1,9 @@
 use async_trait::async_trait;
 
 use crate::domain::{
-    entities::{correction::CorrectionResult, transaction::Transaction},
+    entities::{correction::CorrectionResult, transaction::Transaction, types::{Scope, TransactionType}},
     errors::DomainError,
-    value_objects::TransactionId,
+    value_objects::{Timestamp, TransactionId},
 };
 
 /// Repository error types
@@ -77,6 +77,32 @@ pub trait TransactionRepository: Send + Sync {
     /// # Returns
     /// Vector of matching transactions
     async fn search(&self, query: &str) -> Result<Vec<Transaction>, RepositoryError>;
+
+    /// List transactions with filters
+    ///
+    /// # Arguments
+    /// * `offset` - Pagination offset
+    /// * `limit` - Maximum number of results
+    /// * `filter_type` - Optional filter by transaction type (income/expense)
+    /// * `filter_scope` - Optional filter by scope (personal/business)
+    /// * `filter_date_from` - Optional start date filter (inclusive)
+    /// * `filter_date_to` - Optional end date filter (inclusive)
+    /// * `filter_category` - Optional category filter
+    /// * `filter_payment_method` - Optional payment method filter
+    ///
+    /// # Returns
+    /// Vector of transactions matching all applied filters
+    async fn list_with_filters(
+        &self,
+        offset: usize,
+        limit: usize,
+        filter_type: Option<&TransactionType>,
+        filter_scope: Option<&Scope>,
+        filter_date_from: Option<&Timestamp>,
+        filter_date_to: Option<&Timestamp>,
+        filter_category: Option<&str>,
+        filter_payment_method: Option<&str>,
+    ) -> Result<Vec<Transaction>, RepositoryError>;
 
     /// CRITICAL: NO update() method - immutability enforced at architecture level
     ///

@@ -4,7 +4,9 @@
 
 pub mod schema;
 pub mod connection;
-pub mod models;
+// Models
+mod models;
+// Repositories
 pub mod sqlite_transaction_repository;
 
 pub use connection::create_pool;

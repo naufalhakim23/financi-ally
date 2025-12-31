@@ -8,7 +8,8 @@ use crate::domain::{
     value_objects::{Timestamp, TransactionId},
 };
 
-use super::models::{LedgerEntryRow, TransactionRow};
+use super::models::ledger::LedgerEntryRow;
+use super::models::transaction::TransactionRow;
 
 /// SQLite implementation of TransactionRepository
 ///

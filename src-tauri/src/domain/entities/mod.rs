@@ -5,6 +5,7 @@ pub mod types;
 pub mod ledger_entry;
 pub mod transaction;
 pub mod correction;
+pub mod category;
 
 pub use types::{TransactionType, Scope, TransactionStatus};
 pub use ledger_entry::LedgerEntry;

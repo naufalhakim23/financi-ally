@@ -296,6 +296,23 @@
 										</button>
 									{/if}
 								</div>
+								{#if entry.metadata.receipt_base64}
+									<div class="receipt-thumbnail-container">
+										<button
+											type="button"
+											class="receipt-thumbnail-button"
+											onclick={() => window.open(`data:image/jpeg;base64,${entry.metadata.receipt_base64}`, '_blank')}
+											title="View receipt in full size"
+										>
+											<img
+												src="data:image/jpeg;base64,{entry.metadata.receipt_base64}"
+												alt="Receipt"
+												class="receipt-thumbnail"
+											/>
+										</button>
+										<span class="receipt-label">📎 Receipt (click to view)</span>
+									</div>
+								{/if}
 							{/each}
 						</div>
 					{/each}
@@ -608,6 +625,46 @@
 
 	.btn-correct:hover {
 		background-color: #6b46c1;
+	}
+
+	.receipt-thumbnail-container {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+	}
+	.receipt-thumbnail-button {
+		padding: 0;
+		background: none;
+		border: none;
+		cursor: pointer;
+	}
+
+	.receipt-thumbnail {
+		max-width: 150px;
+		max-height: 150px;
+		object-fit: cover;
+		border-radius: 4px;
+		border: 1px solid #e2e8f0;
+		transition: all 0.2s;
+		display: block;
+	}
+
+	.receipt-thumbnail-button:hover .receipt-thumbnail {
+		border-color: #8b5cf6;
+		box-shadow: 0 2px 8px rgba(139, 92, 246, 0.2);
+		transform: scale(1.05);
+	}
+
+	.receipt-thumbnail:hover {
+		border-color: #8b5cf6;
+		box-shadow: 0 2px 8px rgba(139, 92, 246, 0.2);
+		transform: scale(1.05);
+	}
+
+	.receipt-label {
+		font-size: 0.75rem;
+		color: #718096;
+		font-style: italic;
 	}
 
 	.empty-state {

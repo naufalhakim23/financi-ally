@@ -12,7 +12,7 @@ export interface EntryMetadata {
 	category?: string;
 	payment_method?: string;
 	notes?: string;
-	receiptBase64?: string;
+	receipt_base64?: string;
 }
 
 /**

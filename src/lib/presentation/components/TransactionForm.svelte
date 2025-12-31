@@ -2,6 +2,7 @@
 	import { transactionStore } from '$lib/application/stores/transactionStore.svelte';
 	import { dollarsToCents } from '$lib/domain/Transaction';
 	import type { CreateTransactionRequest } from '$lib/domain/Transaction';
+	import ReceiptUpload from './ReceiptUpload.svelte';
 
 	// Form state using Svelte 5 runes
 	let amount = $state('');
@@ -11,6 +12,7 @@
 	let category = $state('');
 	let paymentMethod = $state('');
 	let notes = $state('');
+	let receiptBase64 = $state<string | undefined>(undefined);
 
 	// UI state
 	let isSubmitting = $state(false);
@@ -42,7 +44,8 @@
 				description: description.trim() || undefined,
 				category: category.trim() || undefined,
 				paymentMethod: paymentMethod.trim() || undefined,
-				notes: notes.trim() || undefined
+				notes: notes.trim() || undefined,
+				receiptBase64: receiptBase64 || undefined
 			};
 
 			// Submit
@@ -77,6 +80,7 @@
 		category = '';
 		paymentMethod = '';
 		notes = '';
+		receiptBase64 = undefined;
 	}
 </script>
 
@@ -198,6 +202,11 @@
 			rows="3"
 			disabled={isSubmitting}
 		></textarea>
+	</div>
+
+	<!-- Receipt Upload -->
+	<div class="form-group">
+		<ReceiptUpload bind:receiptBase64 />
 	</div>
 
 	<!-- Actions -->

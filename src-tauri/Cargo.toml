@@ -39,3 +39,9 @@ async-trait = "0.1"
 # Database (SQLite with async support)
 sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate", "chrono", "uuid"] }
 
+# SQLCipher for encryption
+libsqlite3-sys = { version = "0.27", features = ["bundled-sqlcipher"] }
+
+# Secure key storage in system keychain
+keyring = "2.3"
+

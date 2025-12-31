@@ -7,4 +7,4 @@
 
 pub mod persistence;
 pub mod id_generation;
-// pub mod encryption;  // Phase 8
+pub mod encryption;

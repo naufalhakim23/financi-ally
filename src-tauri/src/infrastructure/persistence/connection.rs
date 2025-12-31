@@ -2,6 +2,7 @@ use sqlx::{SqlitePool, sqlite::SqlitePoolOptions};
 use std::time::Duration;
 
 use super::schema::run_migrations;
+use crate::infrastructure::encryption::EncryptionKeyManager;
 
 /// Database connection configuration
 pub struct DatabaseConfig {
@@ -46,17 +47,32 @@ impl DatabaseConfig {
     }
 }
 
-/// Create and configure a SQLite connection pool
+/// Create and configure a SQLite connection pool with encryption
 ///
 /// # Arguments
 /// * `config` - Database configuration
 ///
 /// # Returns
-/// Configured SQLite connection pool with migrations applied
+/// Configured SQLite connection pool with SQLCipher encryption and migrations applied
 ///
 /// # Errors
-/// Returns error if connection fails or migrations fail
+/// Returns error if connection fails, encryption setup fails, or migrations fail
 pub async fn create_pool(config: DatabaseConfig) -> Result<SqlitePool, sqlx::Error> {
+    // Get encryption key from keychain
+    // For in-memory databases (testing), we skip encryption
+    let encryption_key = if config.database_path != ":memory:" {
+        let key_manager = EncryptionKeyManager::new()
+            .map_err(|e| sqlx::Error::Configuration(Box::new(e)))?;
+
+        Some(
+            key_manager
+                .get_or_create_key()
+                .map_err(|e| sqlx::Error::Configuration(Box::new(e)))?,
+        )
+    } else {
+        None
+    };
+
     // Build connection string
     let connection_string = if config.database_path == ":memory:" {
         "sqlite::memory:".to_string()
@@ -68,6 +84,18 @@ pub async fn create_pool(config: DatabaseConfig) -> Result<SqlitePool, sqlx::Err
     let pool = SqlitePoolOptions::new()
         .max_connections(config.max_connections)
         .acquire_timeout(Duration::from_secs(config.connection_timeout_secs))
+        .after_connect(move |conn, _meta| {
+            let key = encryption_key.clone();
+            Box::pin(async move {
+                // Set encryption key FIRST if we have one
+                if let Some(key) = key {
+                    sqlx::query(&format!("PRAGMA key = \"x'{}'\"", key))
+                        .execute(conn)
+                        .await?;
+                }
+                Ok(())
+            })
+        })
         .connect(&connection_string)
         .await?;
 

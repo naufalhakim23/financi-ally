@@ -87,6 +87,7 @@ pub struct TransactionDto {
     pub scope: String,  // "personal" or "business"
     pub status: String,  // "active", "corrected", or "voided"
     pub created_at: String,  // ISO 8601
+    pub pocket_id: String,  // The pocket this transaction belongs to
     pub entries: Vec<LedgerEntryDto>,
     pub total_amount_cents: i64,  // Computed from entries
 }
@@ -100,6 +101,7 @@ impl From<&Transaction> for TransactionDto {
             scope: tx.scope().as_str().to_string(),
             status: tx.status().as_str().to_string(),
             created_at: tx.created_at().to_string(),
+            pocket_id: tx.pocket_id().to_string(),
             entries: tx.entries().iter().map(LedgerEntryDto::from).collect(),
             total_amount_cents: tx.total_amount().cents(),
         }
@@ -121,10 +123,12 @@ mod tests {
 
     #[test]
     fn test_transaction_dto_conversion() {
+        let pocket_id = crate::domain::value_objects::TransactionId::new();
         let mut tx = Transaction::new(
             Some("Test transaction".to_string()),
             Timestamp::now(),
             Scope::Personal,
+            pocket_id.clone(),
         )
         .unwrap();
 
@@ -139,6 +143,7 @@ mod tests {
         assert_eq!(dto.description, Some("Test transaction".to_string()));
         assert_eq!(dto.scope, "personal");
         assert_eq!(dto.status, "active");
+        assert_eq!(dto.pocket_id, pocket_id.to_string());
         assert_eq!(dto.entries.len(), 1);
         assert_eq!(dto.total_amount_cents, -1000);  // Expense
     }

@@ -122,6 +122,27 @@ impl Validator {
         }
         Ok(())
     }
+
+    // Alias for validate_color_code (for consistency)
+    pub fn validate_color_hex(color: &str) -> DomainResult<()> {
+        Self::validate_color_code(color)
+    }
+
+    // Validate pocket name
+    pub fn validate_pocket_name(name: &str) -> DomainResult<()> {
+        let trimmed = name.trim();
+        if trimmed.is_empty() {
+            return Err(DomainError::ValidationError(
+                "Pocket name cannot be empty".to_string(),
+            ));
+        }
+        if name.len() > 50 {
+            return Err(DomainError::ValidationError(
+                "Pocket name cannot exceed 50 characters".to_string(),
+            ));
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]

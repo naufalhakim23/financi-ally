@@ -18,6 +18,7 @@ pub struct TransactionRow {
     pub scope: String,
     pub status: String,
     pub created_at: String,
+    pub pocket_id: String,
 }
 
 impl TransactionRow {
@@ -26,6 +27,7 @@ impl TransactionRow {
         let id = TransactionId::from_string(&self.id)?;
         let occurred_at = Timestamp::from_string(&self.occurred_at)?;
         let created_at = Timestamp::from_string(&self.created_at)?;
+        let pocket_id = TransactionId::from_string(&self.pocket_id)?;
 
         let scope = match self.scope.as_str() {
             "personal" => Scope::Personal,
@@ -48,6 +50,7 @@ impl TransactionRow {
             scope,
             status,
             created_at,
+            pocket_id,
         );
 
         Ok(tx)
@@ -62,6 +65,7 @@ impl TransactionRow {
             scope: tx.scope().as_str().to_string(),
             status: tx.status().as_str().to_string(),
             created_at: tx.created_at().to_string(),
+            pocket_id: tx.pocket_id().to_string(),
         }
     }
 }

@@ -5,3 +5,4 @@ pub mod ledger;
 
 // Metadata Models
 pub mod category;
+pub mod pocket;

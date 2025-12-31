@@ -6,8 +6,10 @@ pub mod ledger_entry;
 pub mod transaction;
 pub mod correction;
 pub mod category;
+pub mod pocket;
 
 pub use types::{TransactionType, Scope, TransactionStatus};
 pub use ledger_entry::LedgerEntry;
 pub use transaction::Transaction;
 pub use correction::{CorrectionData, CorrectionResult};
+pub use pocket::Pocket;

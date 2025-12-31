@@ -39,6 +39,10 @@ pub struct Transaction {
     /// When this transaction record was created
     created_at: Timestamp,
 
+    /// Which pocket this transaction belongs to
+    /// Every transaction must belong to exactly one pocket
+    pocket_id: TransactionId,
+
     /// Ledger entries associated with this transaction
     /// At least one entry is required
     /// Corrections add more entries (reversal + new entry)
@@ -52,6 +56,7 @@ impl Transaction {
     /// * `description` - Optional description
     /// * `occurred_at` - When the transaction occurred
     /// * `scope` - Personal or Business
+    /// * `pocket_id` - The pocket this transaction belongs to (required)
     ///
     /// # Returns
     /// A new Transaction with no entries yet (entries added separately)
@@ -59,6 +64,7 @@ impl Transaction {
         description: Option<String>,
         occurred_at: Timestamp,
         scope: Scope,
+        pocket_id: TransactionId,
     ) -> DomainResult<Self> {
         Validator::validate_description(&description)?;
 
@@ -69,6 +75,7 @@ impl Transaction {
             scope,
             status: TransactionStatus::Active,
             created_at: Timestamp::now(),
+            pocket_id,
             entries: Vec::new(),
         })
     }
@@ -194,6 +201,10 @@ impl Transaction {
         &self.entries
     }
 
+    pub fn pocket_id(&self) -> &TransactionId {
+        &self.pocket_id
+    }
+
     /// Check if transaction has any entries
     pub fn has_entries(&self) -> bool {
         !self.entries.is_empty()
@@ -209,6 +220,7 @@ impl Transaction {
         scope: Scope,
         status: TransactionStatus,
         created_at: Timestamp,
+        pocket_id: TransactionId,
     ) -> Self {
         Self {
             id,
@@ -217,6 +229,7 @@ impl Transaction {
             scope,
             status,
             created_at,
+            pocket_id,
             entries: Vec::new(),
         }
     }
@@ -232,20 +245,23 @@ mod tests {
         let description = Some("Test transaction".to_string());
         let occurred_at = Timestamp::now();
         let scope = Scope::Personal;
+        let pocket_id = TransactionId::new();
 
-        let tx = Transaction::new(description.clone(), occurred_at.clone(), scope).unwrap();
+        let tx = Transaction::new(description.clone(), occurred_at.clone(), scope, pocket_id.clone()).unwrap();
 
         assert_eq!(tx.description(), &description);
         assert_eq!(tx.occurred_at(), &occurred_at);
         assert_eq!(tx.scope(), Scope::Personal);
         assert_eq!(tx.status(), TransactionStatus::Active);
+        assert_eq!(tx.pocket_id(), &pocket_id);
         assert!(!tx.has_entries());
     }
 
     #[test]
     fn test_add_entry() {
         let tx_occurred_at = Timestamp::now();
-        let mut tx = Transaction::new(None, tx_occurred_at, Scope::Personal).unwrap();
+        let pocket_id = TransactionId::new();
+        let mut tx = Transaction::new(None, tx_occurred_at, Scope::Personal, pocket_id).unwrap();
 
         let amount = Amount::from_cents(1000);
         let metadata = EntryMetadata::empty();
@@ -259,7 +275,8 @@ mod tests {
 
     #[test]
     fn test_add_entry_wrong_transaction_id() {
-        let mut tx = Transaction::new(None, Timestamp::now(), Scope::Personal).unwrap();
+        let pocket_id = TransactionId::new();
+        let mut tx = Transaction::new(None, Timestamp::now(), Scope::Personal, pocket_id).unwrap();
 
         let wrong_tx_id = TransactionId::new();
         let amount = Amount::from_cents(1000);
@@ -272,7 +289,8 @@ mod tests {
 
     #[test]
     fn test_total_amount_single_expense() {
-        let mut tx = Transaction::new(None, Timestamp::now(), Scope::Personal).unwrap();
+        let pocket_id = TransactionId::new();
+        let mut tx = Transaction::new(None, Timestamp::now(), Scope::Personal, pocket_id).unwrap();
 
         let amount = Amount::from_cents(1000);
         let metadata = EntryMetadata::empty();
@@ -285,7 +303,8 @@ mod tests {
 
     #[test]
     fn test_total_amount_single_income() {
-        let mut tx = Transaction::new(None, Timestamp::now(), Scope::Business).unwrap();
+        let pocket_id = TransactionId::new();
+        let mut tx = Transaction::new(None, Timestamp::now(), Scope::Business, pocket_id).unwrap();
 
         let amount = Amount::from_cents(5000);
         let metadata = EntryMetadata::empty();
@@ -298,7 +317,8 @@ mod tests {
 
     #[test]
     fn test_total_amount_with_correction() {
-        let mut tx = Transaction::new(None, Timestamp::now(), Scope::Personal).unwrap();
+        let pocket_id = TransactionId::new();
+        let mut tx = Transaction::new(None, Timestamp::now(), Scope::Personal, pocket_id).unwrap();
 
         // Original expense: $10.00
         let amount = Amount::from_cents(1000);
@@ -321,7 +341,8 @@ mod tests {
 
     #[test]
     fn test_mark_corrected() {
-        let mut tx = Transaction::new(None, Timestamp::now(), Scope::Personal).unwrap();
+        let pocket_id = TransactionId::new();
+        let mut tx = Transaction::new(None, Timestamp::now(), Scope::Personal, pocket_id).unwrap();
         assert!(!tx.is_corrected());
 
         tx.mark_corrected();
@@ -331,7 +352,8 @@ mod tests {
 
     #[test]
     fn test_active_entries() {
-        let mut tx = Transaction::new(None, Timestamp::now(), Scope::Personal).unwrap();
+        let pocket_id = TransactionId::new();
+        let mut tx = Transaction::new(None, Timestamp::now(), Scope::Personal, pocket_id).unwrap();
 
         let amount = Amount::from_cents(1000);
         let metadata = EntryMetadata::empty();
@@ -360,7 +382,8 @@ mod tests {
     #[test]
     fn test_description_too_long() {
         let long_desc = Some("a".repeat(501));
-        let result = Transaction::new(long_desc, Timestamp::now(), Scope::Personal);
+        let pocket_id = TransactionId::new();
+        let result = Transaction::new(long_desc, Timestamp::now(), Scope::Personal, pocket_id);
         assert!(result.is_err());
     }
 }

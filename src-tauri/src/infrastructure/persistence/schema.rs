@@ -124,6 +124,15 @@ pub async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
             .await?;
     }
 
+    if version < 2 {
+        apply_v2_schema(pool).await?;
+
+        // Mark version as applied
+        sqlx::query("INSERT INTO schema_version (version) VALUES (2)")
+            .execute(pool)
+            .await?;
+    }
+
     Ok(())
 }
 
@@ -203,6 +212,112 @@ async fn apply_v1_schema(pool: &SqlitePool) -> Result<(), sqlx::Error> {
             .execute(pool)
             .await?;
     }
+
+    Ok(())
+}
+
+/// Apply version 2 schema - Adds Pockets feature
+///
+/// This migration:
+/// 1. Creates the pockets table with constraints and indexes
+/// 2. Creates a default pocket ("Main Wallet", USD)
+/// 3. Adds pocket_id column to transactions table
+/// 4. Migrates all existing transactions to the default pocket
+/// 5. Creates index on transactions.pocket_id
+///
+/// All operations are atomic within a transaction
+async fn apply_v2_schema(pool: &SqlitePool) -> Result<(), sqlx::Error> {
+    // Start a transaction for atomicity
+    let mut tx = pool.begin().await?;
+
+    // 1. Create pockets table
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS pockets (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            currency TEXT NOT NULL,
+            description TEXT,
+            icon TEXT,
+            color TEXT NOT NULL,
+            initial_balance_cents INTEGER NOT NULL DEFAULT 0,
+            current_balance_cents INTEGER NOT NULL DEFAULT 0,
+            is_default BOOLEAN DEFAULT 0 NOT NULL,
+            created_at TEXT DEFAULT (datetime('now')) NOT NULL,
+            updated_at TEXT,
+            deleted_at TEXT
+        )"
+    )
+    .execute(&mut *tx)
+    .await?;
+
+    // 2. Create unique index on pocket name (case-insensitive, only for non-deleted)
+    sqlx::query(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_pockets_name
+         ON pockets(LOWER(name)) WHERE deleted_at IS NULL"
+    )
+    .execute(&mut *tx)
+    .await?;
+
+    // 3. Create index on default pocket
+    sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_pockets_default
+         ON pockets(is_default) WHERE is_default = 1 AND deleted_at IS NULL"
+    )
+    .execute(&mut *tx)
+    .await?;
+
+    // 4. Create index on currency
+    sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_pockets_currency
+         ON pockets(currency)"
+    )
+    .execute(&mut *tx)
+    .await?;
+
+    // 5. Create default pocket (using UUID v7 style ID)
+    // Generate a time-based ID (simplified version, production should use proper UUID v7)
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis();
+    let default_pocket_id = format!("pocket-default-{}", timestamp);
+
+    sqlx::query(
+        "INSERT INTO pockets (id, name, currency, description, icon, color, is_default, initial_balance_cents, current_balance_cents)
+         VALUES (?, 'Main Wallet', 'USD', 'Default pocket for all transactions', '💰', '#4299E1', 1, 0, 0)"
+    )
+    .bind(&default_pocket_id)
+    .execute(&mut *tx)
+    .await?;
+
+    // 6. Add pocket_id column to transactions table
+    // Note: SQLite doesn't support adding columns with foreign keys directly
+    // We add it as nullable first, then populate it, then we can enforce it at app level
+    sqlx::query(
+        "ALTER TABLE transactions ADD COLUMN pocket_id TEXT REFERENCES pockets(id) ON DELETE RESTRICT"
+    )
+    .execute(&mut *tx)
+    .await?;
+
+    // 7. Update all existing transactions to use the default pocket
+    sqlx::query(
+        "UPDATE transactions SET pocket_id = ? WHERE pocket_id IS NULL"
+    )
+    .bind(&default_pocket_id)
+    .execute(&mut *tx)
+    .await?;
+
+    // 8. Create index on transactions.pocket_id for performance
+    sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_transactions_pocket
+         ON transactions(pocket_id)"
+    )
+    .execute(&mut *tx)
+    .await?;
+
+    // Commit the transaction
+    tx.commit().await?;
 
     Ok(())
 }

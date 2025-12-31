@@ -37,7 +37,7 @@ tokio = { version = "1", features = ["full"] }
 async-trait = "0.1"
 
 # Database (SQLite with async support)
-sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate", "chrono", "uuid"] }
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate", "chrono", "uuid", "offline"] }
 
 # SQLCipher for encryption (desktop only - Android has OS-level encryption)
 [target.'cfg(not(target_os = "android"))'.dependencies]

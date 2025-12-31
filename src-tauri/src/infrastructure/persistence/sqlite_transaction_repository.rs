@@ -37,8 +37,8 @@ impl TransactionRepository for SqliteTransactionRepository {
         let tx_row = TransactionRow::from_domain(transaction);
 
         sqlx::query(
-            "INSERT INTO transactions (id, description, occurred_at, scope, status, created_at)
-             VALUES (?, ?, ?, ?, ?, ?)"
+            "INSERT INTO transactions (id, description, occurred_at, scope, status, created_at, pocket_id)
+             VALUES (?, ?, ?, ?, ?, ?, ?)"
         )
         .bind(&tx_row.id)
         .bind(&tx_row.description)
@@ -46,6 +46,7 @@ impl TransactionRepository for SqliteTransactionRepository {
         .bind(&tx_row.scope)
         .bind(&tx_row.status)
         .bind(&tx_row.created_at)
+        .bind(&tx_row.pocket_id)
         .execute(&mut *tx)
         .await
         .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?;
@@ -83,7 +84,7 @@ impl TransactionRepository for SqliteTransactionRepository {
 
         // Fetch transaction
         let tx_row: Option<TransactionRow> = sqlx::query_as(
-            "SELECT id, description, occurred_at, scope, status, created_at
+            "SELECT id, description, occurred_at, scope, status, created_at, pocket_id
              FROM transactions
              WHERE id = ?"
         )
@@ -129,7 +130,7 @@ impl TransactionRepository for SqliteTransactionRepository {
     ) -> Result<Vec<Transaction>, RepositoryError> {
         // Fetch transactions with pagination
         let tx_rows: Vec<TransactionRow> = sqlx::query_as(
-            "SELECT id, description, occurred_at, scope, status, created_at
+            "SELECT id, description, occurred_at, scope, status, created_at, pocket_id
              FROM transactions
              ORDER BY occurred_at DESC
              LIMIT ? OFFSET ?"
@@ -174,7 +175,7 @@ impl TransactionRepository for SqliteTransactionRepository {
 
         // Search in FTS table and join with transactions
         let tx_rows: Vec<TransactionRow> = sqlx::query_as(
-            "SELECT DISTINCT t.id, t.description, t.occurred_at, t.scope, t.status, t.created_at
+            "SELECT DISTINCT t.id, t.description, t.occurred_at, t.scope, t.status, t.created_at, t.pocket_id
              FROM transactions t
              LEFT JOIN transactions_fts fts ON t.id = fts.transaction_id
              WHERE t.description LIKE ?
@@ -273,7 +274,7 @@ impl TransactionRepository for SqliteTransactionRepository {
         };
 
         let sql = format!(
-            "SELECT DISTINCT t.id, t.description, t.occurred_at, t.scope, t.status, t.created_at
+            "SELECT DISTINCT t.id, t.description, t.occurred_at, t.scope, t.status, t.created_at, t.pocket_id
              FROM transactions t
              LEFT JOIN ledger_entries e ON t.id = e.transaction_id
              {}
@@ -466,13 +467,25 @@ mod tests {
     #[tokio::test]
     async fn test_create_and_find_transaction() {
         let pool = create_test_pool().await.unwrap();
-        let repo = SqliteTransactionRepository::new(Arc::new(pool));
+        let repo = SqliteTransactionRepository::new(Arc::new(pool.clone()));
+
+        // Get the default pocket ID from the migration
+        // The migration creates a default pocket "Main Wallet"
+        let default_pocket_id: (String,) = sqlx::query_as(
+            "SELECT id FROM pockets WHERE is_default = 1 LIMIT 1"
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+
+        let pocket_id = TransactionId::from_string(&default_pocket_id.0).unwrap();
 
         // Create a transaction
         let mut tx = Transaction::new(
             Some("Test transaction".to_string()),
             Timestamp::now(),
             Scope::Personal,
+            pocket_id,
         )
         .unwrap();
 
@@ -508,7 +521,17 @@ mod tests {
     #[tokio::test]
     async fn test_list_transactions() {
         let pool = create_test_pool().await.unwrap();
-        let repo = SqliteTransactionRepository::new(Arc::new(pool));
+        let repo = SqliteTransactionRepository::new(Arc::new(pool.clone()));
+
+        // Get the default pocket ID
+        let default_pocket_id: (String,) = sqlx::query_as(
+            "SELECT id FROM pockets WHERE is_default = 1 LIMIT 1"
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+
+        let pocket_id = TransactionId::from_string(&default_pocket_id.0).unwrap();
 
         // Create multiple transactions
         for i in 0..5 {
@@ -516,6 +539,7 @@ mod tests {
                 Some(format!("Transaction {}", i)),
                 Timestamp::now(),
                 Scope::Personal,
+                pocket_id.clone(),
             )
             .unwrap();
 
@@ -542,12 +566,23 @@ mod tests {
     #[tokio::test]
     async fn test_mark_corrected() {
         let pool = create_test_pool().await.unwrap();
-        let repo = SqliteTransactionRepository::new(Arc::new(pool));
+        let repo = SqliteTransactionRepository::new(Arc::new(pool.clone()));
+
+        // Get the default pocket ID
+        let default_pocket_id: (String,) = sqlx::query_as(
+            "SELECT id FROM pockets WHERE is_default = 1 LIMIT 1"
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+
+        let pocket_id = TransactionId::from_string(&default_pocket_id.0).unwrap();
 
         let mut tx = Transaction::new(
             Some("Test".to_string()),
             Timestamp::now(),
             Scope::Personal,
+            pocket_id,
         )
         .unwrap();
 

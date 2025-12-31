@@ -3,5 +3,7 @@
 // This is the key to Hexagonal Architecture - domain defines what it needs, infrastructure provides it
 
 pub mod transaction_repository;
+pub mod pocket_repository;
 
 pub use transaction_repository::{TransactionRepository, RepositoryError};
+pub use pocket_repository::PocketRepository;

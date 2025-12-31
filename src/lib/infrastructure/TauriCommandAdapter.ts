@@ -19,6 +19,13 @@ import type {
 	TransactionListResponse,
 	ApiResult
 } from '$lib/domain/Transaction';
+import type {
+	CreatePocketRequest,
+	UpdatePocketRequest,
+	PocketResponse,
+	PocketListResponse,
+	SuccessResponse
+} from '$lib/domain/Pocket';
 
 /**
  * Tauri command adapter for transaction operations
@@ -106,6 +113,103 @@ export class TauriCommandAdapter {
 			return this.handleError(error);
 		}
 	}
+
+	// ============================================================================
+	// Pocket Commands
+	// ============================================================================
+
+	/**
+	 * Create a new pocket
+	 *
+	 * @param request - Pocket creation request
+	 * @returns Promise resolving to pocket response or error
+	 */
+	async createPocket(request: CreatePocketRequest): Promise<ApiResult<PocketResponse>> {
+		try {
+			const response = await invoke<PocketResponse>('create_pocket', { request });
+			return response;
+		} catch (error) {
+			return this.handleError(error);
+		}
+	}
+
+	/**
+	 * List all pockets
+	 *
+	 * @returns Promise resolving to pocket list response or error
+	 */
+	async listPockets(): Promise<ApiResult<PocketListResponse>> {
+		try {
+			const response = await invoke<PocketListResponse>('list_pockets');
+			return response;
+		} catch (error) {
+			return this.handleError(error);
+		}
+	}
+
+	/**
+	 * Get a pocket by ID
+	 *
+	 * @param pocketId - Pocket ID to retrieve
+	 * @returns Promise resolving to pocket response or error
+	 */
+	async getPocket(pocketId: string): Promise<ApiResult<PocketResponse>> {
+		try {
+			const response = await invoke<PocketResponse>('get_pocket', { pocketId });
+			return response;
+		} catch (error) {
+			return this.handleError(error);
+		}
+	}
+
+	/**
+	 * Update an existing pocket
+	 *
+	 * @param request - Pocket update request
+	 * @returns Promise resolving to pocket response or error
+	 */
+	async updatePocket(request: UpdatePocketRequest): Promise<ApiResult<PocketResponse>> {
+		try {
+			const response = await invoke<PocketResponse>('update_pocket', { request });
+			return response;
+		} catch (error) {
+			return this.handleError(error);
+		}
+	}
+
+	/**
+	 * Delete a pocket
+	 *
+	 * @param pocketId - Pocket ID to delete
+	 * @returns Promise resolving to success response or error
+	 */
+	async deletePocket(pocketId: string): Promise<ApiResult<SuccessResponse>> {
+		try {
+			const response = await invoke<SuccessResponse>('delete_pocket', { pocketId });
+			return response;
+		} catch (error) {
+			return this.handleError(error);
+		}
+	}
+
+	/**
+	 * Set a pocket as the default pocket
+	 *
+	 * @param pocketId - Pocket ID to set as default
+	 * @returns Promise resolving to success response or error
+	 */
+	async setDefaultPocket(pocketId: string): Promise<ApiResult<SuccessResponse>> {
+		try {
+			const response = await invoke<SuccessResponse>('set_default_pocket', { pocketId });
+			return response;
+		} catch (error) {
+			return this.handleError(error);
+		}
+	}
+
+	// ============================================================================
+	// Error Handling
+	// ============================================================================
 
 	/**
 	 * Handle errors from Tauri commands

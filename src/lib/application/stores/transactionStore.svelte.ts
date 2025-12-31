@@ -191,7 +191,7 @@ class TransactionStore {
 			const meta = entry.metadata;
 			return (
 				meta.category?.toLowerCase().includes(lowerQuery) ||
-				meta.paymentMethod?.toLowerCase().includes(lowerQuery) ||
+				meta.payment_method?.toLowerCase().includes(lowerQuery) ||
 				meta.notes?.toLowerCase().includes(lowerQuery)
 			);
 		});

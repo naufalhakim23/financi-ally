@@ -1,8 +1,11 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { transactionStore } from '$lib/application/stores/transactionStore.svelte';
+	import { pocketStore } from '$lib/application/stores/pocketStore.svelte';
 	import { dollarsToCents } from '$lib/domain/Transaction';
 	import type { CreateTransactionRequest } from '$lib/domain/Transaction';
 	import ReceiptUpload from './ReceiptUpload.svelte';
+	import PocketSelector from './PocketSelector.svelte';
 
 	// Form state using Svelte 5 runes
 	let amount = $state('');
@@ -13,11 +16,23 @@
 	let paymentMethod = $state('');
 	let notes = $state('');
 	let receiptBase64 = $state<string | undefined>(undefined);
+	let selectedPocketId = $state('');
 
 	// UI state
 	let isSubmitting = $state(false);
 	let formError = $state<string | null>(null);
 	let showSuccess = $state(false);
+
+	/**
+	 * Load pockets on mount and set default pocket
+	 */
+	onMount(() => {
+		pocketStore.loadPockets();
+		// Set default pocket ID when available
+		if (pocketStore.defaultPocket) {
+			selectedPocketId = pocketStore.defaultPocket.id;
+		}
+	});
 
 	/**
 	 * Handle form submission
@@ -36,11 +51,19 @@
 				return;
 			}
 
+			// Validate pocket is selected
+			if (!selectedPocketId) {
+				formError = 'Please select a pocket';
+				isSubmitting = false;
+				return;
+			}
+
 			// Build request
 			const request: CreateTransactionRequest = {
 				amountCents: dollarsToCents(amountValue),
 				transactionType,
 				scope,
+				pocketId: selectedPocketId,
 				description: description.trim() || undefined,
 				category: category.trim() || undefined,
 				paymentMethod: paymentMethod.trim() || undefined,
@@ -81,6 +104,7 @@
 		paymentMethod = '';
 		notes = '';
 		receiptBase64 = undefined;
+		selectedPocketId = pocketStore.defaultPocket?.id || '';
 	}
 </script>
 
@@ -111,6 +135,12 @@
 			disabled={isSubmitting}
 		/>
 	</div>
+
+	<!-- Pocket Selector -->
+	<PocketSelector
+		bind:selectedPocketId={selectedPocketId}
+		onselect={(id) => (selectedPocketId = id)}
+	/>
 
 	<!-- Transaction Type -->
 	<div class="form-group">

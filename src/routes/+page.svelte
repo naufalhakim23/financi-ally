@@ -2,11 +2,16 @@
 	import { onMount } from 'svelte';
 	import { transactionStore } from '$lib/application/stores/transactionStore.svelte';
 	import TransactionForm from '$lib/presentation/components/TransactionForm.svelte';
+	import PocketForm from '$lib/presentation/components/PocketForm.svelte';
+	import PocketList from '$lib/presentation/components/PocketList.svelte';
 	import SearchBar from '$lib/presentation/components/SearchBar.svelte';
 	import FilterPanel from '$lib/presentation/components/FilterPanel.svelte';
 	import { formatAmount, formatDateTime } from '$lib/domain/Transaction';
 	import type { Transaction } from '$lib/domain/Transaction';
 	import { invoke } from '@tauri-apps/api/core';
+
+	// Tab state
+	let activeTab = $state<'transactions' | 'pockets'>('transactions');
 
 	// Load transactions on mount
 	onMount(async () => {
@@ -213,8 +218,27 @@
 	<header class="app-header">
 		<h1>Pocket Log</h1>
 		<p class="subtitle">Immutable Financial Ledger</p>
+
+		<!-- Tab Navigation -->
+		<nav class="tabs">
+			<button
+				class="tab-button"
+				class:active={activeTab === 'transactions'}
+				onclick={() => (activeTab = 'transactions')}
+			>
+				Transactions
+			</button>
+			<button
+				class="tab-button"
+				class:active={activeTab === 'pockets'}
+				onclick={() => (activeTab = 'pockets')}
+			>
+				Pockets
+			</button>
+		</nav>
 	</header>
 
+	{#if activeTab === 'transactions'}
 	<div class="content-grid">
 		<!-- Left column: Transaction Form -->
 		<section class="form-section">
@@ -348,6 +372,13 @@
 			</div>
 		</section>
 	</div>
+	{:else}
+	<!-- Pockets View -->
+	<div class="pockets-view">
+		<PocketForm />
+		<PocketList />
+	</div>
+	{/if}
 
 	<!-- Correction Dialog Modal -->
 	{#if showCorrectionDialog}
@@ -496,6 +527,53 @@
 		margin: 0.5rem 0 0 0;
 		color: #718096;
 		font-size: 1rem;
+	}
+
+	/* Tab Navigation */
+	.tabs {
+		display: flex;
+		justify-content: center;
+		gap: 1rem;
+		margin-top: 1.5rem;
+		padding: 0.5rem;
+		background-color: #f7fafc;
+		border-radius: 8px;
+		max-width: 400px;
+		margin-left: auto;
+		margin-right: auto;
+	}
+
+	.tab-button {
+		flex: 1;
+		padding: 0.75rem 1.5rem;
+		background-color: transparent;
+		color: #718096;
+		border: none;
+		border-radius: 6px;
+		font-size: 1rem;
+		font-weight: 500;
+		cursor: pointer;
+		transition: all 0.2s;
+	}
+
+	.tab-button:hover {
+		background-color: #e2e8f0;
+		color: #2d3748;
+	}
+
+	.tab-button.active {
+		background-color: #4299e1;
+		color: white;
+		box-shadow: 0 2px 4px rgba(66, 153, 225, 0.3);
+	}
+
+	/* Pockets View */
+	.pockets-view {
+		max-width: 1200px;
+		margin: 0 auto;
+		display: flex;
+		flex-direction: column;
+		gap: 2rem;
 	}
 
 	.content-grid {

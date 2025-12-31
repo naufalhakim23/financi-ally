@@ -66,6 +66,9 @@ export interface Transaction {
 	/** When the transaction was created (ISO 8601) */
 	created_at: string;
 
+	/** The pocket this transaction belongs to */
+	pocket_id: string;
+
 	/** List of ledger entries */
 	entries: LedgerEntry[];
 
@@ -81,13 +84,16 @@ export interface Transaction {
  */
 export interface CreateTransactionRequest {
 	/** Amount in cents (positive value) */
-	amount_cents: number;
+	amountCents: number;
 
 	/** Type: "income" or "expense" */
-	transaction_type: 'income' | 'expense';
+	transactionType: 'income' | 'expense';
 
 	/** Scope: "personal" or "business" */
 	scope: 'personal' | 'business';
+
+	/** The pocket this transaction belongs to (required) */
+	pocketId: string;
 
 	/** Optional description */
 	description?: string;
@@ -96,23 +102,23 @@ export interface CreateTransactionRequest {
 	category?: string;
 
 	/** Optional payment method */
-	payment_method?: string;
+	paymentMethod?: string;
 
 	/** Optional notes */
 	notes?: string;
 
 	/** Optional receipt as Base64 */
-	receipt_base64?: string;
+	receiptBase64?: string;
 
 	/** When the transaction occurred (ISO 8601), defaults to now if not provided */
-	occurred_at?: string;
+	occurredAt?: string;
 }
 
 /**
  * Request to get a transaction by ID
  */
 export interface GetTransactionRequest {
-	transaction_id: string;
+	transactionId: string;
 }
 
 /**

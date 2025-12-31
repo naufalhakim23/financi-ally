@@ -7,4 +7,7 @@
 
 pub mod persistence;
 pub mod id_generation;
+
+// Encryption only available on desktop platforms
+#[cfg(not(target_os = "android"))]
 pub mod encryption;

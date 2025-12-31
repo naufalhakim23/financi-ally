@@ -10,20 +10,34 @@ use adapters::tauri_commands::transaction_commands::{
     search_transactions,
 };
 use config::app_config::initialize_app_state;
+use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Initialize async runtime for app state setup
-    let runtime = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
-
-    // Initialize application state (database connection, repository)
-    let app_state = runtime
-        .block_on(initialize_app_state())
-        .expect("Failed to initialize application state");
-
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .manage(app_state)
+        .setup(|app| {
+            // Initialize async runtime for app state setup
+            let runtime = tokio::runtime::Runtime::new()
+                .map_err(|e| format!("Failed to create Tokio runtime: {}", e))?;
+
+            // Get the app data directory
+            let app_data_dir = app.path().app_data_dir()
+                .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+
+            // Create the directory if it doesn't exist
+            std::fs::create_dir_all(&app_data_dir)
+                .map_err(|e| format!("Failed to create app data dir: {}", e))?;
+
+            // Initialize application state (database connection, repository)
+            let app_state = runtime
+                .block_on(initialize_app_state(app_data_dir))
+                .map_err(|e| format!("Failed to initialize application state: {}", e))?;
+
+            app.manage(app_state);
+
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             create_transaction,
             get_transaction,

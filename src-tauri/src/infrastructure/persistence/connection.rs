@@ -2,6 +2,8 @@ use sqlx::{SqlitePool, sqlite::SqlitePoolOptions};
 use std::time::Duration;
 
 use super::schema::run_migrations;
+
+#[cfg(not(target_os = "android"))]
 use crate::infrastructure::encryption::EncryptionKeyManager;
 
 /// Database connection configuration
@@ -58,8 +60,9 @@ impl DatabaseConfig {
 /// # Errors
 /// Returns error if connection fails, encryption setup fails, or migrations fail
 pub async fn create_pool(config: DatabaseConfig) -> Result<SqlitePool, sqlx::Error> {
-    // Get encryption key from keychain
-    // For in-memory databases (testing), we skip encryption
+    // Get encryption key from keychain (desktop only)
+    // Android uses OS-level encryption instead
+    #[cfg(not(target_os = "android"))]
     let encryption_key = if config.database_path != ":memory:" {
         let key_manager = EncryptionKeyManager::new()
             .map_err(|e| sqlx::Error::Configuration(Box::new(e)))?;
@@ -72,6 +75,9 @@ pub async fn create_pool(config: DatabaseConfig) -> Result<SqlitePool, sqlx::Err
     } else {
         None
     };
+
+    #[cfg(target_os = "android")]
+    let encryption_key: Option<String> = None;
 
     // Build connection string
     let connection_string = if config.database_path == ":memory:" {

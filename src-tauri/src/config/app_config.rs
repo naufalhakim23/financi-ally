@@ -17,25 +17,18 @@ use crate::{
     },
 };
 
-/// Get the database path for the application
-///
-/// In production, this will use the app's data directory.
-/// For now, we'll use a simple path in the app directory.
-pub fn get_database_path() -> PathBuf {
-    // TODO: Use tauri::api::path::app_data_dir() for production
-    // For development, use a local path
-    PathBuf::from("pocket-log.db")
-}
-
 /// Initialize the application state with database connection
 ///
 /// This function:
-/// 1. Gets the database path
+/// 1. Uses the provided app data directory
 /// 2. Creates connection pool (migrations run automatically)
 /// 3. Initializes repository
 /// 4. Returns AppState for Tauri managed state
-pub async fn initialize_app_state() -> Result<AppState, String> {
-    let db_path = get_database_path();
+///
+/// # Arguments
+/// * `app_data_dir` - The application's data directory (from Tauri)
+pub async fn initialize_app_state(app_data_dir: PathBuf) -> Result<AppState, String> {
+    let db_path = app_data_dir.join("pocket-log.db");
 
     // Create database config
     let config = DatabaseConfig::file(db_path.to_str().unwrap());

@@ -10,7 +10,7 @@
  */
 export interface EntryMetadata {
 	category?: string;
-	paymentMethod?: string;
+	payment_method?: string;
 	notes?: string;
 	receiptBase64?: string;
 }
@@ -23,25 +23,25 @@ export interface LedgerEntry {
 	id: string;
 
 	/** Transaction ID this entry belongs to */
-	transactionId: string;
+	transaction_id: string;
 
 	/** Amount in cents (positive value) */
-	amountCents: number;
+	amount_cents: number;
 
 	/** Entry type: "income" or "expense" */
 	type: 'income' | 'expense';
 
 	/** Whether this is a correction entry */
-	isCorrection: boolean;
+	is_correction: boolean;
 
 	/** Parent entry ID if this is a correction */
-	parentEntryId?: string;
+	parent_entry_id?: string;
 
 	/** Entry metadata */
 	metadata: EntryMetadata;
 
 	/** When the entry was created (ISO 8601) */
-	createdAt: string;
+	created_at: string;
 }
 
 /**
@@ -55,7 +55,7 @@ export interface Transaction {
 	description?: string;
 
 	/** When the transaction occurred (ISO 8601) */
-	occurredAt: string;
+	occurred_at: string;
 
 	/** Scope: "personal" or "business" */
 	scope: 'personal' | 'business';
@@ -64,7 +64,7 @@ export interface Transaction {
 	status: 'active' | 'corrected' | 'voided';
 
 	/** When the transaction was created (ISO 8601) */
-	createdAt: string;
+	created_at: string;
 
 	/** List of ledger entries */
 	entries: LedgerEntry[];
@@ -73,7 +73,7 @@ export interface Transaction {
 	 * Total amount in cents (computed from entries)
 	 * Positive for net income, negative for net expense
 	 */
-	totalAmountCents: number;
+	total_amount_cents: number;
 }
 
 /**
@@ -81,10 +81,10 @@ export interface Transaction {
  */
 export interface CreateTransactionRequest {
 	/** Amount in cents (positive value) */
-	amountCents: number;
+	amount_cents: number;
 
 	/** Type: "income" or "expense" */
-	transactionType: 'income' | 'expense';
+	transaction_type: 'income' | 'expense';
 
 	/** Scope: "personal" or "business" */
 	scope: 'personal' | 'business';
@@ -96,23 +96,23 @@ export interface CreateTransactionRequest {
 	category?: string;
 
 	/** Optional payment method */
-	paymentMethod?: string;
+	payment_method?: string;
 
 	/** Optional notes */
 	notes?: string;
 
 	/** Optional receipt as Base64 */
-	receiptBase64?: string;
+	receipt_base64?: string;
 
 	/** When the transaction occurred (ISO 8601), defaults to now if not provided */
-	occurredAt?: string;
+	occurred_at?: string;
 }
 
 /**
  * Request to get a transaction by ID
  */
 export interface GetTransactionRequest {
-	transactionId: string;
+	transaction_id: string;
 }
 
 /**

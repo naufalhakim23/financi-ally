@@ -27,14 +27,14 @@
 	 * Get display color for transaction type
 	 */
 	function getTypeColor(tx: Transaction): string {
-		return tx.totalAmountCents >= 0 ? 'text-green-600' : 'text-red-600';
+		return tx.total_amount_cents >= 0 ? 'text-green-600' : 'text-red-600';
 	}
 
 	/**
 	 * Get display label for transaction type
 	 */
 	function getTypeLabel(tx: Transaction): string {
-		return tx.totalAmountCents >= 0 ? 'Income' : 'Expense';
+		return tx.total_amount_cents >= 0 ? 'Income' : 'Expense';
 	}
 </script>
 
@@ -88,12 +88,12 @@
 									</h3>
 									<p class="transaction-meta">
 										<span class="badge badge-{transaction.scope}">{transaction.scope}</span>
-										<span class="transaction-date">{formatDateTime(transaction.occurredAt)}</span>
+										<span class="transaction-date">{formatDateTime(transaction.occurred_at)}</span>
 									</p>
 								</div>
 								<div class="transaction-amount">
 									<span class={getTypeColor(transaction)}>
-										{formatAmount(transaction.totalAmountCents)}
+										{formatAmount(transaction.total_amount_cents)}
 									</span>
 									<span class="transaction-type {getTypeColor(transaction)}">
 										{getTypeLabel(transaction)}
@@ -107,8 +107,8 @@
 									{#if entry.metadata.category}
 										<span class="detail-item">📂 {entry.metadata.category}</span>
 									{/if}
-									{#if entry.metadata.paymentMethod}
-										<span class="detail-item">💳 {entry.metadata.paymentMethod}</span>
+									{#if entry.metadata.payment_method}
+										<span class="detail-item">💳 {entry.metadata.payment_method}</span>
 									{/if}
 									{#if entry.metadata.notes}
 										<span class="detail-item">📝 {entry.metadata.notes}</span>

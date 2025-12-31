@@ -1,156 +1,409 @@
 <script lang="ts">
-  import { invoke } from '@tauri-apps/api/core';
+	import { onMount } from 'svelte';
+	import { transactionStore } from '$lib/application/stores/transactionStore.svelte';
+	import TransactionForm from '$lib/presentation/components/TransactionForm.svelte';
+	import { formatAmount, formatDateTime } from '$lib/domain/Transaction';
+	import type { Transaction } from '$lib/domain/Transaction';
 
-  let name = $state("");
-  let greetMsg = $state("");
+	// Load transactions on mount
+	onMount(async () => {
+		await transactionStore.loadTransactions();
+	});
 
-  async function greet(event: Event) {
-    event.preventDefault();
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    greetMsg = await invoke("greet", { name });
-  }
+	// Reactive values from store
+	const transactions = $derived(transactionStore.filteredTransactions);
+	const isLoading = $derived(transactionStore.isLoading);
+	const error = $derived(transactionStore.error);
+	const hasMore = $derived(transactionStore.hasMore);
+
+	/**
+	 * Handle load more
+	 */
+	async function handleLoadMore() {
+		await transactionStore.loadMore();
+	}
+
+	/**
+	 * Get display color for transaction type
+	 */
+	function getTypeColor(tx: Transaction): string {
+		return tx.totalAmountCents >= 0 ? 'text-green-600' : 'text-red-600';
+	}
+
+	/**
+	 * Get display label for transaction type
+	 */
+	function getTypeLabel(tx: Transaction): string {
+		return tx.totalAmountCents >= 0 ? 'Income' : 'Expense';
+	}
 </script>
 
-<main class="container">
-  <h1>Welcome to Tauri + Svelte</h1>
+<main class="app-container">
+	<header class="app-header">
+		<h1>Pocket Log</h1>
+		<p class="subtitle">Immutable Financial Ledger</p>
+	</header>
 
-  <div class="row">
-    <a href="https://vite.dev" target="_blank">
-      <img src="/vite.svg" class="logo vite" alt="Vite Logo" />
-    </a>
-    <a href="https://tauri.app" target="_blank">
-      <img src="/tauri.svg" class="logo tauri" alt="Tauri Logo" />
-    </a>
-    <a href="https://svelte.dev" target="_blank">
-      <img src="/svelte.svg" class="logo svelte-kit" alt="SvelteKit Logo" />
-    </a>
-  </div>
-  <p>Click on the Tauri, Vite, and SvelteKit logos to learn more.</p>
+	<div class="content-grid">
+		<!-- Left column: Transaction Form -->
+		<section class="form-section">
+			<TransactionForm />
+		</section>
 
-  <form class="row" onsubmit={greet}>
-    <input id="greet-input" placeholder="Enter a name..." bind:value={name} />
-    <button type="submit">Greet</button>
-  </form>
-  <p>{greetMsg}</p>
+		<!-- Right column: Transaction Timeline -->
+		<section class="timeline-section">
+			<div class="timeline-header">
+				<h2>Timeline</h2>
+				<button
+					class="btn-refresh"
+					onclick={() => transactionStore.refresh()}
+					disabled={isLoading}
+				>
+					{isLoading ? 'Loading...' : 'Refresh'}
+				</button>
+			</div>
+
+			<!-- Error message -->
+			{#if error}
+				<div class="alert alert-error">
+					<p>{error}</p>
+					<button onclick={() => transactionStore.clearError()}>Dismiss</button>
+				</div>
+			{/if}
+
+			<!-- Transaction list -->
+			<div class="transaction-list">
+				{#if transactions.length === 0 && !isLoading}
+					<div class="empty-state">
+						<p>No transactions yet</p>
+						<p class="empty-subtitle">Create your first transaction to get started</p>
+					</div>
+				{:else}
+					{#each transactions as transaction (transaction.id)}
+						<div class="transaction-card">
+							<div class="transaction-header">
+								<div class="transaction-info">
+									<h3 class="transaction-description">
+										{transaction.description || 'No description'}
+									</h3>
+									<p class="transaction-meta">
+										<span class="badge badge-{transaction.scope}">{transaction.scope}</span>
+										<span class="transaction-date">{formatDateTime(transaction.occurredAt)}</span>
+									</p>
+								</div>
+								<div class="transaction-amount">
+									<span class={getTypeColor(transaction)}>
+										{formatAmount(transaction.totalAmountCents)}
+									</span>
+									<span class="transaction-type {getTypeColor(transaction)}">
+										{getTypeLabel(transaction)}
+									</span>
+								</div>
+							</div>
+
+							<!-- Entry details -->
+							{#each transaction.entries as entry}
+								<div class="entry-details">
+									{#if entry.metadata.category}
+										<span class="detail-item">📂 {entry.metadata.category}</span>
+									{/if}
+									{#if entry.metadata.paymentMethod}
+										<span class="detail-item">💳 {entry.metadata.paymentMethod}</span>
+									{/if}
+									{#if entry.metadata.notes}
+										<span class="detail-item">📝 {entry.metadata.notes}</span>
+									{/if}
+								</div>
+							{/each}
+						</div>
+					{/each}
+
+					<!-- Load more button -->
+					{#if hasMore}
+						<button class="btn-load-more" onclick={handleLoadMore} disabled={isLoading}>
+							{isLoading ? 'Loading...' : 'Load More'}
+						</button>
+					{/if}
+				{/if}
+			</div>
+		</section>
+	</div>
 </main>
 
 <style>
-.logo.vite:hover {
-  filter: drop-shadow(0 0 2em #747bff);
-}
+	* {
+		box-sizing: border-box;
+	}
 
-.logo.svelte-kit:hover {
-  filter: drop-shadow(0 0 2em #ff3e00);
-}
+	:global(body) {
+		margin: 0;
+		padding: 0;
+		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+			sans-serif;
+		background-color: #f7fafc;
+		color: #1a202c;
+	}
 
-:root {
-  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
-  font-size: 16px;
-  line-height: 24px;
-  font-weight: 400;
+	.app-container {
+		min-height: 100vh;
+		padding: 2rem;
+	}
 
-  color: #0f0f0f;
-  background-color: #f6f6f6;
+	.app-header {
+		text-align: center;
+		margin-bottom: 2rem;
+	}
 
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  -webkit-text-size-adjust: 100%;
-}
+	.app-header h1 {
+		margin: 0;
+		font-size: 2.5rem;
+		font-weight: 700;
+		color: #2d3748;
+	}
 
-.container {
-  margin: 0;
-  padding-top: 10vh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  text-align: center;
-}
+	.subtitle {
+		margin: 0.5rem 0 0 0;
+		color: #718096;
+		font-size: 1rem;
+	}
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: 0.75s;
-}
+	.content-grid {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 2rem;
+		max-width: 1400px;
+		margin: 0 auto;
+	}
 
-.logo.tauri:hover {
-  filter: drop-shadow(0 0 2em #24c8db);
-}
+	.form-section,
+	.timeline-section {
+		min-height: 400px;
+	}
 
-.row {
-  display: flex;
-  justify-content: center;
-}
+	.timeline-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 1.5rem;
+		padding: 0 0.5rem;
+	}
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
+	.timeline-header h2 {
+		margin: 0;
+		font-size: 1.5rem;
+		font-weight: 600;
+		color: #2d3748;
+	}
 
-a:hover {
-  color: #535bf2;
-}
+	.btn-refresh {
+		padding: 0.5rem 1rem;
+		background-color: #4299e1;
+		color: white;
+		border: none;
+		border-radius: 4px;
+		cursor: pointer;
+		font-weight: 500;
+		transition: background-color 0.2s;
+	}
 
-h1 {
-  text-align: center;
-}
+	.btn-refresh:hover:not(:disabled) {
+		background-color: #3182ce;
+	}
 
-input,
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  color: #0f0f0f;
-  background-color: #ffffff;
-  transition: border-color 0.25s;
-  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
-}
+	.btn-refresh:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
 
-button {
-  cursor: pointer;
-}
+	.transaction-list {
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
+	}
 
-button:hover {
-  border-color: #396cd8;
-}
-button:active {
-  border-color: #396cd8;
-  background-color: #e8e8e8;
-}
+	.transaction-card {
+		background: white;
+		padding: 1.25rem;
+		border-radius: 8px;
+		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+		transition: box-shadow 0.2s;
+	}
 
-input,
-button {
-  outline: none;
-}
+	.transaction-card:hover {
+		box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+	}
 
-#greet-input {
-  margin-right: 5px;
-}
+	.transaction-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: flex-start;
+		gap: 1rem;
+	}
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    color: #f6f6f6;
-    background-color: #2f2f2f;
-  }
+	.transaction-info {
+		flex: 1;
+	}
 
-  a:hover {
-    color: #24c8db;
-  }
+	.transaction-description {
+		margin: 0 0 0.5rem 0;
+		font-size: 1.125rem;
+		font-weight: 600;
+		color: #2d3748;
+	}
 
-  input,
-  button {
-    color: #ffffff;
-    background-color: #0f0f0f98;
-  }
-  button:active {
-    background-color: #0f0f0f69;
-  }
-}
+	.transaction-meta {
+		display: flex;
+		gap: 0.75rem;
+		align-items: center;
+		margin: 0;
+		font-size: 0.875rem;
+		color: #718096;
+	}
 
+	.badge {
+		display: inline-block;
+		padding: 0.25rem 0.5rem;
+		border-radius: 4px;
+		font-size: 0.75rem;
+		font-weight: 600;
+		text-transform: uppercase;
+	}
+
+	.badge-personal {
+		background-color: #bee3f8;
+		color: #2c5282;
+	}
+
+	.badge-business {
+		background-color: #faf089;
+		color: #744210;
+	}
+
+	.transaction-date {
+		font-size: 0.875rem;
+	}
+
+	.transaction-amount {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-end;
+		gap: 0.25rem;
+	}
+
+	.transaction-amount span:first-child {
+		font-size: 1.5rem;
+		font-weight: 700;
+	}
+
+	.transaction-type {
+		font-size: 0.75rem;
+		font-weight: 600;
+		text-transform: uppercase;
+	}
+
+	.text-green-600 {
+		color: #38a169;
+	}
+
+	.text-red-600 {
+		color: #e53e3e;
+	}
+
+	.entry-details {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.75rem;
+		margin-top: 1rem;
+		padding-top: 1rem;
+		border-top: 1px solid #e2e8f0;
+	}
+
+	.detail-item {
+		font-size: 0.875rem;
+		color: #4a5568;
+	}
+
+	.empty-state {
+		text-align: center;
+		padding: 4rem 2rem;
+		color: #a0aec0;
+	}
+
+	.empty-state p {
+		margin: 0.5rem 0;
+	}
+
+	.empty-subtitle {
+		font-size: 0.875rem;
+	}
+
+	.btn-load-more {
+		width: 100%;
+		padding: 0.75rem;
+		background-color: #edf2f7;
+		color: #2d3748;
+		border: none;
+		border-radius: 4px;
+		cursor: pointer;
+		font-weight: 500;
+		transition: background-color 0.2s;
+	}
+
+	.btn-load-more:hover:not(:disabled) {
+		background-color: #e2e8f0;
+	}
+
+	.btn-load-more:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.alert {
+		padding: 1rem;
+		border-radius: 4px;
+		margin-bottom: 1rem;
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+	}
+
+	.alert-error {
+		background-color: #fed7d7;
+		color: #742a2a;
+		border: 1px solid #fc8181;
+	}
+
+	.alert button {
+		background: none;
+		border: none;
+		color: #742a2a;
+		text-decoration: underline;
+		cursor: pointer;
+	}
+
+	/* Mobile responsive */
+	@media (max-width: 1024px) {
+		.content-grid {
+			grid-template-columns: 1fr;
+		}
+	}
+
+	@media (max-width: 640px) {
+		.app-container {
+			padding: 1rem;
+		}
+
+		.app-header h1 {
+			font-size: 2rem;
+		}
+
+		.transaction-header {
+			flex-direction: column;
+			align-items: flex-start;
+		}
+
+		.transaction-amount {
+			align-items: flex-start;
+		}
+	}
 </style>

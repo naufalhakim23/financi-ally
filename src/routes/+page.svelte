@@ -131,6 +131,27 @@
 		newNotes: ''
 	});
 
+	// Receipt viewer state
+	let showReceiptViewer = $state(false);
+	let currentReceiptBase64 = $state<string | null>(null);
+
+	/**
+	 * Open receipt viewer
+	 */
+	function openReceiptViewer(receiptBase64: string | undefined) {
+		if (!receiptBase64) return;
+		currentReceiptBase64 = receiptBase64;
+		showReceiptViewer = true;
+	}
+
+	/**
+	 * Close receipt viewer
+	 */
+	function closeReceiptViewer() {
+		showReceiptViewer = false;
+		currentReceiptBase64 = null;
+	}
+
 	/**
 	 * Open correction dialog
 	 */
@@ -301,7 +322,7 @@
 										<button
 											type="button"
 											class="receipt-thumbnail-button"
-											onclick={() => window.open(`data:image/jpeg;base64,${entry.metadata.receipt_base64}`, '_blank')}
+											onclick={() => openReceiptViewer(entry.metadata.receipt_base64)}
 											title="View receipt in full size"
 										>
 											<img
@@ -398,6 +419,42 @@
 						Cancel
 					</button>
 					<button class="btn btn-primary" onclick={submitCorrection}> Submit Correction </button>
+				</div>
+			</div>
+		</div>
+	{/if}
+
+	<!-- Receipt Viewer Modal -->
+	{#if showReceiptViewer && currentReceiptBase64}
+		<div
+			class="modal-overlay"
+			role="presentation"
+			onclick={closeReceiptViewer}
+			onkeydown={(e) => e.key === 'Escape' && closeReceiptViewer()}
+		>
+			<div
+				class="modal-content receipt-modal"
+				role="dialog"
+				aria-modal="true"
+				tabindex="0"
+				onclick={(e) => e.stopPropagation()}
+				onkeydown={(e) => e.stopPropagation()}
+			>
+				<div class="receipt-modal-header">
+					<h2 class="modal-title">Receipt</h2>
+					<button class="btn-close" onclick={closeReceiptViewer} type="button"> ✕ </button>
+				</div>
+
+				<div class="receipt-image-container">
+					<img
+						src="data:image/jpeg;base64,{currentReceiptBase64}"
+						alt="Receipt full size"
+						class="receipt-full-size"
+					/>
+				</div>
+
+				<div class="modal-actions">
+					<button class="btn btn-secondary" onclick={closeReceiptViewer}> Close </button>
 				</div>
 			</div>
 		</div>
@@ -854,5 +911,56 @@
 		.modal-actions {
 			flex-direction: column;
 		}
+	}
+
+	/* Receipt Viewer Modal */
+	.receipt-modal {
+		max-width: 90vw;
+		max-height: 90vh;
+		padding: 1.5rem;
+	}
+
+	.receipt-modal-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 1rem;
+	}
+
+	.receipt-modal-header .modal-title {
+		margin: 0;
+	}
+
+	.btn-close {
+		background: none;
+		border: none;
+		font-size: 1.5rem;
+		color: #718096;
+		cursor: pointer;
+		padding: 0.25rem 0.5rem;
+		transition: color 0.2s;
+	}
+
+	.btn-close:hover {
+		color: #2d3748;
+	}
+
+	.receipt-image-container {
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		max-height: 70vh;
+		overflow: auto;
+		background: #f7fafc;
+		border-radius: 4px;
+		padding: 1rem;
+	}
+
+	.receipt-full-size {
+		max-width: 100%;
+		max-height: 100%;
+		height: auto;
+		object-fit: contain;
+		border-radius: 4px;
 	}
 </style>

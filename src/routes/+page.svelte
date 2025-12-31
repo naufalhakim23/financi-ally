@@ -36,6 +36,77 @@
 	function getTypeLabel(tx: Transaction): string {
 		return tx.total_amount_cents >= 0 ? 'Income' : 'Expense';
 	}
+
+	// Correction dialog state
+	let showCorrectionDialog = $state(false);
+	let correctionData = $state({
+		transactionId: '',
+		entryId: '',
+		currentAmount: 0,
+		newAmount: '',
+		currentCategory: '',
+		newCategory: '',
+		currentPaymentMethod: '',
+		newPaymentMethod: '',
+		currentNotes: '',
+		newNotes: ''
+	});
+
+	/**
+	 * Open correction dialog
+	 */
+	function openCorrectionDialog(transactionId: string, entry: any) {
+		correctionData = {
+			transactionId,
+			entryId: entry.id,
+			currentAmount: entry.amount_cents / 100,
+			newAmount: (entry.amount_cents / 100).toFixed(2),
+			currentCategory: entry.metadata.category || '',
+			newCategory: entry.metadata.category || '',
+			currentPaymentMethod: entry.metadata.payment_method || '',
+			newPaymentMethod: entry.metadata.payment_method || '',
+			currentNotes: entry.metadata.notes || '',
+			newNotes: entry.metadata.notes || 'Corrected entry'
+		};
+		showCorrectionDialog = true;
+	}
+
+	/**
+	 * Submit correction
+	 */
+	async function submitCorrection() {
+		const newAmount = parseFloat(correctionData.newAmount);
+		if (isNaN(newAmount) || newAmount <= 0) {
+			alert('Please enter a valid amount greater than 0');
+			return;
+		}
+
+		try {
+			const { invoke } = await import('@tauri-apps/api/core');
+
+			await invoke('correct_transaction', {
+				request: {
+					transactionId: correctionData.transactionId,
+					entryId: correctionData.entryId,
+					newAmountCents: Math.round(newAmount * 100),
+					newCategory: correctionData.newCategory || undefined,
+					newPaymentMethod: correctionData.newPaymentMethod || undefined,
+					newNotes: correctionData.newNotes || undefined,
+					newReceiptBase64: undefined
+				}
+			});
+
+			// Close dialog and refresh
+			showCorrectionDialog = false;
+			await transactionStore.refresh();
+			alert(
+				'✅ Correction successful!\n\nCheck the transaction - it now has 3 entries:\n• Original entry\n• Reversal entry (negates original)\n• Corrected entry (new values)'
+			);
+		} catch (error) {
+			alert(`❌ Correction failed: ${error}`);
+			console.error('Correction error:', error);
+		}
+	}
 </script>
 
 <main class="app-container">
@@ -104,14 +175,34 @@
 							<!-- Entry details -->
 							{#each transaction.entries as entry}
 								<div class="entry-details">
-									{#if entry.metadata.category}
-										<span class="detail-item">📂 {entry.metadata.category}</span>
-									{/if}
-									{#if entry.metadata.payment_method}
-										<span class="detail-item">💳 {entry.metadata.payment_method}</span>
-									{/if}
-									{#if entry.metadata.notes}
-										<span class="detail-item">📝 {entry.metadata.notes}</span>
+									<div class="entry-info">
+										<span class="detail-item">
+											{#if entry.is_correction}
+												<strong class="correction-badge">
+													{entry.amount_cents < 0 ? '↩️ Reversal' : '✏️ Corrected'}
+												</strong>
+											{:else}
+												💰 Original Entry
+											{/if}
+											| ${Math.abs(entry.amount_cents / 100).toFixed(2)}
+										</span>
+										{#if entry.metadata.category}
+											<span class="detail-item">📂 {entry.metadata.category}</span>
+										{/if}
+										{#if entry.metadata.payment_method}
+											<span class="detail-item">💳 {entry.metadata.payment_method}</span>
+										{/if}
+										{#if entry.metadata.notes}
+											<span class="detail-item">📝 {entry.metadata.notes}</span>
+										{/if}
+									</div>
+									{#if !entry.is_correction}
+										<button
+											class="btn-correct"
+											onclick={() => openCorrectionDialog(transaction.id, entry)}
+										>
+											Correct
+										</button>
 									{/if}
 								</div>
 							{/each}
@@ -128,6 +219,81 @@
 			</div>
 		</section>
 	</div>
+
+	<!-- Correction Dialog Modal -->
+	{#if showCorrectionDialog}
+		<div
+			class="modal-overlay"
+			role="presentation"
+			onclick={() => (showCorrectionDialog = false)}
+			onkeydown={(e) => e.key === 'Escape' && (showCorrectionDialog = false)}
+		>
+			<div
+				class="modal-content"
+				role="dialog"
+				aria-modal="true"
+				tabindex="0"
+				onclick={(e) => e.stopPropagation()}
+				onkeydown={(e) => e.stopPropagation()}
+			>
+				<h2 class="modal-title">Correct Entry</h2>
+
+				<div class="form-group">
+					<label for="amount-input">
+						Amount (current: ${correctionData.currentAmount.toFixed(2)})
+					</label>
+					<input
+						id="amount-input"
+						type="number"
+						step="0.01"
+						bind:value={correctionData.newAmount}
+						placeholder="Enter new amount"
+					/>
+				</div>
+
+				<div class="form-group">
+					<label for="category-input">
+						Category (current: {correctionData.currentCategory || 'none'})
+					</label>
+					<input
+						id="category-input"
+						type="text"
+						bind:value={correctionData.newCategory}
+						placeholder="Enter category"
+					/>
+				</div>
+
+				<div class="form-group">
+					<label for="payment-method-input">
+						Payment Method (current: {correctionData.currentPaymentMethod || 'none'})
+					</label>
+					<input
+						id="payment-method-input"
+						type="text"
+						bind:value={correctionData.newPaymentMethod}
+						placeholder="Enter payment method"
+					/>
+				</div>
+
+				<div class="form-group">
+					<label for="notes-input"> Notes (current: {correctionData.currentNotes || 'none'}) </label>
+					<textarea
+						id="notes-input"
+						bind:value={correctionData.newNotes}
+						placeholder="Enter notes"
+						rows="3"
+					></textarea>
+				</div>
+
+				<div class="modal-actions">
+					<button class="btn btn-secondary" onclick={() => (showCorrectionDialog = false)}>
+						Cancel
+					</button>
+					<button class="btn btn-primary" onclick={submitCorrection}> Submit Correction </button>
+				</div>
+			</div>
+		</div>
+	{/if}
 </main>
 
 <style>
@@ -311,16 +477,46 @@
 
 	.entry-details {
 		display: flex;
-		flex-wrap: wrap;
+		justify-content: space-between;
+		align-items: center;
 		gap: 0.75rem;
 		margin-top: 1rem;
 		padding-top: 1rem;
 		border-top: 1px solid #e2e8f0;
 	}
 
+	.entry-info {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.75rem;
+		flex: 1;
+	}
+
 	.detail-item {
 		font-size: 0.875rem;
 		color: #4a5568;
+	}
+
+	.correction-badge {
+		color: #805ad5;
+		font-weight: 600;
+	}
+
+	.btn-correct {
+		padding: 0.5rem 1rem;
+		background-color: #805ad5;
+		color: white;
+		border: none;
+		border-radius: 4px;
+		font-size: 0.875rem;
+		font-weight: 500;
+		cursor: pointer;
+		transition: background-color 0.2s;
+		white-space: nowrap;
+	}
+
+	.btn-correct:hover {
+		background-color: #6b46c1;
 	}
 
 	.empty-state {
@@ -381,6 +577,103 @@
 		cursor: pointer;
 	}
 
+	/* Modal styles */
+	.modal-overlay {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background-color: rgba(0, 0, 0, 0.5);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 1000;
+	}
+
+	.modal-content {
+		background: white;
+		padding: 2rem;
+		border-radius: 8px;
+		max-width: 500px;
+		width: 90%;
+		max-height: 80vh;
+		overflow-y: auto;
+		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+	}
+
+	.modal-title {
+		margin: 0 0 1.5rem 0;
+		font-size: 1.5rem;
+		font-weight: 600;
+		color: #2d3748;
+	}
+
+	.modal-actions {
+		display: flex;
+		gap: 1rem;
+		margin-top: 1.5rem;
+	}
+
+	.form-group {
+		margin-bottom: 1.25rem;
+	}
+
+	.form-group label {
+		display: block;
+		margin-bottom: 0.5rem;
+		font-weight: 500;
+		color: #4a5568;
+		font-size: 0.875rem;
+	}
+
+	.form-group input[type='text'],
+	.form-group input[type='number'],
+	.form-group textarea {
+		width: 100%;
+		padding: 0.75rem;
+		border: 1px solid #cbd5e0;
+		border-radius: 4px;
+		font-size: 1rem;
+		transition: border-color 0.2s;
+	}
+
+	.form-group input:focus,
+	.form-group textarea:focus {
+		outline: none;
+		border-color: #4299e1;
+		box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+	}
+
+	.btn {
+		flex: 1;
+		padding: 0.75rem 1.5rem;
+		border: none;
+		border-radius: 4px;
+		font-size: 1rem;
+		font-weight: 500;
+		cursor: pointer;
+		transition: all 0.2s;
+	}
+
+	.btn-primary {
+		background-color: #4299e1;
+		color: white;
+	}
+
+	.btn-primary:hover {
+		background-color: #3182ce;
+	}
+
+	.btn-secondary {
+		background-color: #e2e8f0;
+		color: #2d3748;
+	}
+
+	.btn-secondary:hover {
+		background-color: #cbd5e0;
+	}
+
 	/* Mobile responsive */
 	@media (max-width: 1024px) {
 		.content-grid {
@@ -404,6 +697,14 @@
 
 		.transaction-amount {
 			align-items: flex-start;
+		}
+
+		.modal-content {
+			padding: 1.5rem;
+		}
+
+		.modal-actions {
+			flex-direction: column;
 		}
 	}
 </style>

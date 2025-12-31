@@ -62,8 +62,13 @@ impl DatabaseConfig {
 pub async fn create_pool(config: DatabaseConfig) -> Result<SqlitePool, sqlx::Error> {
     // Get encryption key from keychain (desktop only)
     // Android uses OS-level encryption instead
+    // In debug mode, disable encryption for easier development/debugging
     #[cfg(not(target_os = "android"))]
-    let encryption_key = if config.database_path != ":memory:" {
+    let encryption_key = if cfg!(debug_assertions) {
+        // Debug mode: no encryption for easier database inspection
+        None
+    } else if config.database_path != ":memory:" {
+        // Release mode: use encryption
         let key_manager = EncryptionKeyManager::new()
             .map_err(|e| sqlx::Error::Configuration(Box::new(e)))?;
 

@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS transactions (
     occurred_at TEXT NOT NULL,        -- ISO 8601: when transaction occurred
     scope TEXT CHECK(scope IN ('personal', 'business')) NOT NULL,
     status TEXT DEFAULT 'active' CHECK(status IN ('active', 'corrected', 'voided')) NOT NULL,
-    created_at TEXT DEFAULT (datetime('now')) NOT NULL
+    created_at TEXT NOT NULL          -- ISO 8601: when transaction was created (app provides)
 );
 
 -- Ledger entries table: Immutable record of value movements
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS ledger_entries (
     is_correction BOOLEAN DEFAULT 0 NOT NULL,
     parent_entry_id TEXT REFERENCES ledger_entries(id),  -- For correction chain
     metadata TEXT,                    -- JSON: {category, payment_method, notes, receipt_base64}
-    created_at TEXT DEFAULT (datetime('now')) NOT NULL
+    created_at TEXT NOT NULL          -- ISO 8601: when entry was created (app provides)
 );
 
 -- Performance indexes
@@ -88,7 +88,7 @@ END;
 pub const VERSION_TABLE: &str = r#"
 CREATE TABLE IF NOT EXISTS schema_version (
     version INTEGER PRIMARY KEY,
-    applied_at TEXT DEFAULT (datetime('now')) NOT NULL
+    applied_at TEXT NOT NULL  -- ISO 8601: when migration was applied (app provides)
 );
 "#;
 
@@ -119,7 +119,9 @@ pub async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
         apply_v1_schema(pool).await?;
 
         // Mark version as applied
-        sqlx::query("INSERT INTO schema_version (version) VALUES (1)")
+        let now = chrono::Utc::now().to_rfc3339();
+        sqlx::query("INSERT INTO schema_version (version, applied_at) VALUES (1, ?)")
+            .bind(&now)
             .execute(pool)
             .await?;
     }
@@ -128,7 +130,9 @@ pub async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
         apply_v2_schema(pool).await?;
 
         // Mark version as applied
-        sqlx::query("INSERT INTO schema_version (version) VALUES (2)")
+        let now = chrono::Utc::now().to_rfc3339();
+        sqlx::query("INSERT INTO schema_version (version, applied_at) VALUES (2, ?)")
+            .bind(&now)
             .execute(pool)
             .await?;
     }
@@ -242,7 +246,7 @@ async fn apply_v2_schema(pool: &SqlitePool) -> Result<(), sqlx::Error> {
             initial_balance_cents INTEGER NOT NULL DEFAULT 0,
             current_balance_cents INTEGER NOT NULL DEFAULT 0,
             is_default BOOLEAN DEFAULT 0 NOT NULL,
-            created_at TEXT DEFAULT (datetime('now')) NOT NULL,
+            created_at TEXT NOT NULL,
             updated_at TEXT,
             deleted_at TEXT
         )"
@@ -277,12 +281,14 @@ async fn apply_v2_schema(pool: &SqlitePool) -> Result<(), sqlx::Error> {
     // 5. Create default pocket (using UUID v7)
     use crate::domain::value_objects::TransactionId;
     let default_pocket_id = TransactionId::new().to_string();
+    let now = chrono::Utc::now();
 
     sqlx::query(
-        "INSERT INTO pockets (id, name, currency, description, icon, color, is_default, initial_balance_cents, current_balance_cents)
-         VALUES (?, 'Main Wallet', 'USD', 'Default pocket for all transactions', '💰', '#4299E1', 1, 0, 0)"
+        "INSERT INTO pockets (id, name, currency, description, icon, color, is_default, initial_balance_cents, current_balance_cents, created_at)
+         VALUES (?, 'Main Wallet', 'USD', 'Default pocket for all transactions', '💰', '#4299E1', 1, 0, 0, ?)"
     )
     .bind(&default_pocket_id)
+    .bind(now.format("%Y-%m-%dT%H:%M:%SZ").to_string())
     .execute(&mut *tx)
     .await?;
 

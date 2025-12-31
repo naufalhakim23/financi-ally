@@ -29,15 +29,23 @@ impl Timestamp {
     ///
     /// # Arguments
     /// * `s` - ISO 8601 formatted string (e.g., "2025-12-29T10:30:00Z")
+    ///        or SQLite datetime format (e.g., "2025-12-29 10:30:00")
     ///
     /// # Returns
     /// Result containing Timestamp or DomainError if format is invalid
     pub fn from_string(s: &str) -> Result<Self, DomainError> {
-        // Basic validation - check if it can be parsed
-        chrono::DateTime::parse_from_rfc3339(s)
-            .map_err(|e| DomainError::InvalidTimestamp(format!("Invalid ISO 8601 format: {}", e)))?;
+        // Try ISO 8601 format first
+        if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(s) {
+            return Ok(Timestamp(s.to_string()));
+        }
 
-        Ok(Timestamp(s.to_string()))
+        // Try SQLite datetime format (YYYY-MM-DD HH:MM:SS)
+        if s.matches('-').count() == 2 && s.contains(' ') && s.matches(':').count() == 2 {
+            let iso_string = format!("{}Z", s.replace(' ', "T"));
+            return Ok(Timestamp(iso_string));
+        }
+
+        Err(DomainError::InvalidTimestamp(format!("Invalid timestamp format: {}", s)))
     }
 
     /// Create a Timestamp from Unix timestamp (seconds since epoch)
@@ -93,6 +101,15 @@ mod tests {
         let invalid_str = "not-a-timestamp";
         let result = Timestamp::from_string(invalid_str);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_from_string_sqlite_format() {
+        let sqlite_str = "2025-12-29 10:30:00";
+        let result = Timestamp::from_string(sqlite_str);
+        assert!(result.is_ok());
+        let ts = result.unwrap();
+        assert_eq!(ts.as_string(), "2025-12-29T10:30:00Z");
     }
 
     #[test]

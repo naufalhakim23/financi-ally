@@ -3,7 +3,7 @@ use sqlx::SqlitePool;
 use std::sync::Arc;
 
 use crate::domain::{
-    entities::transaction::Transaction,
+    entities::{correction::CorrectionResult, transaction::Transaction},
     repositories::transaction_repository::{RepositoryError, TransactionRepository},
     value_objects::TransactionId,
 };
@@ -252,6 +252,77 @@ impl TransactionRepository for SqliteTransactionRepository {
         if result.rows_affected() == 0 {
             return Err(RepositoryError::NotFound(id_str));
         }
+
+        Ok(())
+    }
+
+    async fn apply_correction(
+        &self,
+        transaction_id: &TransactionId,
+        correction: CorrectionResult,
+    ) -> Result<(), RepositoryError> {
+        // Start a database transaction for atomicity
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?;
+
+        // Insert reversal entry
+        let reversal_row = LedgerEntryRow::from_domain(&correction.reversal_entry);
+        sqlx::query(
+            "INSERT INTO ledger_entries (id, transaction_id, amount_cents, type, is_correction, parent_entry_id, metadata, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+        )
+        .bind(&reversal_row.id)
+        .bind(&reversal_row.transaction_id)
+        .bind(reversal_row.amount_cents)
+        .bind(&reversal_row.entry_type)
+        .bind(reversal_row.is_correction)
+        .bind(&reversal_row.parent_entry_id)
+        .bind(&reversal_row.metadata)
+        .bind(&reversal_row.created_at)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| RepositoryError::DatabaseError(format!("Failed to insert reversal entry: {}", e)))?;
+
+        // Insert corrected entry
+        let corrected_row = LedgerEntryRow::from_domain(&correction.corrected_entry);
+        sqlx::query(
+            "INSERT INTO ledger_entries (id, transaction_id, amount_cents, type, is_correction, parent_entry_id, metadata, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+        )
+        .bind(&corrected_row.id)
+        .bind(&corrected_row.transaction_id)
+        .bind(corrected_row.amount_cents)
+        .bind(&corrected_row.entry_type)
+        .bind(corrected_row.is_correction)
+        .bind(&corrected_row.parent_entry_id)
+        .bind(&corrected_row.metadata)
+        .bind(&corrected_row.created_at)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| RepositoryError::DatabaseError(format!("Failed to insert corrected entry: {}", e)))?;
+
+        // Mark transaction as corrected
+        let id_str = transaction_id.to_string();
+        let result = sqlx::query("UPDATE transactions SET status = 'corrected' WHERE id = ?")
+            .bind(&id_str)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| RepositoryError::DatabaseError(format!("Failed to mark transaction as corrected: {}", e)))?;
+
+        if result.rows_affected() == 0 {
+            return Err(RepositoryError::NotFound(format!(
+                "Transaction {} not found when applying correction",
+                id_str
+            )));
+        }
+
+        // Commit the transaction
+        tx.commit()
+            .await
+            .map_err(|e| RepositoryError::DatabaseError(format!("Failed to commit correction transaction: {}", e)))?;
 
         Ok(())
     }

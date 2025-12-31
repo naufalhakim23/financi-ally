@@ -6,5 +6,7 @@
 // - Handlers use the repository to persist changes
 
 pub mod create_transaction;
+pub mod correct_transaction;
 
 pub use create_transaction::{CreateTransactionCommand, CreateTransactionHandler};
+pub use correct_transaction::{CorrectTransactionCommand, CorrectTransactionHandler};

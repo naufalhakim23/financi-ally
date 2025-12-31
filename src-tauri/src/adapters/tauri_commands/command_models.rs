@@ -83,6 +83,36 @@ pub struct SearchTransactionsRequest {
     pub query: String,
 }
 
+/// Request to correct a transaction entry
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CorrectTransactionRequest {
+    /// Transaction ID containing the entry
+    pub transaction_id: String,
+
+    /// Entry ID to correct
+    pub entry_id: String,
+
+    /// New corrected amount in cents
+    pub new_amount_cents: i64,
+
+    /// New or updated category
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub new_category: Option<String>,
+
+    /// New or updated payment method
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub new_payment_method: Option<String>,
+
+    /// New or updated notes
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub new_notes: Option<String>,
+
+    /// New or updated receipt (Base64)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub new_receipt_base64: Option<String>,
+}
+
 // ============================================================================
 // Response Models
 // ============================================================================

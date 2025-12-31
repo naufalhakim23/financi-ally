@@ -16,12 +16,15 @@ use tauri::State;
 
 use crate::{
     adapters::tauri_commands::command_models::{
-        CreateTransactionRequest, ErrorResponse, GetTransactionRequest,
+        CorrectTransactionRequest, CreateTransactionRequest, ErrorResponse, GetTransactionRequest,
         ListTransactionsRequest, OptionalTransactionResponse, SearchTransactionsRequest,
         TransactionListResponse, TransactionResponse,
     },
     application::{
-        commands::{CreateTransactionCommand, CreateTransactionHandler},
+        commands::{
+            CorrectTransactionCommand, CorrectTransactionHandler, CreateTransactionCommand,
+            CreateTransactionHandler,
+        },
         queries::{
             GetTransactionHandler, GetTransactionQuery, ListTransactionsHandler,
             ListTransactionsQuery, SearchTransactionsHandler, SearchTransactionsQuery,
@@ -164,6 +167,32 @@ pub async fn search_transactions(
     let handler = SearchTransactionsHandler::new(state.repository.clone());
     match handler.handle(query).await {
         Ok(dtos) => Ok(TransactionListResponse::ok(dtos)),
+        Err(e) => Err(ErrorResponse::internal_error(e.to_string())),
+    }
+}
+
+// ============================================================================
+// Command: Correct Transaction
+// ============================================================================
+
+#[tauri::command]
+pub async fn correct_transaction(
+    request: CorrectTransactionRequest,
+    state: State<'_, AppState>,
+) -> Result<TransactionResponse, ErrorResponse> {
+    let command = CorrectTransactionCommand {
+        transaction_id: request.transaction_id,
+        entry_id: request.entry_id,
+        new_amount_cents: request.new_amount_cents,
+        new_category: request.new_category,
+        new_payment_method: request.new_payment_method,
+        new_notes: request.new_notes,
+        new_receipt_base64: request.new_receipt_base64,
+    };
+
+    let handler = CorrectTransactionHandler::new(state.repository.clone());
+    match handler.handle(command).await {
+        Ok(dto) => Ok(TransactionResponse::ok(dto)),
         Err(e) => Err(ErrorResponse::internal_error(e.to_string())),
     }
 }

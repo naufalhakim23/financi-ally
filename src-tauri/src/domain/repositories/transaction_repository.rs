@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 
 use crate::domain::{
-    entities::transaction::Transaction,
+    entities::{correction::CorrectionResult, transaction::Transaction},
     errors::DomainError,
     value_objects::TransactionId,
 };
@@ -17,6 +17,9 @@ pub enum RepositoryError {
 
     #[error("Domain error: {0}")]
     DomainError(#[from] DomainError),
+
+    #[error("Validation error: {0}")]
+    ValidationError(String),
 
     #[error("Serialization error: {0}")]
     SerializationError(String),
@@ -100,4 +103,25 @@ pub trait TransactionRepository: Send + Sync {
     /// # Returns
     /// Result indicating success or error
     async fn mark_voided(&self, transaction_id: &TransactionId) -> Result<(), RepositoryError>;
+
+    /// Apply a correction to a transaction
+    ///
+    /// This atomically:
+    /// 1. Inserts the reversal entry (negates original)
+    /// 2. Inserts the corrected entry (with new data)
+    /// 3. Marks the transaction as "corrected"
+    ///
+    /// CRITICAL: Must be atomic - all three operations succeed or all fail
+    ///
+    /// # Arguments
+    /// * `transaction_id` - The transaction to correct
+    /// * `correction` - The correction result containing reversal and corrected entries
+    ///
+    /// # Returns
+    /// Result indicating success or error
+    async fn apply_correction(
+        &self,
+        transaction_id: &TransactionId,
+        correction: CorrectionResult,
+    ) -> Result<(), RepositoryError>;
 }

@@ -6,7 +6,8 @@ mod adapters;        // Primary adapters: Tauri commands (Phase 4)
 mod config;          // Configuration (Phase 4)
 
 use adapters::tauri_commands::transaction_commands::{
-    create_transaction, get_transaction, list_transactions, search_transactions,
+    correct_transaction, create_transaction, get_transaction, list_transactions,
+    search_transactions,
 };
 use config::app_config::initialize_app_state;
 
@@ -28,6 +29,7 @@ pub fn run() {
             get_transaction,
             list_transactions,
             search_transactions,
+            correct_transaction,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

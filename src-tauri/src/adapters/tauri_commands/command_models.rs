@@ -25,6 +25,9 @@ pub struct CreateTransactionRequest {
     /// Scope: "personal" or "business"
     pub scope: String,
 
+    /// The pocket this transaction belongs to (required)
+    pub pocket_id: String,
+
     /// Optional description
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,

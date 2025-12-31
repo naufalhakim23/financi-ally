@@ -31,28 +31,26 @@ impl PocketRepository for SqlitePocketRepository {
     async fn create(&self, pocket: &Pocket) -> Result<(), RepositoryError> {
         let row = PocketRow::from_domain(pocket);
 
-        sqlx::query!(
-            r#"
-            INSERT INTO pockets (
+        sqlx::query(
+            "INSERT INTO pockets (
                 id, name, currency, description, icon, color,
                 initial_balance_cents, current_balance_cents, is_default,
                 created_at, updated_at, deleted_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            "#,
-            row.id,
-            row.name,
-            row.currency,
-            row.description,
-            row.icon,
-            row.color,
-            row.initial_balance_cents,
-            row.current_balance_cents,
-            row.is_default,
-            row.created_at,
-            row.updated_at,
-            row.deleted_at,
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         )
+        .bind(&row.id)
+        .bind(&row.name)
+        .bind(&row.currency)
+        .bind(&row.description)
+        .bind(&row.icon)
+        .bind(&row.color)
+        .bind(row.initial_balance_cents)
+        .bind(row.current_balance_cents)
+        .bind(row.is_default)
+        .bind(&row.created_at)
+        .bind(&row.updated_at)
+        .bind(&row.deleted_at)
         .execute(self.pool.as_ref())
         .await
         .map_err(|e| {
@@ -72,18 +70,14 @@ impl PocketRepository for SqlitePocketRepository {
     async fn find_by_id(&self, id: &TransactionId) -> Result<Option<Pocket>, RepositoryError> {
         let id_str = id.to_string();
 
-        let row = sqlx::query_as!(
-            PocketRow,
-            r#"
-            SELECT id, name, currency, description, icon, color,
-                   initial_balance_cents, current_balance_cents,
-                   is_default as "is_default: bool",
+        let row = sqlx::query_as::<_, PocketRow>(
+            "SELECT id, name, currency, description, icon, color,
+                   initial_balance_cents, current_balance_cents, is_default,
                    created_at, updated_at, deleted_at
             FROM pockets
-            WHERE id = ? AND deleted_at IS NULL
-            "#,
-            id_str
+            WHERE id = ? AND deleted_at IS NULL"
         )
+        .bind(&id_str)
         .fetch_optional(self.pool.as_ref())
         .await
         .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?;
@@ -98,17 +92,13 @@ impl PocketRepository for SqlitePocketRepository {
     }
 
     async fn list(&self) -> Result<Vec<Pocket>, RepositoryError> {
-        let rows = sqlx::query_as!(
-            PocketRow,
-            r#"
-            SELECT id, name, currency, description, icon, color,
-                   initial_balance_cents, current_balance_cents,
-                   is_default as "is_default: bool",
+        let rows = sqlx::query_as::<_, PocketRow>(
+            "SELECT id, name, currency, description, icon, color,
+                   initial_balance_cents, current_balance_cents, is_default,
                    created_at, updated_at, deleted_at
             FROM pockets
             WHERE deleted_at IS NULL
-            ORDER BY is_default DESC, created_at ASC
-            "#
+            ORDER BY is_default DESC, created_at ASC"
         )
         .fetch_all(self.pool.as_ref())
         .await
@@ -123,25 +113,23 @@ impl PocketRepository for SqlitePocketRepository {
     async fn update(&self, pocket: &Pocket) -> Result<(), RepositoryError> {
         let row = PocketRow::from_domain(pocket);
 
-        let result = sqlx::query!(
-            r#"
-            UPDATE pockets
+        let result = sqlx::query(
+            "UPDATE pockets
             SET name = ?,
                 description = ?,
                 icon = ?,
                 color = ?,
                 current_balance_cents = ?,
                 updated_at = ?
-            WHERE id = ? AND deleted_at IS NULL
-            "#,
-            row.name,
-            row.description,
-            row.icon,
-            row.color,
-            row.current_balance_cents,
-            row.updated_at,
-            row.id
+            WHERE id = ? AND deleted_at IS NULL"
         )
+        .bind(&row.name)
+        .bind(&row.description)
+        .bind(&row.icon)
+        .bind(&row.color)
+        .bind(row.current_balance_cents)
+        .bind(&row.updated_at)
+        .bind(&row.id)
         .execute(self.pool.as_ref())
         .await
         .map_err(|e| {
@@ -168,15 +156,13 @@ impl PocketRepository for SqlitePocketRepository {
         let id_str = id.to_string();
         let now = chrono::Utc::now().to_rfc3339();
 
-        let result = sqlx::query!(
-            r#"
-            UPDATE pockets
+        let result = sqlx::query(
+            "UPDATE pockets
             SET deleted_at = ?
-            WHERE id = ? AND deleted_at IS NULL
-            "#,
-            now,
-            id_str
+            WHERE id = ? AND deleted_at IS NULL"
         )
+        .bind(&now)
+        .bind(&id_str)
         .execute(self.pool.as_ref())
         .await
         .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?;
@@ -192,17 +178,13 @@ impl PocketRepository for SqlitePocketRepository {
     }
 
     async fn find_default(&self) -> Result<Option<Pocket>, RepositoryError> {
-        let row = sqlx::query_as!(
-            PocketRow,
-            r#"
-            SELECT id, name, currency, description, icon, color,
-                   initial_balance_cents, current_balance_cents,
-                   is_default as "is_default: bool",
+        let row = sqlx::query_as::<_, PocketRow>(
+            "SELECT id, name, currency, description, icon, color,
+                   initial_balance_cents, current_balance_cents, is_default,
                    created_at, updated_at, deleted_at
             FROM pockets
             WHERE is_default = 1 AND deleted_at IS NULL
-            LIMIT 1
-            "#
+            LIMIT 1"
         )
         .fetch_optional(self.pool.as_ref())
         .await
@@ -245,28 +227,20 @@ impl PocketRepository for SqlitePocketRepository {
         }
 
         // Unset all other defaults
-        sqlx::query!(
-            r#"
-            UPDATE pockets
-            SET is_default = 0, updated_at = ?
-            WHERE is_default = 1 AND deleted_at IS NULL
-            "#,
-            now
+        sqlx::query(
+            "UPDATE pockets SET is_default = 0, updated_at = ? WHERE is_default = 1 AND deleted_at IS NULL"
         )
+        .bind(&now)
         .execute(&mut *tx)
         .await
         .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?;
 
         // Set this pocket as default
-        sqlx::query!(
-            r#"
-            UPDATE pockets
-            SET is_default = 1, updated_at = ?
-            WHERE id = ?
-            "#,
-            now,
-            id_str
+        sqlx::query(
+            "UPDATE pockets SET is_default = 1, updated_at = ? WHERE id = ?"
         )
+        .bind(&now)
+        .bind(&id_str)
         .execute(&mut *tx)
         .await
         .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?;

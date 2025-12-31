@@ -274,14 +274,9 @@ async fn apply_v2_schema(pool: &SqlitePool) -> Result<(), sqlx::Error> {
     .execute(&mut *tx)
     .await?;
 
-    // 5. Create default pocket (using UUID v7 style ID)
-    // Generate a time-based ID (simplified version, production should use proper UUID v7)
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_millis();
-    let default_pocket_id = format!("pocket-default-{}", timestamp);
+    // 5. Create default pocket (using UUID v7)
+    use crate::domain::value_objects::TransactionId;
+    let default_pocket_id = TransactionId::new().to_string();
 
     sqlx::query(
         "INSERT INTO pockets (id, name, currency, description, icon, color, is_default, initial_balance_cents, current_balance_cents)

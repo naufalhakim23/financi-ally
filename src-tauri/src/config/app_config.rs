@@ -10,9 +10,12 @@ use std::sync::Arc;
 
 use crate::{
     adapters::tauri_commands::transaction_commands::AppState,
-    domain::repositories::transaction_repository::TransactionRepository,
+    domain::repositories::{
+        pocket_repository::PocketRepository, transaction_repository::TransactionRepository,
+    },
     infrastructure::persistence::{
         connection::{create_pool, DatabaseConfig},
+        sqlite_pocket_repository::SqlitePocketRepository,
         sqlite_transaction_repository::SqliteTransactionRepository,
     },
 };
@@ -38,9 +41,17 @@ pub async fn initialize_app_state(app_data_dir: PathBuf) -> Result<AppState, Str
         .await
         .map_err(|e| format!("Failed to create database pool: {}", e))?;
 
-    // Create repository
-    let repository: Arc<dyn TransactionRepository> =
-        Arc::new(SqliteTransactionRepository::new(Arc::new(pool)));
+    let pool_arc = Arc::new(pool);
 
-    Ok(AppState { repository })
+    // Create repositories
+    let transaction_repository: Arc<dyn TransactionRepository> =
+        Arc::new(SqliteTransactionRepository::new(pool_arc.clone()));
+
+    let pocket_repository: Arc<dyn PocketRepository> =
+        Arc::new(SqlitePocketRepository::new(pool_arc.clone()));
+
+    Ok(AppState {
+        transaction_repository,
+        pocket_repository,
+    })
 }

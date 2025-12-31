@@ -30,14 +30,19 @@ use crate::{
             ListTransactionsQuery, SearchTransactionsHandler, SearchTransactionsQuery,
         },
     },
-    domain::entities::types::{Scope, TransactionType},
-    domain::repositories::transaction_repository::TransactionRepository,
-    domain::value_objects::Timestamp,
+    domain::{
+        entities::types::{Scope, TransactionType},
+        repositories::{
+            pocket_repository::PocketRepository, transaction_repository::TransactionRepository,
+        },
+        value_objects::Timestamp,
+    },
 };
 
-/// Tauri managed state containing the repository
+/// Tauri managed state containing the repositories
 pub struct AppState {
-    pub repository: Arc<dyn TransactionRepository>,
+    pub transaction_repository: Arc<dyn TransactionRepository>,
+    pub pocket_repository: Arc<dyn PocketRepository>,
 }
 
 // ============================================================================
@@ -94,6 +99,7 @@ pub async fn create_transaction(
         amount_cents: request.amount_cents,
         transaction_type,
         scope,
+        pocket_id: request.pocket_id,
         description: request.description,
         category: request.category,
         payment_method: request.payment_method,
@@ -103,7 +109,10 @@ pub async fn create_transaction(
     };
 
     // Execute via handler
-    let handler = CreateTransactionHandler::new(state.repository.clone());
+    let handler = CreateTransactionHandler::new(
+        state.transaction_repository.clone(),
+        state.pocket_repository.clone(),
+    );
     match handler.handle(command).await {
         Ok(dto) => Ok(TransactionResponse::ok(dto)),
         Err(e) => Err(ErrorResponse::internal_error(e.to_string())),
@@ -123,7 +132,7 @@ pub async fn get_transaction(
         transaction_id: request.transaction_id,
     };
 
-    let handler = GetTransactionHandler::new(state.repository.clone());
+    let handler = GetTransactionHandler::new(state.transaction_repository.clone());
     match handler.handle(query).await {
         Ok(dto_option) => Ok(OptionalTransactionResponse::ok(dto_option)),
         Err(e) => Err(ErrorResponse::internal_error(e.to_string())),
@@ -188,7 +197,7 @@ pub async fn list_transactions(
         filter_payment_method: request.filter_payment_method,
     };
 
-    let handler = ListTransactionsHandler::new(state.repository.clone());
+    let handler = ListTransactionsHandler::new(state.transaction_repository.clone());
     match handler.handle(query).await {
         Ok(dtos) => Ok(TransactionListResponse::ok(dtos)),
         Err(e) => Err(ErrorResponse::internal_error(e.to_string())),
@@ -208,7 +217,7 @@ pub async fn search_transactions(
         query: request.query,
     };
 
-    let handler = SearchTransactionsHandler::new(state.repository.clone());
+    let handler = SearchTransactionsHandler::new(state.transaction_repository.clone());
     match handler.handle(query).await {
         Ok(dtos) => Ok(TransactionListResponse::ok(dtos)),
         Err(e) => Err(ErrorResponse::internal_error(e.to_string())),
@@ -234,7 +243,7 @@ pub async fn correct_transaction(
         new_receipt_base64: request.new_receipt_base64,
     };
 
-    let handler = CorrectTransactionHandler::new(state.repository.clone());
+    let handler = CorrectTransactionHandler::new(state.transaction_repository.clone());
     match handler.handle(command).await {
         Ok(dto) => Ok(TransactionResponse::ok(dto)),
         Err(e) => Err(ErrorResponse::internal_error(e.to_string())),

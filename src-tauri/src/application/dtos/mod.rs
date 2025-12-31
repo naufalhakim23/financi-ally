@@ -5,6 +5,8 @@
 // - Serialize/deserialize data for API responses
 // - Avoid exposing domain entities directly to external layers
 
+pub mod pocket_dto;
 pub mod transaction_dto;
 
-pub use transaction_dto::{TransactionDto, LedgerEntryDto, EntryMetadataDto};
+pub use pocket_dto::PocketDto;
+pub use transaction_dto::{EntryMetadataDto, LedgerEntryDto, TransactionDto};

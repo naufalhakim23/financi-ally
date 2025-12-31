@@ -8,8 +8,11 @@ use crate::{
             transaction::Transaction,
             types::{Scope, TransactionType},
         },
-        repositories::transaction_repository::{RepositoryError, TransactionRepository},
-        value_objects::{Amount, Timestamp},
+        repositories::{
+            pocket_repository::PocketRepository,
+            transaction_repository::{RepositoryError, TransactionRepository},
+        },
+        value_objects::{Amount, Timestamp, TransactionId},
     },
 };
 
@@ -27,6 +30,9 @@ pub struct CreateTransactionCommand {
 
     /// Scope: personal or business
     pub scope: Scope,
+
+    /// The pocket this transaction belongs to (required)
+    pub pocket_id: String,
 
     /// Optional description of the transaction
     pub description: Option<String>,
@@ -50,29 +56,54 @@ pub struct CreateTransactionCommand {
 /// Handler for CreateTransactionCommand
 ///
 /// Orchestrates the creation of a transaction:
-/// 1. Validates the command
+/// 1. Validates the command (including pocket existence)
 /// 2. Creates domain entities (Transaction + LedgerEntry)
 /// 3. Persists via repository
 /// 4. Returns DTO for response
 pub struct CreateTransactionHandler {
-    repository: Arc<dyn TransactionRepository>,
+    transaction_repo: Arc<dyn TransactionRepository>,
+    pocket_repo: Arc<dyn PocketRepository>,
 }
 
 impl CreateTransactionHandler {
-    pub fn new(repository: Arc<dyn TransactionRepository>) -> Self {
-        Self { repository }
+    pub fn new(
+        transaction_repo: Arc<dyn TransactionRepository>,
+        pocket_repo: Arc<dyn PocketRepository>,
+    ) -> Self {
+        Self {
+            transaction_repo,
+            pocket_repo,
+        }
     }
 
-    pub async fn handle(&self, command: CreateTransactionCommand) -> Result<TransactionDto, RepositoryError> {
+    pub async fn handle(
+        &self,
+        command: CreateTransactionCommand,
+    ) -> Result<TransactionDto, RepositoryError> {
+        // Parse and validate pocket ID
+        let pocket_id = TransactionId::from_string(&command.pocket_id)?;
+
+        // Verify pocket exists
+        let _pocket = self
+            .pocket_repo
+            .find_by_id(&pocket_id)
+            .await?
+            .ok_or_else(|| {
+                RepositoryError::ValidationError(format!(
+                    "Pocket with id {} not found",
+                    command.pocket_id
+                ))
+            })?;
+
+        // TODO: Future enhancement - validate currency match
+        // if transaction has currency info, ensure it matches pocket.currency()
+
         // Create timestamp (use provided or current time)
         let occurred_at = command.occurred_at.unwrap_or_else(Timestamp::now);
 
-        // Create transaction header
-        let mut transaction = Transaction::new(
-            command.description,
-            occurred_at,
-            command.scope,
-        )?;
+        // Create transaction header with pocket_id
+        let mut transaction =
+            Transaction::new(command.description, occurred_at, command.scope, pocket_id)?;
 
         // Create amount
         let amount = Amount::from_cents(command.amount_cents);
@@ -99,7 +130,7 @@ impl CreateTransactionHandler {
         transaction.add_entry(entry)?;
 
         // Persist to database
-        self.repository.create(&transaction).await?;
+        self.transaction_repo.create(&transaction).await?;
 
         // Convert to DTO for response
         Ok(TransactionDto::from(&transaction))
@@ -111,19 +142,25 @@ mod tests {
     use super::*;
     use crate::infrastructure::persistence::{
         connection::create_test_pool,
+        sqlite_pocket_repository::SqlitePocketRepository,
         sqlite_transaction_repository::SqliteTransactionRepository,
     };
 
     #[tokio::test]
     async fn test_create_transaction_income() {
         let pool = create_test_pool().await.unwrap();
-        let repo = Arc::new(SqliteTransactionRepository::new(Arc::new(pool)));
-        let handler = CreateTransactionHandler::new(repo.clone());
+        let transaction_repo = Arc::new(SqliteTransactionRepository::new(Arc::new(pool.clone())));
+        let pocket_repo = Arc::new(SqlitePocketRepository::new(Arc::new(pool.clone())));
+        let handler = CreateTransactionHandler::new(transaction_repo.clone(), pocket_repo.clone());
+
+        // Get default pocket from migration
+        let default_pocket = pocket_repo.find_default().await.unwrap().unwrap();
 
         let command = CreateTransactionCommand {
             amount_cents: 5000,
             transaction_type: TransactionType::Income,
             scope: Scope::Business,
+            pocket_id: default_pocket.id().to_string(),
             description: Some("Freelance payment".to_string()),
             category: Some("Consulting".to_string()),
             payment_method: Some("Bank Transfer".to_string()),
@@ -137,22 +174,28 @@ mod tests {
         assert_eq!(result.scope, "business");
         assert_eq!(result.status, "active");
         assert_eq!(result.description, Some("Freelance payment".to_string()));
+        assert_eq!(result.pocket_id, default_pocket.id().to_string());
         assert_eq!(result.entries.len(), 1);
         assert_eq!(result.entries[0].entry_type, "income");
         assert_eq!(result.entries[0].amount_cents, 5000);
-        assert_eq!(result.total_amount_cents, 5000);  // Income is positive
+        assert_eq!(result.total_amount_cents, 5000); // Income is positive
     }
 
     #[tokio::test]
     async fn test_create_transaction_expense() {
         let pool = create_test_pool().await.unwrap();
-        let repo = Arc::new(SqliteTransactionRepository::new(Arc::new(pool)));
-        let handler = CreateTransactionHandler::new(repo.clone());
+        let transaction_repo = Arc::new(SqliteTransactionRepository::new(Arc::new(pool.clone())));
+        let pocket_repo = Arc::new(SqlitePocketRepository::new(Arc::new(pool.clone())));
+        let handler = CreateTransactionHandler::new(transaction_repo.clone(), pocket_repo.clone());
+
+        // Get default pocket from migration
+        let default_pocket = pocket_repo.find_default().await.unwrap().unwrap();
 
         let command = CreateTransactionCommand {
             amount_cents: 1500,
             transaction_type: TransactionType::Expense,
             scope: Scope::Personal,
+            pocket_id: default_pocket.id().to_string(),
             description: Some("Grocery shopping".to_string()),
             category: Some("Food".to_string()),
             payment_method: Some("Credit Card".to_string()),
@@ -165,19 +208,24 @@ mod tests {
 
         assert_eq!(result.scope, "personal");
         assert_eq!(result.entries[0].entry_type, "expense");
-        assert_eq!(result.total_amount_cents, -1500);  // Expense is negative
+        assert_eq!(result.total_amount_cents, -1500); // Expense is negative
     }
 
     #[tokio::test]
     async fn test_create_transaction_persisted() {
         let pool = create_test_pool().await.unwrap();
-        let repo = Arc::new(SqliteTransactionRepository::new(Arc::new(pool)));
-        let handler = CreateTransactionHandler::new(repo.clone());
+        let transaction_repo = Arc::new(SqliteTransactionRepository::new(Arc::new(pool.clone())));
+        let pocket_repo = Arc::new(SqlitePocketRepository::new(Arc::new(pool.clone())));
+        let handler = CreateTransactionHandler::new(transaction_repo.clone(), pocket_repo.clone());
+
+        // Get default pocket from migration
+        let default_pocket = pocket_repo.find_default().await.unwrap().unwrap();
 
         let command = CreateTransactionCommand {
             amount_cents: 2000,
             transaction_type: TransactionType::Expense,
             scope: Scope::Personal,
+            pocket_id: default_pocket.id().to_string(),
             description: Some("Test".to_string()),
             category: None,
             payment_method: None,
@@ -189,8 +237,8 @@ mod tests {
         let created = handler.handle(command).await.unwrap();
 
         // Verify it was persisted by retrieving it
-        let tx_id = crate::domain::value_objects::TransactionId::from_string(&created.id).unwrap();
-        let retrieved = repo.find_by_id(&tx_id).await.unwrap();
+        let tx_id = TransactionId::from_string(&created.id).unwrap();
+        let retrieved = transaction_repo.find_by_id(&tx_id).await.unwrap();
 
         assert!(retrieved.is_some());
         let retrieved_tx = retrieved.unwrap();

@@ -5,9 +5,15 @@ mod infrastructure;  // External implementations (Phase 2)
 mod adapters;        // Primary adapters: Tauri commands (Phase 4)
 mod config;          // Configuration (Phase 4)
 
-use adapters::tauri_commands::transaction_commands::{
-    correct_transaction, create_transaction, get_transaction, list_transactions,
-    search_transactions,
+use adapters::tauri_commands::{
+    pocket_commands::{
+        create_pocket, delete_pocket, get_pocket, list_pockets, set_default_pocket,
+        update_pocket,
+    },
+    transaction_commands::{
+        correct_transaction, create_transaction, get_transaction, list_transactions,
+        search_transactions,
+    },
 };
 use config::app_config::initialize_app_state;
 use tauri::Manager;
@@ -39,11 +45,19 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            // Transaction commands
             create_transaction,
             get_transaction,
             list_transactions,
             search_transactions,
             correct_transaction,
+            // Pocket commands
+            create_pocket,
+            list_pockets,
+            get_pocket,
+            update_pocket,
+            delete_pocket,
+            set_default_pocket,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

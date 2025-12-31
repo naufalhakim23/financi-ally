@@ -1,10 +1,13 @@
 use std::sync::Arc;
 
-use crate::domain::{
-    entities::Pocket,
-    repositories::pocket_repository::PocketRepository,
-    repositories::transaction_repository::RepositoryError,
-    value_objects::Currency,
+use crate::{
+    application::dtos::PocketDto,
+    domain::{
+        entities::Pocket,
+        repositories::pocket_repository::PocketRepository,
+        repositories::transaction_repository::RepositoryError,
+        value_objects::Currency,
+    },
 };
 
 /// Command to create a new pocket
@@ -37,7 +40,7 @@ impl CreatePocketHandler {
     /// # Returns
     /// * `Ok(Pocket)` - The newly created pocket
     /// * `Err(RepositoryError)` - If validation fails or database error occurs
-    pub async fn handle(&self, command: CreatePocketCommand) -> Result<Pocket, RepositoryError> {
+    pub async fn handle(&self, command: CreatePocketCommand) -> Result<PocketDto, RepositoryError> {
         // Parse and validate currency
         let currency = Currency::from_code(&command.currency)
             .map_err(|e| RepositoryError::ValidationError(e.to_string()))?;
@@ -56,7 +59,8 @@ impl CreatePocketHandler {
         // Persist the pocket
         self.pocket_repo.create(&pocket).await?;
 
-        Ok(pocket)
+        // Convert to DTO for response
+        Ok(PocketDto::from(&pocket))
     }
 }
 

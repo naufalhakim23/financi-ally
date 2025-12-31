@@ -1,10 +1,13 @@
 use std::sync::Arc;
 
-use crate::domain::{
-    entities::Pocket,
-    repositories::pocket_repository::PocketRepository,
-    repositories::transaction_repository::RepositoryError,
-    value_objects::TransactionId,
+use crate::{
+    application::dtos::PocketDto,
+    domain::{
+        entities::Pocket,
+        repositories::pocket_repository::PocketRepository,
+        repositories::transaction_repository::RepositoryError,
+        value_objects::TransactionId,
+    },
 };
 
 /// Command to update an existing pocket's metadata
@@ -36,9 +39,9 @@ impl UpdatePocketHandler {
     /// * `command` - The update pocket command
     ///
     /// # Returns
-    /// * `Ok(Pocket)` - The updated pocket
+    /// * `Ok(PocketDto)` - The updated pocket as DTO
     /// * `Err(RepositoryError)` - If pocket not found or validation fails
-    pub async fn handle(&self, command: UpdatePocketCommand) -> Result<Pocket, RepositoryError> {
+    pub async fn handle(&self, command: UpdatePocketCommand) -> Result<PocketDto, RepositoryError> {
         // Parse pocket ID
         let pocket_id = TransactionId::from_string(&command.pocket_id)?;
 
@@ -67,7 +70,8 @@ impl UpdatePocketHandler {
         // Persist the changes
         self.pocket_repo.update(&pocket).await?;
 
-        Ok(pocket)
+        // Convert to DTO for response
+        Ok(PocketDto::from(&pocket))
     }
 }
 

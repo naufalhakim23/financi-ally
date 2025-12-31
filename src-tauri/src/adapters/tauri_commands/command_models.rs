@@ -4,9 +4,18 @@
 /// the TypeScript frontend and Rust backend. They are kept simple and
 /// focused on serialization, converting to/from domain types as needed.
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
-use crate::application::dtos::TransactionDto;
+use crate::application::dtos::{PocketDto, TransactionDto};
+
+/// Helper function to deserialize empty strings as None
+fn empty_string_as_none<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s: Option<String> = Option::deserialize(deserializer)?;
+    Ok(s.and_then(|s| if s.is_empty() { None } else { Some(s) }))
+}
 
 // ============================================================================
 // Request Models
@@ -29,28 +38,28 @@ pub struct CreateTransactionRequest {
     pub pocket_id: String,
 
     /// Optional description
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", deserialize_with = "empty_string_as_none", default)]
     pub description: Option<String>,
 
     /// Optional category (e.g., "Food", "Transportation")
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", deserialize_with = "empty_string_as_none", default)]
     pub category: Option<String>,
 
     /// Optional payment method (e.g., "Cash", "Credit Card")
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", deserialize_with = "empty_string_as_none", default)]
     pub payment_method: Option<String>,
 
     /// Optional notes
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", deserialize_with = "empty_string_as_none", default)]
     pub notes: Option<String>,
 
     /// Optional receipt as Base64 string
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", deserialize_with = "empty_string_as_none", default)]
     pub receipt_base64: Option<String>,
 
     /// When the transaction occurred (ISO 8601 string)
     /// If not provided, defaults to current time
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", deserialize_with = "empty_string_as_none", default)]
     pub occurred_at: Option<String>,
 }
 
@@ -188,6 +197,60 @@ impl TransactionListResponse {
             success: true,
             data,
             count,
+        }
+    }
+}
+
+/// Response with a single pocket
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PocketResponse {
+    pub success: bool,
+    pub data: PocketDto,
+}
+
+impl PocketResponse {
+    pub fn ok(data: PocketDto) -> Self {
+        Self {
+            success: true,
+            data,
+        }
+    }
+}
+
+/// Response with list of pockets
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PocketListResponse {
+    pub success: bool,
+    pub data: Vec<PocketDto>,
+    pub count: usize,
+}
+
+impl PocketListResponse {
+    pub fn ok(data: Vec<PocketDto>) -> Self {
+        let count = data.len();
+        Self {
+            success: true,
+            data,
+            count,
+        }
+    }
+}
+
+/// Generic success response
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SuccessResponse {
+    pub success: bool,
+    pub message: String,
+}
+
+impl SuccessResponse {
+    pub fn ok(message: impl Into<String>) -> Self {
+        Self {
+            success: true,
+            message: message.into(),
         }
     }
 }

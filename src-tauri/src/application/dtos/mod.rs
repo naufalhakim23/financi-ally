@@ -7,6 +7,8 @@
 
 pub mod pocket_dto;
 pub mod transaction_dto;
+pub mod category_dto;
 
 pub use pocket_dto::PocketDto;
 pub use transaction_dto::{EntryMetadataDto, LedgerEntryDto, TransactionDto};
+pub use category_dto::CategoryDto;

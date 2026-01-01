@@ -15,6 +15,11 @@ pub mod delete_pocket;
 pub mod set_default_pocket;
 pub mod update_pocket;
 
+// Category commands
+pub mod create_category;
+pub mod delete_category;
+pub mod update_category;
+
 // Transaction command exports
 pub use correct_transaction::{CorrectTransactionCommand, CorrectTransactionHandler};
 pub use create_transaction::{CreateTransactionCommand, CreateTransactionHandler};
@@ -24,3 +29,8 @@ pub use create_pocket::{CreatePocketCommand, CreatePocketHandler};
 pub use delete_pocket::{DeletePocketCommand, DeletePocketHandler};
 pub use set_default_pocket::{SetDefaultPocketCommand, SetDefaultPocketHandler};
 pub use update_pocket::{UpdatePocketCommand, UpdatePocketHandler};
+
+// Category command exports
+pub use create_category::{CreateCategoryCommand, CreateCategoryHandler};
+pub use delete_category::{DeleteCategoryCommand, DeleteCategoryHandler};
+pub use update_category::{UpdateCategoryCommand, UpdateCategoryHandler};

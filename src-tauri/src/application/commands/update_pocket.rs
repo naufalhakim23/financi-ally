@@ -125,10 +125,10 @@ mod tests {
         assert!(result.is_ok());
 
         let updated = result.unwrap();
-        assert_eq!(updated.name(), "Updated Name");
-        assert_eq!(updated.description(), Some("New description"));
-        assert_eq!(updated.icon(), Some("🎯"));
-        assert_eq!(updated.color(), "#FF0000");
+        assert_eq!(updated.name, "Updated Name");
+        assert_eq!(updated.description, Some("New description".to_string()));
+        assert_eq!(updated.icon, Some("🎯".to_string()));
+        assert_eq!(updated.color, "#FF0000");
     }
 
     #[tokio::test]
@@ -180,6 +180,6 @@ mod tests {
         };
 
         let result = handler.handle(command).await.unwrap();
-        assert_eq!(result.description(), None);
+        assert_eq!(result.description, None);
     }
 }

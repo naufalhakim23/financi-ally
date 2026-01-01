@@ -14,7 +14,7 @@ impl Timestamp {
     pub fn now() -> Self {
         use std::time::SystemTime;
 
-        let now = SystemTime::now()
+        let now: std::time::Duration = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .expect("System time before UNIX epoch");
 

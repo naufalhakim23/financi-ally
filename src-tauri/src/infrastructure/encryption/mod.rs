@@ -172,18 +172,14 @@ mod tests {
 
     #[test]
     fn test_get_or_create_key() {
-        let manager = EncryptionKeyManager::new().unwrap();
+        // Use a test-specific service name to avoid conflicts
+        let test_entry = Entry::new("com.pocket-log.test.get-or-create", "test-key").unwrap();
 
-        // Try to clean up any existing key first
-        // If it exists and can't be deleted, the test will fail appropriately
-        match manager.delete_key() {
-            Ok(_) => {}, // Successfully deleted
-            Err(EncryptionError::KeychainAccess(ref e)) if e.contains("not found") || e.contains("No matching entry") => {},
-            Err(e) => {
-                // Try to delete again to ensure clean state
-                let _ = manager.delete_key();
-            }
-        }
+        // Clean up any existing test key first
+        let _ = test_entry.delete_password();
+
+        // Create manager with test entry
+        let manager = EncryptionKeyManager { entry: test_entry };
 
         // First call should create a key
         let key1 = manager.get_or_create_key().unwrap();
@@ -199,10 +195,14 @@ mod tests {
 
     #[test]
     fn test_store_and_retrieve_key() {
-        let manager = EncryptionKeyManager::new().unwrap();
+        // Use a test-specific service name to avoid conflicts
+        let test_entry = Entry::new("com.pocket-log.test.store-retrieve", "test-key").unwrap();
 
-        // Clean up any existing key (ignore error if doesn't exist)
-        let _ = manager.delete_key();
+        // Clean up any existing test key first
+        let _ = test_entry.delete_password();
+
+        // Create manager with test entry
+        let manager = EncryptionKeyManager { entry: test_entry };
 
         // Generate and store a key
         let original_key = manager.generate_key().unwrap();
@@ -212,7 +212,7 @@ mod tests {
         let retrieved_key = manager.get_key().unwrap();
         assert_eq!(original_key, retrieved_key);
 
-        // Clean up (ignore error if already deleted)
+        // Clean up
         let _ = manager.delete_key();
     }
 }

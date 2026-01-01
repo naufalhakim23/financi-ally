@@ -46,19 +46,35 @@ impl SearchTransactionsHandler {
 mod tests {
     use super::*;
     use crate::{
-        application::commands::{CreateTransactionCommand, CreateTransactionHandler},
+        application::commands::{CreatePocketCommand, CreatePocketHandler, CreateTransactionCommand, CreateTransactionHandler},
         domain::entities::types::{Scope, TransactionType},
         infrastructure::persistence::{
             connection::create_test_pool,
+            sqlite_pocket_repository::SqlitePocketRepository,
             sqlite_transaction_repository::SqliteTransactionRepository,
         },
     };
 
+    /// Helper to create test pocket and return pocket_id
+    async fn create_test_pocket(pocket_repo: Arc<dyn crate::domain::repositories::pocket_repository::PocketRepository>) -> String {
+        let create_pocket_handler = CreatePocketHandler::new(pocket_repo);
+        let create_pocket_cmd = CreatePocketCommand {
+            name: "Test Wallet".to_string(),
+            currency: "USD".to_string(),
+            description: Some("Test pocket".to_string()),
+            icon: Some("💰".to_string()),
+            color: "#4299E1".to_string(),
+            initial_balance_cents: 0,
+        };
+        let pocket_dto = create_pocket_handler.handle(create_pocket_cmd).await.unwrap();
+        pocket_dto.id.to_string()
+    }
+
     #[tokio::test]
     async fn test_search_transactions_empty_query() {
         let pool = create_test_pool().await.unwrap();
-        let repo = Arc::new(SqliteTransactionRepository::new(Arc::new(pool)));
-        let handler = SearchTransactionsHandler::new(repo);
+        let tx_repo = Arc::new(SqliteTransactionRepository::new(Arc::new(pool)));
+        let handler = SearchTransactionsHandler::new(tx_repo);
 
         let query = SearchTransactionsQuery {
             query: "".to_string(),
@@ -71,15 +87,20 @@ mod tests {
     #[tokio::test]
     async fn test_search_transactions_by_description() {
         let pool = create_test_pool().await.unwrap();
-        let repo = Arc::new(SqliteTransactionRepository::new(Arc::new(pool)));
+        let tx_repo = Arc::new(SqliteTransactionRepository::new(Arc::new(pool.clone())));
+        let pocket_repo = Arc::new(SqlitePocketRepository::new(Arc::new(pool)));
+
+        // Create test pocket
+        let pocket_id = create_test_pocket(pocket_repo.clone()).await;
 
         // Create transactions with different descriptions
-        let create_handler = CreateTransactionHandler::new(repo.clone());
+        let create_handler = CreateTransactionHandler::new(tx_repo.clone(), pocket_repo);
 
         let cmd1 = CreateTransactionCommand {
             amount_cents: 1000,
             transaction_type: TransactionType::Expense,
             scope: Scope::Personal,
+            pocket_id: pocket_id.clone(),
             description: Some("Grocery shopping at Whole Foods".to_string()),
             category: Some("Food".to_string()),
             payment_method: None,
@@ -93,6 +114,7 @@ mod tests {
             amount_cents: 500,
             transaction_type: TransactionType::Expense,
             scope: Scope::Personal,
+            pocket_id: pocket_id.clone(),
             description: Some("Coffee at Starbucks".to_string()),
             category: Some("Food".to_string()),
             payment_method: None,
@@ -103,7 +125,7 @@ mod tests {
         create_handler.handle(cmd2).await.unwrap();
 
         // Search for "grocery"
-        let search_handler = SearchTransactionsHandler::new(repo);
+        let search_handler = SearchTransactionsHandler::new(tx_repo);
         let query = SearchTransactionsQuery {
             query: "Grocery".to_string(),
         };
@@ -117,15 +139,20 @@ mod tests {
     #[tokio::test]
     async fn test_search_transactions_by_category() {
         let pool = create_test_pool().await.unwrap();
-        let repo = Arc::new(SqliteTransactionRepository::new(Arc::new(pool)));
+        let tx_repo = Arc::new(SqliteTransactionRepository::new(Arc::new(pool.clone())));
+        let pocket_repo = Arc::new(SqlitePocketRepository::new(Arc::new(pool)));
 
-        let create_handler = CreateTransactionHandler::new(repo.clone());
+        // Create test pocket
+        let pocket_id = create_test_pocket(pocket_repo.clone()).await;
+
+        let create_handler = CreateTransactionHandler::new(tx_repo.clone(), pocket_repo);
 
         // Create transaction with specific category
         let cmd = CreateTransactionCommand {
             amount_cents: 2000,
             transaction_type: TransactionType::Expense,
             scope: Scope::Business,
+            pocket_id: pocket_id.clone(),
             description: Some("Bought software license".to_string()),
             category: Some("Software".to_string()),
             payment_method: Some("Credit Card".to_string()),
@@ -136,7 +163,7 @@ mod tests {
         create_handler.handle(cmd).await.unwrap();
 
         // Search by category
-        let search_handler = SearchTransactionsHandler::new(repo);
+        let search_handler = SearchTransactionsHandler::new(tx_repo);
         let query = SearchTransactionsQuery {
             query: "Software".to_string(),
         };
@@ -156,14 +183,19 @@ mod tests {
     #[tokio::test]
     async fn test_search_transactions_no_results() {
         let pool = create_test_pool().await.unwrap();
-        let repo = Arc::new(SqliteTransactionRepository::new(Arc::new(pool)));
+        let tx_repo = Arc::new(SqliteTransactionRepository::new(Arc::new(pool.clone())));
+        let pocket_repo = Arc::new(SqlitePocketRepository::new(Arc::new(pool)));
 
-        let create_handler = CreateTransactionHandler::new(repo.clone());
+        // Create test pocket
+        let pocket_id = create_test_pocket(pocket_repo.clone()).await;
+
+        let create_handler = CreateTransactionHandler::new(tx_repo.clone(), pocket_repo);
 
         let cmd = CreateTransactionCommand {
             amount_cents: 1000,
             transaction_type: TransactionType::Expense,
             scope: Scope::Personal,
+            pocket_id: pocket_id.clone(),
             description: Some("Lunch".to_string()),
             category: None,
             payment_method: None,
@@ -174,7 +206,7 @@ mod tests {
         create_handler.handle(cmd).await.unwrap();
 
         // Search for something that doesn't exist
-        let search_handler = SearchTransactionsHandler::new(repo);
+        let search_handler = SearchTransactionsHandler::new(tx_repo);
         let query = SearchTransactionsQuery {
             query: "NonexistentKeyword".to_string(),
         };
@@ -186,14 +218,19 @@ mod tests {
     #[tokio::test]
     async fn test_search_transactions_case_insensitive() {
         let pool = create_test_pool().await.unwrap();
-        let repo = Arc::new(SqliteTransactionRepository::new(Arc::new(pool)));
+        let tx_repo = Arc::new(SqliteTransactionRepository::new(Arc::new(pool.clone())));
+        let pocket_repo = Arc::new(SqlitePocketRepository::new(Arc::new(pool)));
 
-        let create_handler = CreateTransactionHandler::new(repo.clone());
+        // Create test pocket
+        let pocket_id = create_test_pocket(pocket_repo.clone()).await;
+
+        let create_handler = CreateTransactionHandler::new(tx_repo.clone(), pocket_repo);
 
         let cmd = CreateTransactionCommand {
             amount_cents: 500,
             transaction_type: TransactionType::Expense,
             scope: Scope::Personal,
+            pocket_id: pocket_id.clone(),
             description: Some("DINNER at restaurant".to_string()),
             category: None,
             payment_method: None,
@@ -204,7 +241,7 @@ mod tests {
         create_handler.handle(cmd).await.unwrap();
 
         // Search with lowercase (should find uppercase)
-        let search_handler = SearchTransactionsHandler::new(repo);
+        let search_handler = SearchTransactionsHandler::new(tx_repo);
         let query = SearchTransactionsQuery {
             query: "dinner".to_string(),
         };

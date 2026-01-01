@@ -93,7 +93,7 @@
 						<span class="initial-balance">
 							Initial: {formatPocketBalance({
 								...pocket,
-								currentBalanceCents: pocket.initialBalanceCents
+								current_balance_cents: pocket.initial_balance_cents
 							})}
 						</span>
 					</div>

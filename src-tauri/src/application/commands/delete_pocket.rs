@@ -67,7 +67,7 @@ impl DeletePocketHandler {
         // Check if pocket has any transactions
         // For now, get all transactions and filter by pocket_id in memory
         // TODO: Add pocket_id filter to TransactionRepository::list_with_filters for efficiency
-        let all_transactions = self.transaction_repo.list(1000, 0).await?;
+        let all_transactions = self.transaction_repo.list(0, 1000).await?;
 
         let transactions_in_pocket: Vec<_> = all_transactions
             .iter()

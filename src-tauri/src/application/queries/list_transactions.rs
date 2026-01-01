@@ -99,19 +99,35 @@ impl ListTransactionsHandler {
 mod tests {
     use super::*;
     use crate::{
-        application::commands::{CreateTransactionCommand, CreateTransactionHandler},
+        application::commands::{CreatePocketCommand, CreatePocketHandler, CreateTransactionCommand, CreateTransactionHandler},
         domain::entities::types::{Scope, TransactionType},
         infrastructure::persistence::{
             connection::create_test_pool,
+            sqlite_pocket_repository::SqlitePocketRepository,
             sqlite_transaction_repository::SqliteTransactionRepository,
         },
     };
 
+    /// Helper to create test pocket and return pocket_id
+    async fn create_test_pocket(pocket_repo: Arc<dyn crate::domain::repositories::pocket_repository::PocketRepository>) -> String {
+        let create_pocket_handler = CreatePocketHandler::new(pocket_repo);
+        let create_pocket_cmd = CreatePocketCommand {
+            name: "Test Wallet".to_string(),
+            currency: "USD".to_string(),
+            description: Some("Test pocket".to_string()),
+            icon: Some("💰".to_string()),
+            color: "#4299E1".to_string(),
+            initial_balance_cents: 0,
+        };
+        let pocket_dto = create_pocket_handler.handle(create_pocket_cmd).await.unwrap();
+        pocket_dto.id.to_string()
+    }
+
     #[tokio::test]
     async fn test_list_transactions_empty() {
         let pool = create_test_pool().await.unwrap();
-        let repo = Arc::new(SqliteTransactionRepository::new(Arc::new(pool)));
-        let handler = ListTransactionsHandler::new(repo);
+        let tx_repo = Arc::new(SqliteTransactionRepository::new(Arc::new(pool)));
+        let handler = ListTransactionsHandler::new(tx_repo);
 
         let query = ListTransactionsQuery::default();
         let result = handler.handle(query).await.unwrap();
@@ -122,15 +138,20 @@ mod tests {
     #[tokio::test]
     async fn test_list_transactions_with_data() {
         let pool = create_test_pool().await.unwrap();
-        let repo = Arc::new(SqliteTransactionRepository::new(Arc::new(pool)));
+        let tx_repo = Arc::new(SqliteTransactionRepository::new(Arc::new(pool.clone())));
+        let pocket_repo = Arc::new(SqlitePocketRepository::new(Arc::new(pool)));
+
+        // Create test pocket
+        let pocket_id = create_test_pocket(pocket_repo.clone()).await;
 
         // Create multiple transactions
-        let create_handler = CreateTransactionHandler::new(repo.clone());
+        let create_handler = CreateTransactionHandler::new(tx_repo.clone(), pocket_repo);
         for i in 0..5 {
             let cmd = CreateTransactionCommand {
                 amount_cents: (i + 1) * 100,
                 transaction_type: TransactionType::Expense,
                 scope: Scope::Personal,
+                pocket_id: pocket_id.clone(),
                 description: Some(format!("Transaction {}", i)),
                 category: None,
                 payment_method: None,
@@ -142,7 +163,7 @@ mod tests {
         }
 
         // List all
-        let list_handler = ListTransactionsHandler::new(repo);
+        let list_handler = ListTransactionsHandler::new(tx_repo);
         let query = ListTransactionsQuery::default();
         let result = list_handler.handle(query).await.unwrap();
 
@@ -152,15 +173,20 @@ mod tests {
     #[tokio::test]
     async fn test_list_transactions_pagination() {
         let pool = create_test_pool().await.unwrap();
-        let repo = Arc::new(SqliteTransactionRepository::new(Arc::new(pool)));
+        let tx_repo = Arc::new(SqliteTransactionRepository::new(Arc::new(pool.clone())));
+        let pocket_repo = Arc::new(SqlitePocketRepository::new(Arc::new(pool)));
+
+        // Create test pocket
+        let pocket_id = create_test_pocket(pocket_repo.clone()).await;
 
         // Create 10 transactions
-        let create_handler = CreateTransactionHandler::new(repo.clone());
+        let create_handler = CreateTransactionHandler::new(tx_repo.clone(), pocket_repo);
         for i in 0..10 {
             let cmd = CreateTransactionCommand {
                 amount_cents: 100,
                 transaction_type: TransactionType::Expense,
                 scope: Scope::Personal,
+                pocket_id: pocket_id.clone(),
                 description: Some(format!("Tx {}", i)),
                 category: None,
                 payment_method: None,
@@ -172,7 +198,7 @@ mod tests {
         }
 
         // Test pagination
-        let list_handler = ListTransactionsHandler::new(repo);
+        let list_handler = ListTransactionsHandler::new(tx_repo);
 
         // Page 1: offset 0, limit 3
         let page1 = list_handler
@@ -203,8 +229,8 @@ mod tests {
     #[tokio::test]
     async fn test_list_transactions_enforces_max_limit() {
         let pool = create_test_pool().await.unwrap();
-        let repo = Arc::new(SqliteTransactionRepository::new(Arc::new(pool)));
-        let handler = ListTransactionsHandler::new(repo);
+        let tx_repo = Arc::new(SqliteTransactionRepository::new(Arc::new(pool)));
+        let handler = ListTransactionsHandler::new(tx_repo);
 
         // Request more than max (1000)
         let query = ListTransactionsQuery {

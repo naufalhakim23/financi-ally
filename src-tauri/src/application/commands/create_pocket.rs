@@ -97,10 +97,10 @@ mod tests {
         assert!(result.is_ok());
 
         let pocket = result.unwrap();
-        assert_eq!(pocket.name(), "Test Wallet");
-        assert_eq!(pocket.currency().as_str(), "USD");
-        assert_eq!(pocket.initial_balance_cents(), 10000);
-        assert_eq!(pocket.current_balance_cents(), 10000);
+        assert_eq!(pocket.name, "Test Wallet");
+        assert_eq!(pocket.currency.as_str(), "USD");
+        assert_eq!(pocket.initial_balance_cents, 10000);
+        assert_eq!(pocket.current_balance_cents, 10000);
     }
 
     #[tokio::test]

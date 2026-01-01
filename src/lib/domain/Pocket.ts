@@ -28,19 +28,19 @@ export interface Pocket {
 	color: string;
 
 	/** Initial balance in cents (immutable) */
-	initialBalanceCents: number;
+	initial_balance_cents: number;
 
 	/** Current balance in cents (computed) */
-	currentBalanceCents: number;
+	current_balance_cents: number;
 
 	/** Whether this is the default pocket */
 	isDefault: boolean;
 
 	/** When the pocket was created (ISO 8601) */
-	createdAt: string;
+	created_at: string;
 
 	/** When the pocket was last updated (ISO 8601) */
-	updatedAt?: string;
+	updated_at?: string;
 }
 
 /**
@@ -142,14 +142,14 @@ export function isErrorResponse(response: unknown): response is ErrorResponse {
  * Helper to format pocket balance with currency symbol
  */
 export function formatPocketBalance(pocket: Pocket): string {
-	const amount = Math.abs(pocket.currentBalanceCents) / 100;
+	const amount = Math.abs(pocket.current_balance_cents) / 100;
 	const currencySymbol = getCurrencySymbol(pocket.currency);
 	const formatted = new Intl.NumberFormat('en-US', {
 		minimumFractionDigits: 2,
 		maximumFractionDigits: 2
 	}).format(amount);
 
-	const sign = pocket.currentBalanceCents < 0 ? '-' : '';
+	const sign = pocket.current_balance_cents < 0 ? '-' : '';
 	return `${sign}${currencySymbol}${formatted}`;
 }
 

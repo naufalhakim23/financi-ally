@@ -37,6 +37,9 @@ export interface LedgerEntry {
 	/** Parent entry ID if this is a correction */
 	parent_entry_id?: string;
 
+	/** Category ID reference (new system, preferred over metadata.category) */
+	category_id?: string;
+
 	/** Entry metadata */
 	metadata: EntryMetadata;
 
@@ -98,7 +101,10 @@ export interface CreateTransactionRequest {
 	/** Optional description */
 	description?: string;
 
-	/** Optional category */
+	/** Optional category ID (new system, preferred over free-text category) */
+	categoryId?: string;
+
+	/** Optional category (legacy free-text, for backward compatibility) */
 	category?: string;
 
 	/** Optional payment method */

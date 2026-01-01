@@ -26,6 +26,14 @@ import type {
 	PocketListResponse,
 	SuccessResponse
 } from '$lib/domain/Pocket';
+import type {
+	Category,
+	CreateCategoryRequest,
+	UpdateCategoryRequest,
+	CategoryResponse,
+	CategoryListResponse,
+	CategoryTypeFilter
+} from '$lib/domain/Category';
 
 /**
  * Tauri command adapter for transaction operations
@@ -201,6 +209,86 @@ export class TauriCommandAdapter {
 	async setDefaultPocket(pocketId: string): Promise<ApiResult<SuccessResponse>> {
 		try {
 			const response = await invoke<SuccessResponse>('set_default_pocket', { pocketId });
+			return response;
+		} catch (error) {
+			return this.handleError(error);
+		}
+	}
+
+	// ============================================================================
+	// Category Commands
+	// ============================================================================
+
+	/**
+	 * Create a new category
+	 *
+	 * @param request - Category creation request
+	 * @returns Promise resolving to category response or error
+	 */
+	async createCategory(request: CreateCategoryRequest): Promise<ApiResult<CategoryResponse>> {
+		try {
+			const response = await invoke<CategoryResponse>('create_category', { request });
+			return response;
+		} catch (error) {
+			return this.handleError(error);
+		}
+	}
+
+	/**
+	 * List all categories with optional filter
+	 *
+	 * @param filterType - Optional filter ('expense', 'income', or 'both')
+	 * @returns Promise resolving to category list response or error
+	 */
+	async listCategories(filterType?: CategoryTypeFilter): Promise<ApiResult<CategoryListResponse>> {
+		try {
+			const request = filterType ? { filterType } : undefined;
+			const response = await invoke<CategoryListResponse>('list_categories', { request });
+			return response;
+		} catch (error) {
+			return this.handleError(error);
+		}
+	}
+
+	/**
+	 * Get a category by ID
+	 *
+	 * @param categoryId - Category ID to retrieve
+	 * @returns Promise resolving to category response or error
+	 */
+	async getCategory(categoryId: string): Promise<ApiResult<CategoryResponse>> {
+		try {
+			const response = await invoke<CategoryResponse>('get_category', { categoryId });
+			return response;
+		} catch (error) {
+			return this.handleError(error);
+		}
+	}
+
+	/**
+	 * Update an existing category
+	 *
+	 * @param request - Category update request
+	 * @returns Promise resolving to category response or error
+	 */
+	async updateCategory(request: UpdateCategoryRequest): Promise<ApiResult<CategoryResponse>> {
+		try {
+			const response = await invoke<CategoryResponse>('update_category', { request });
+			return response;
+		} catch (error) {
+			return this.handleError(error);
+		}
+	}
+
+	/**
+	 * Delete a category
+	 *
+	 * @param categoryId - Category ID to delete
+	 * @returns Promise resolving to success response or error
+	 */
+	async deleteCategory(categoryId: string): Promise<ApiResult<SuccessResponse>> {
+		try {
+			const response = await invoke<SuccessResponse>('delete_category', { categoryId });
 			return response;
 		} catch (error) {
 			return this.handleError(error);

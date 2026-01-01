@@ -6,13 +6,16 @@
 	import type { CreateTransactionRequest } from '$lib/domain/Transaction';
 	import ReceiptUpload from './ReceiptUpload.svelte';
 	import PocketSelector from './PocketSelector.svelte';
+	import CategorySelector from './CategorySelector.svelte';
+	import CategoryCreateForm from './CategoryCreateForm.svelte';
 
 	// Form state using Svelte 5 runes
 	let amount = $state('');
 	let transactionType = $state<'income' | 'expense'>('expense');
 	let scope = $state<'personal' | 'business'>('personal');
 	let description = $state('');
-	let category = $state('');
+	let selectedCategoryId = $state('');
+	let category = $state(''); // Legacy free-text category (kept for backward compatibility)
 	let paymentMethod = $state('');
 	let notes = $state('');
 	let receiptBase64 = $state<string | undefined>(undefined);
@@ -22,6 +25,7 @@
 	let isSubmitting = $state(false);
 	let formError = $state<string | null>(null);
 	let showSuccess = $state(false);
+	let showCategoryCreateForm = $state(false);
 
 	/**
 	 * Load pockets on mount and set default pocket
@@ -65,6 +69,7 @@
 				scope,
 				pocketId: selectedPocketId,
 				description: description.trim() || undefined,
+				categoryId: selectedCategoryId || undefined,
 				category: category.trim() || undefined,
 				paymentMethod: paymentMethod.trim() || undefined,
 				notes: notes.trim() || undefined,
@@ -100,11 +105,21 @@
 		transactionType = 'expense';
 		scope = 'personal';
 		description = '';
+		selectedCategoryId = '';
 		category = '';
 		paymentMethod = '';
 		notes = '';
 		receiptBase64 = undefined;
 		selectedPocketId = pocketStore.defaultPocket?.id || '';
+		showCategoryCreateForm = false;
+	}
+
+	/**
+	 * Handle category creation success
+	 */
+	function handleCategoryCreated(categoryId: string) {
+		selectedCategoryId = categoryId;
+		showCategoryCreateForm = false;
 	}
 </script>
 
@@ -169,14 +184,14 @@
 
 	<!-- Scope -->
 	<div class="form-group">
-		<label>Scope *</label>
+		<label for="scope-personal">Scope *</label>
 		<div class="radio-group">
 			<label class="radio-label">
-				<input type="radio" bind:group={scope} value="personal" disabled={isSubmitting} />
+				<input id="scope-personal" type="radio" bind:group={scope} value="personal" disabled={isSubmitting} />
 				<span>Personal</span>
 			</label>
 			<label class="radio-label">
-				<input type="radio" bind:group={scope} value="business" disabled={isSubmitting} />
+				<input id="scope-business" type="radio" bind:group={scope} value="business" disabled={isSubmitting} />
 				<span>Business</span>
 			</label>
 		</div>
@@ -195,18 +210,21 @@
 		/>
 	</div>
 
-	<!-- Category -->
-	<div class="form-group">
-		<label for="category">Category</label>
-		<input
-			id="category"
-			type="text"
-			bind:value={category}
-			placeholder="e.g., Food, Transportation"
-			maxlength="100"
-			disabled={isSubmitting}
+	<!-- Category Selector -->
+	{#if !showCategoryCreateForm}
+		<CategorySelector
+			bind:selectedCategoryId={selectedCategoryId}
+			transactionType={transactionType}
+			onselect={(id) => (selectedCategoryId = id)}
+			oncreatenew={() => (showCategoryCreateForm = true)}
 		/>
-	</div>
+	{:else}
+		<CategoryCreateForm
+			transactionType={transactionType}
+			oncancel={() => (showCategoryCreateForm = false)}
+			onsuccess={handleCategoryCreated}
+		/>
+	{/if}
 
 	<!-- Payment Method -->
 	<div class="form-group">

@@ -137,6 +137,17 @@ pub async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
             .await?;
     }
 
+    if version < 3 {
+        apply_v3_schema(pool).await?;
+
+        // Mark version as applied
+        let now = chrono::Utc::now().to_rfc3339();
+        sqlx::query("INSERT INTO schema_version (version, applied_at) VALUES (3, ?)")
+            .bind(&now)
+            .execute(pool)
+            .await?;
+    }
+
     Ok(())
 }
 
@@ -313,6 +324,152 @@ async fn apply_v2_schema(pool: &SqlitePool) -> Result<(), sqlx::Error> {
     sqlx::query(
         "CREATE INDEX IF NOT EXISTS idx_transactions_pocket
          ON transactions(pocket_id)"
+    )
+    .execute(&mut *tx)
+    .await?;
+
+    // Commit the transaction
+    tx.commit().await?;
+
+    Ok(())
+}
+
+/// Apply version 3 schema - Adds Categories feature
+///
+/// This migration:
+/// 1. Creates the categories table with constraints and indexes
+/// 2. Seeds 28 predefined categories (20 expense, 8 income)
+/// 3. Adds category_id column to ledger_entries table
+/// 4. Creates index on ledger_entries.category_id
+///
+/// All operations are atomic within a transaction
+async fn apply_v3_schema(pool: &SqlitePool) -> Result<(), sqlx::Error> {
+    use crate::domain::value_objects::TransactionId;
+    let now = chrono::Utc::now();
+    let timestamp = now.format("%Y-%m-%dT%H:%M:%SZ").to_string();
+
+    // Start a transaction for atomicity
+    let mut tx = pool.begin().await?;
+
+    // 1. Create categories table
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS categories (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            code TEXT NOT NULL,
+            description TEXT,
+            color TEXT NOT NULL,
+            is_expense BOOLEAN NOT NULL DEFAULT 0,
+            is_income BOOLEAN NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL,
+            updated_at TEXT,
+            deleted_at TEXT
+        )"
+    )
+    .execute(&mut *tx)
+    .await?;
+
+    // 2. Create unique index on category code (case-insensitive, only for non-deleted)
+    sqlx::query(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_categories_code
+         ON categories(LOWER(code)) WHERE deleted_at IS NULL"
+    )
+    .execute(&mut *tx)
+    .await?;
+
+    // 3. Create index for type filtering
+    sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_categories_type
+         ON categories(is_expense, is_income) WHERE deleted_at IS NULL"
+    )
+    .execute(&mut *tx)
+    .await?;
+
+    // 4. Create index on name for sorting/searching
+    sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_categories_name
+         ON categories(LOWER(name)) WHERE deleted_at IS NULL"
+    )
+    .execute(&mut *tx)
+    .await?;
+
+    // 5. Seed predefined expense categories (20)
+    let expense_categories = vec![
+        ("food_dining", "Food & Dining", "#FF6B6B"),
+        ("groceries", "Groceries", "#4ECDC4"),
+        ("transportation", "Transportation", "#45B7D1"),
+        ("utilities", "Utilities", "#FFA07A"),
+        ("rent_mortgage", "Rent/Mortgage", "#96CEB4"),
+        ("healthcare", "Healthcare", "#FF69B4"),
+        ("insurance", "Insurance", "#9370DB"),
+        ("entertainment", "Entertainment", "#FFD700"),
+        ("shopping", "Shopping", "#FF1493"),
+        ("education", "Education", "#4169E1"),
+        ("personal_care", "Personal Care", "#DA70D6"),
+        ("fitness", "Fitness & Sports", "#32CD32"),
+        ("travel", "Travel", "#1E90FF"),
+        ("gifts", "Gifts & Donations", "#FF69B4"),
+        ("subscriptions", "Subscriptions", "#8A2BE2"),
+        ("phone_internet", "Phone & Internet", "#20B2AA"),
+        ("pet_care", "Pet Care", "#DEB887"),
+        ("home_maintenance", "Home Maintenance", "#CD853F"),
+        ("taxes", "Taxes", "#B22222"),
+        ("other_expense", "Other Expense", "#808080"),
+    ];
+
+    for (code, name, color) in expense_categories {
+        let category_id = TransactionId::new().to_string();
+        sqlx::query(
+            "INSERT INTO categories (id, name, code, color, is_expense, is_income, created_at)
+             VALUES (?, ?, ?, ?, 1, 0, ?)"
+        )
+        .bind(&category_id)
+        .bind(name)
+        .bind(code)
+        .bind(color)
+        .bind(&timestamp)
+        .execute(&mut *tx)
+        .await?;
+    }
+
+    // 6. Seed predefined income categories (8)
+    let income_categories = vec![
+        ("salary", "Salary", "#28A745"),
+        ("freelance", "Freelance/Contract", "#17A2B8"),
+        ("business_income", "Business Income", "#FFC107"),
+        ("investment", "Investment Returns", "#6C757D"),
+        ("rental_income", "Rental Income", "#20C997"),
+        ("gift_received", "Gift Received", "#E83E8C"),
+        ("refund", "Refund", "#6610F2"),
+        ("other_income", "Other Income", "#6C757D"),
+    ];
+
+    for (code, name, color) in income_categories {
+        let category_id = TransactionId::new().to_string();
+        sqlx::query(
+            "INSERT INTO categories (id, name, code, color, is_expense, is_income, created_at)
+             VALUES (?, ?, ?, ?, 0, 1, ?)"
+        )
+        .bind(&category_id)
+        .bind(name)
+        .bind(code)
+        .bind(color)
+        .bind(&timestamp)
+        .execute(&mut *tx)
+        .await?;
+    }
+
+    // 7. Add category_id column to ledger_entries table
+    sqlx::query(
+        "ALTER TABLE ledger_entries ADD COLUMN category_id TEXT REFERENCES categories(id) ON DELETE RESTRICT"
+    )
+    .execute(&mut *tx)
+    .await?;
+
+    // 8. Create index on ledger_entries.category_id for performance
+    sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_ledger_entries_category
+         ON ledger_entries(category_id) WHERE category_id IS NOT NULL"
     )
     .execute(&mut *tx)
     .await?;

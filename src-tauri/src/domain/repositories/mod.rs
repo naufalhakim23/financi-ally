@@ -4,6 +4,8 @@
 
 pub mod transaction_repository;
 pub mod pocket_repository;
+pub mod category_repository;
 
 pub use transaction_repository::{TransactionRepository, RepositoryError};
 pub use pocket_repository::PocketRepository;
+pub use category_repository::CategoryRepository;

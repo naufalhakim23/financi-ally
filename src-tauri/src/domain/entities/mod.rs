@@ -12,4 +12,5 @@ pub use types::{TransactionType, Scope, TransactionStatus};
 pub use ledger_entry::LedgerEntry;
 pub use transaction::Transaction;
 pub use correction::{CorrectionData, CorrectionResult};
+pub use category::Category;
 pub use pocket::Pocket;

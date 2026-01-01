@@ -1,0 +1,264 @@
+/* ============================================================================
+   POCKET-LOG THEME SYSTEM
+   Professional slate-blue palette for financial trustworthiness
+   ============================================================================ */
+
+/* ==========================================================================
+   LIGHT THEME (Default)
+   Warm whites, slate grays, refined blues
+   ========================================================================== */
+
+:root,
+:root[data-theme="light"] {
+  /* Background Colors */
+  --color-bg-primary: #ffffff;           /* Primary surfaces */
+  --color-bg-secondary: #f8fafc;         /* Secondary surfaces */
+  --color-bg-tertiary: #f1f5f9;          /* Tertiary surfaces, subtle backgrounds */
+  --color-bg-hover: #f1f5f9;             /* Hover states */
+  --color-bg-active: #e2e8f0;            /* Active/pressed states */
+
+  /* Text Colors */
+  --color-text-primary: #0f172a;         /* Primary text, headings */
+  --color-text-secondary: #475569;       /* Secondary text, descriptions */
+  --color-text-tertiary: #64748b;        /* Tertiary text, captions */
+  --color-text-disabled: #94a3b8;        /* Disabled text */
+  --color-text-inverse: #ffffff;         /* Text on dark backgrounds */
+
+  /* Border Colors */
+  --color-border-primary: #e2e8f0;       /* Primary borders */
+  --color-border-secondary: #cbd5e1;     /* Secondary borders, more visible */
+  --color-border-focus: #3b82f6;         /* Focus state borders */
+
+  /* Brand Colors - Refined Blues */
+  --color-primary-50: #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-200: #bfdbfe;
+  --color-primary-300: #93c5fd;
+  --color-primary-400: #60a5fa;
+  --color-primary-500: #3b82f6;          /* Primary brand color */
+  --color-primary-600: #2563eb;
+  --color-primary-700: #1d4ed8;
+  --color-primary-800: #1e40af;
+  --color-primary-900: #1e3a8a;
+
+  /* Semantic Colors - Income (Success) */
+  --color-success-50: #f0fdf4;
+  --color-success-100: #dcfce7;
+  --color-success-200: #bbf7d0;
+  --color-success-300: #86efac;
+  --color-success-400: #4ade80;
+  --color-success-500: #22c55e;
+  --color-success-600: #16a34a;
+  --color-success-700: #15803d;
+  --color-success-800: #166534;
+  --color-success-900: #14532d;
+
+  /* Semantic Colors - Expense (Error) */
+  --color-error-50: #fef2f2;
+  --color-error-100: #fee2e2;
+  --color-error-200: #fecaca;
+  --color-error-300: #fca5a5;
+  --color-error-400: #f87171;
+  --color-error-500: #ef4444;
+  --color-error-600: #dc2626;
+  --color-error-700: #b91c1c;
+  --color-error-800: #991b1b;
+  --color-error-900: #7f1d1d;
+
+  /* Semantic Colors - Warning */
+  --color-warning-50: #fffbeb;
+  --color-warning-100: #fef3c7;
+  --color-warning-200: #fde68a;
+  --color-warning-300: #fcd34d;
+  --color-warning-400: #fbbf24;
+  --color-warning-500: #f59e0b;
+  --color-warning-600: #d97706;
+  --color-warning-700: #b45309;
+  --color-warning-800: #92400e;
+  --color-warning-900: #78350f;
+
+  /* Semantic Colors - Info */
+  --color-info-50: #f0f9ff;
+  --color-info-100: #e0f2fe;
+  --color-info-200: #bae6fd;
+  --color-info-300: #7dd3fc;
+  --color-info-400: #38bdf8;
+  --color-info-500: #0ea5e9;
+  --color-info-600: #0284c7;
+  --color-info-700: #0369a1;
+  --color-info-800: #075985;
+  --color-info-900: #0c4a6e;
+
+  /* Neutral Grays - Slate palette for professional feel */
+  --color-neutral-50: #f8fafc;
+  --color-neutral-100: #f1f5f9;
+  --color-neutral-200: #e2e8f0;
+  --color-neutral-300: #cbd5e1;
+  --color-neutral-400: #94a3b8;
+  --color-neutral-500: #64748b;
+  --color-neutral-600: #475569;
+  --color-neutral-700: #334155;
+  --color-neutral-800: #1e293b;
+  --color-neutral-900: #0f172a;
+
+  /* Category Badge Colors - Business/Personal */
+  --color-business-bg: #fef3c7;
+  --color-business-text: #92400e;
+  --color-personal-bg: #dbeafe;
+  --color-personal-text: #1e40af;
+
+  /* Overlay Colors */
+  --color-overlay: rgba(15, 23, 42, 0.5);
+  --color-overlay-light: rgba(15, 23, 42, 0.25);
+}
+
+/* ==========================================================================
+   DARK THEME
+   Deep slate backgrounds, warm whites, adjusted blues
+   ========================================================================== */
+
+:root[data-theme="dark"] {
+  /* Background Colors */
+  --color-bg-primary: #0f172a;           /* Primary surfaces */
+  --color-bg-secondary: #1e293b;         /* Secondary surfaces */
+  --color-bg-tertiary: #334155;          /* Tertiary surfaces */
+  --color-bg-hover: #334155;             /* Hover states */
+  --color-bg-active: #475569;            /* Active/pressed states */
+
+  /* Text Colors */
+  --color-text-primary: #f1f5f9;         /* Primary text, headings */
+  --color-text-secondary: #cbd5e1;       /* Secondary text */
+  --color-text-tertiary: #94a3b8;        /* Tertiary text */
+  --color-text-disabled: #64748b;        /* Disabled text */
+  --color-text-inverse: #0f172a;         /* Text on light backgrounds */
+
+  /* Border Colors */
+  --color-border-primary: #334155;       /* Primary borders */
+  --color-border-secondary: #475569;     /* Secondary borders */
+  --color-border-focus: #60a5fa;         /* Focus state borders */
+
+  /* Brand Colors - Adjusted for dark mode */
+  --color-primary-50: #1e3a8a;
+  --color-primary-100: #1e40af;
+  --color-primary-200: #1d4ed8;
+  --color-primary-300: #2563eb;
+  --color-primary-400: #3b82f6;
+  --color-primary-500: #60a5fa;          /* Primary brand - lighter for dark bg */
+  --color-primary-600: #93c5fd;
+  --color-primary-700: #bfdbfe;
+  --color-primary-800: #dbeafe;
+  --color-primary-900: #eff6ff;
+
+  /* Semantic Colors - Income (adjusted) */
+  --color-success-50: #14532d;
+  --color-success-100: #166534;
+  --color-success-200: #15803d;
+  --color-success-300: #16a34a;
+  --color-success-400: #22c55e;
+  --color-success-500: #4ade80;
+  --color-success-600: #86efac;
+  --color-success-700: #bbf7d0;
+  --color-success-800: #dcfce7;
+  --color-success-900: #f0fdf4;
+
+  /* Semantic Colors - Expense (adjusted) */
+  --color-error-50: #7f1d1d;
+  --color-error-100: #991b1b;
+  --color-error-200: #b91c1c;
+  --color-error-300: #dc2626;
+  --color-error-400: #ef4444;
+  --color-error-500: #f87171;
+  --color-error-600: #fca5a5;
+  --color-error-700: #fecaca;
+  --color-error-800: #fee2e2;
+  --color-error-900: #fef2f2;
+
+  /* Semantic Colors - Warning (adjusted) */
+  --color-warning-50: #78350f;
+  --color-warning-100: #92400e;
+  --color-warning-200: #b45309;
+  --color-warning-300: #d97706;
+  --color-warning-400: #f59e0b;
+  --color-warning-500: #fbbf24;
+  --color-warning-600: #fcd34d;
+  --color-warning-700: #fde68a;
+  --color-warning-800: #fef3c7;
+  --color-warning-900: #fffbeb;
+
+  /* Semantic Colors - Info (adjusted) */
+  --color-info-50: #0c4a6e;
+  --color-info-100: #075985;
+  --color-info-200: #0369a1;
+  --color-info-300: #0284c7;
+  --color-info-400: #0ea5e9;
+  --color-info-500: #38bdf8;
+  --color-info-600: #7dd3fc;
+  --color-info-700: #bae6fd;
+  --color-info-800: #e0f2fe;
+  --color-info-900: #f0f9ff;
+
+  /* Neutral Grays - Inverted */
+  --color-neutral-50: #0f172a;
+  --color-neutral-100: #1e293b;
+  --color-neutral-200: #334155;
+  --color-neutral-300: #475569;
+  --color-neutral-400: #64748b;
+  --color-neutral-500: #94a3b8;
+  --color-neutral-600: #cbd5e1;
+  --color-neutral-700: #e2e8f0;
+  --color-neutral-800: #f1f5f9;
+  --color-neutral-900: #f8fafc;
+
+  /* Category Badge Colors - Adjusted for dark mode */
+  --color-business-bg: #78350f;
+  --color-business-text: #fef3c7;
+  --color-personal-bg: #1e40af;
+  --color-personal-text: #dbeafe;
+
+  /* Overlay Colors */
+  --color-overlay: rgba(0, 0, 0, 0.7);
+  --color-overlay-light: rgba(0, 0, 0, 0.4);
+
+  /* Dark mode specific shadows */
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.4),
+               0 1px 2px -1px rgba(0, 0, 0, 0.4);
+  --shadow-base: 0 4px 6px -1px rgba(0, 0, 0, 0.4),
+                 0 2px 4px -2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.4),
+               0 4px 6px -4px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.4),
+               0 8px 10px -6px rgba(0, 0, 0, 0.4);
+  --shadow-xl: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+
+  /* Focus ring for dark mode */
+  --shadow-focus: 0 0 0 3px rgba(96, 165, 250, 0.25);
+}
+
+/* ==========================================================================
+   THEME TRANSITION
+   Smooth color transitions when switching themes
+   ========================================================================== */
+
+* {
+  transition: background-color var(--transition-base),
+              border-color var(--transition-base),
+              color var(--transition-base),
+              fill var(--transition-base),
+              stroke var(--transition-base);
+}
+
+/* Disable transitions for elements that should change instantly */
+input,
+textarea,
+select,
+button,
+[role="button"],
+[data-no-theme-transition] {
+  transition: background-color var(--transition-base),
+              border-color var(--transition-base),
+              color var(--transition-base),
+              opacity var(--transition-fast),
+              transform var(--transition-fast),
+              box-shadow var(--transition-fast);
+}

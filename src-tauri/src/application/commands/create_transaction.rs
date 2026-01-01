@@ -176,6 +176,7 @@ mod tests {
             payment_method: Some("Bank Transfer".to_string()),
             notes: Some("Project X completion".to_string()),
             receipt_base64: None,
+            category_id: None,
             occurred_at: None,
         };
 
@@ -211,6 +212,7 @@ mod tests {
             payment_method: Some("Credit Card".to_string()),
             notes: None,
             receipt_base64: None,
+            category_id: None,
             occurred_at: None,
         };
 
@@ -241,6 +243,7 @@ mod tests {
             payment_method: None,
             notes: None,
             receipt_base64: None,
+            category_id: None,
             occurred_at: None,
         };
 

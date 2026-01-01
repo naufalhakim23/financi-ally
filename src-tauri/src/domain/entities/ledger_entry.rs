@@ -337,7 +337,7 @@ mod tests {
         let amount = Amount::from_cents(1000);
         let metadata = EntryMetadata::empty();
 
-        let original = LedgerEntry::new_expense(tx_id, amount, metadata.clone()).unwrap();
+        let original = LedgerEntry::new_expense(tx_id, amount, metadata.clone(), None).unwrap();
 
         let new_amount = Amount::from_cents(1200);
         let corrected = LedgerEntry::new_corrected(&original, new_amount, metadata).unwrap();

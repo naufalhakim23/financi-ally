@@ -323,7 +323,7 @@ mod tests {
         // Original expense: $10.00
         let amount = Amount::from_cents(1000);
         let metadata = EntryMetadata::empty();
-        let original = LedgerEntry::new_expense(*tx.id(), amount, metadata.clone()).unwrap();
+        let original = LedgerEntry::new_expense(*tx.id(), amount, metadata.clone(), None).unwrap();
         tx.add_entry(original.clone()).unwrap();
 
         // Correction: reverse original + add corrected $15.00
@@ -357,7 +357,7 @@ mod tests {
 
         let amount = Amount::from_cents(1000);
         let metadata = EntryMetadata::empty();
-        let original = LedgerEntry::new_expense(*tx.id(), amount, metadata.clone()).unwrap();
+        let original = LedgerEntry::new_expense(*tx.id(), amount, metadata.clone(), None).unwrap();
         tx.add_entry(original.clone()).unwrap();
 
         // Before correction: 1 active entry

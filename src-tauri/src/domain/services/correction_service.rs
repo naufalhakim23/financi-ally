@@ -129,7 +129,7 @@ mod tests {
         )
         .unwrap();
 
-        LedgerEntry::new_income(tx_id, amount, metadata).unwrap()
+        LedgerEntry::new_income(tx_id, amount, metadata, None).unwrap()
     }
 
     fn create_test_expense_entry() -> LedgerEntry {
@@ -143,7 +143,7 @@ mod tests {
         )
         .unwrap();
 
-        LedgerEntry::new_expense(tx_id, amount, metadata).unwrap()
+        LedgerEntry::new_expense(tx_id, amount, metadata, None).unwrap()
     }
 
     // Test 1: Basic correction - amount changed

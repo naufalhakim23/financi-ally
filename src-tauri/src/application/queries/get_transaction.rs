@@ -81,6 +81,7 @@ mod tests {
             scope: Scope::Personal,
             pocket_id: pocket_id.clone(),
             description: Some("Test transaction".to_string()),
+            category_id: None,
             category: None,
             payment_method: None,
             notes: None,

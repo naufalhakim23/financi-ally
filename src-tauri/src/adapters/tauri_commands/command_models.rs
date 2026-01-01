@@ -6,7 +6,7 @@
 
 use serde::{Deserialize, Deserializer, Serialize};
 
-use crate::application::dtos::{PocketDto, TransactionDto};
+use crate::application::dtos::{CategoryDto, PocketDto, TransactionDto};
 
 /// Helper function to deserialize empty strings as None
 fn empty_string_as_none<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
@@ -41,7 +41,11 @@ pub struct CreateTransactionRequest {
     #[serde(skip_serializing_if = "Option::is_none", deserialize_with = "empty_string_as_none", default)]
     pub description: Option<String>,
 
-    /// Optional category (e.g., "Food", "Transportation")
+    /// Optional category ID (new system, preferred over free-text category)
+    #[serde(skip_serializing_if = "Option::is_none", deserialize_with = "empty_string_as_none", default)]
+    pub category_id: Option<String>,
+
+    /// Optional category (e.g., "Food", "Transportation") - legacy free-text
     #[serde(skip_serializing_if = "Option::is_none", deserialize_with = "empty_string_as_none", default)]
     pub category: Option<String>,
 
@@ -229,6 +233,43 @@ pub struct PocketListResponse {
 
 impl PocketListResponse {
     pub fn ok(data: Vec<PocketDto>) -> Self {
+        let count = data.len();
+        Self {
+            success: true,
+            data,
+            count,
+        }
+    }
+}
+
+/// Response with a single category
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CategoryResponse {
+    pub success: bool,
+    pub data: CategoryDto,
+}
+
+impl CategoryResponse {
+    pub fn ok(data: CategoryDto) -> Self {
+        Self {
+            success: true,
+            data,
+        }
+    }
+}
+
+/// Response with list of categories
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CategoryListResponse {
+    pub success: bool,
+    pub data: Vec<CategoryDto>,
+    pub count: usize,
+}
+
+impl CategoryListResponse {
+    pub fn ok(data: Vec<CategoryDto>) -> Self {
         let count = data.len();
         Self {
             success: true,

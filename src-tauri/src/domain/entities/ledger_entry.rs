@@ -84,6 +84,10 @@ pub struct LedgerEntry {
     /// Reference to the original entry being corrected (if this is a correction)
     parent_entry_id: Option<TransactionId>,
 
+    /// Reference to a category (new system, optional for backward compatibility)
+    /// Prefer this over metadata.category for new transactions
+    category_id: Option<TransactionId>,
+
     /// Additional metadata (category, payment method, notes, receipt)
     metadata: EntryMetadata,
 
@@ -97,6 +101,7 @@ impl LedgerEntry {
         transaction_id: TransactionId,
         amount: Amount,
         metadata: EntryMetadata,
+        category_id: Option<TransactionId>,
     ) -> DomainResult<Self> {
         // Income entries should have positive amounts
         if amount.is_negative() {
@@ -114,6 +119,7 @@ impl LedgerEntry {
             entry_type: TransactionType::Income,
             is_correction: false,
             parent_entry_id: None,
+            category_id,
             metadata,
             created_at: Timestamp::now(),
         })
@@ -124,6 +130,7 @@ impl LedgerEntry {
         transaction_id: TransactionId,
         amount: Amount,
         metadata: EntryMetadata,
+        category_id: Option<TransactionId>,
     ) -> DomainResult<Self> {
         // Expense amounts should be positive (type indicates it's an expense)
         if amount.is_negative() {
@@ -141,6 +148,7 @@ impl LedgerEntry {
             entry_type: TransactionType::Expense,
             is_correction: false,
             parent_entry_id: None,
+            category_id,
             metadata,
             created_at: Timestamp::now(),
         })
@@ -162,6 +170,7 @@ impl LedgerEntry {
             entry_type: original.entry_type,
             is_correction: true,
             parent_entry_id: Some(original.id),
+            category_id: original.category_id,
             metadata: original.metadata.clone(),
             created_at: Timestamp::now(),
         }
@@ -191,6 +200,7 @@ impl LedgerEntry {
             entry_type: original.entry_type,
             is_correction: true,
             parent_entry_id: Some(original.id),
+            category_id: original.category_id,
             metadata: new_metadata,
             created_at: Timestamp::now(),
         })
@@ -221,6 +231,10 @@ impl LedgerEntry {
         self.parent_entry_id.as_ref()
     }
 
+    pub fn category_id(&self) -> Option<&TransactionId> {
+        self.category_id.as_ref()
+    }
+
     pub fn metadata(&self) -> &EntryMetadata {
         &self.metadata
     }
@@ -243,6 +257,7 @@ impl LedgerEntry {
         entry_type: TransactionType,
         is_correction: bool,
         parent_entry_id: Option<TransactionId>,
+        category_id: Option<TransactionId>,
         metadata: EntryMetadata,
         created_at: Timestamp,
     ) -> Self {
@@ -253,6 +268,7 @@ impl LedgerEntry {
             entry_type,
             is_correction,
             parent_entry_id,
+            category_id,
             metadata,
             created_at,
         }
@@ -269,7 +285,7 @@ mod tests {
         let amount = Amount::from_cents(1000);
         let metadata = EntryMetadata::empty();
 
-        let entry = LedgerEntry::new_income(tx_id, amount, metadata).unwrap();
+        let entry = LedgerEntry::new_income(tx_id, amount, metadata, None).unwrap();
 
         assert_eq!(entry.transaction_id(), &tx_id);
         assert_eq!(entry.amount().cents(), 1000);
@@ -284,7 +300,7 @@ mod tests {
         let amount = Amount::from_cents(500);
         let metadata = EntryMetadata::empty();
 
-        let entry = LedgerEntry::new_expense(tx_id, amount, metadata).unwrap();
+        let entry = LedgerEntry::new_expense(tx_id, amount, metadata, None).unwrap();
 
         assert_eq!(entry.entry_type(), TransactionType::Expense);
         assert_eq!(entry.amount().cents(), 500);
@@ -296,7 +312,7 @@ mod tests {
         let amount = Amount::from_cents(-1000);
         let metadata = EntryMetadata::empty();
 
-        let result = LedgerEntry::new_income(tx_id, amount, metadata);
+        let result = LedgerEntry::new_income(tx_id, amount, metadata, None);
         assert!(result.is_err());
     }
 
@@ -306,7 +322,7 @@ mod tests {
         let amount = Amount::from_cents(1000);
         let metadata = EntryMetadata::empty();
 
-        let original = LedgerEntry::new_income(tx_id, amount, metadata).unwrap();
+        let original = LedgerEntry::new_income(tx_id, amount, metadata, None).unwrap();
         let reversal = LedgerEntry::new_reversal(&original);
 
         assert_eq!(reversal.amount().cents(), -1000);

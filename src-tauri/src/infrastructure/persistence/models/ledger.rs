@@ -19,6 +19,7 @@ pub struct LedgerEntryRow {
     pub entry_type: String,
     pub is_correction: bool,
     pub parent_entry_id: Option<String>,
+    pub category_id: Option<String>,
     pub metadata: Option<String>, // JSON string
     pub created_at: String,
 }
@@ -43,6 +44,12 @@ impl LedgerEntryRow {
             None
         };
 
+        let category_id = if let Some(category_id_str) = &self.category_id {
+            Some(TransactionId::from_string(category_id_str)?)
+        } else {
+            None
+        };
+
         // Parse metadata JSON
         let metadata: EntryMetadata = if let Some(json_str) = &self.metadata {
             serde_json::from_str(json_str)
@@ -59,6 +66,7 @@ impl LedgerEntryRow {
             entry_type,
             self.is_correction,
             parent_entry_id,
+            category_id,
             metadata,
             created_at,
         );
@@ -78,6 +86,7 @@ impl LedgerEntryRow {
             entry_type: entry.entry_type().as_str().to_string(),
             is_correction: entry.is_correction(),
             parent_entry_id: entry.parent_entry_id().map(|id| id.to_string()),
+            category_id: entry.category_id().map(|id| id.to_string()),
             metadata: Some(metadata_json),
             created_at: entry.created_at().to_string(),
         }

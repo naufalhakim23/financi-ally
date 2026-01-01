@@ -6,6 +6,9 @@ mod adapters;        // Primary adapters: Tauri commands (Phase 4)
 mod config;          // Configuration (Phase 4)
 
 use adapters::tauri_commands::{
+    category_commands::{
+        create_category, delete_category, get_category, list_categories, update_category,
+    },
     pocket_commands::{
         create_pocket, delete_pocket, get_pocket, list_pockets, set_default_pocket,
         update_pocket,
@@ -58,6 +61,12 @@ pub fn run() {
             update_pocket,
             delete_pocket,
             set_default_pocket,
+            // Category commands
+            create_category,
+            list_categories,
+            get_category,
+            update_category,
+            delete_category,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

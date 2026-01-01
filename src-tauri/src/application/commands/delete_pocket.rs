@@ -179,6 +179,7 @@ mod tests {
             *tx.id(),
             Amount::from_cents(100),
             EntryMetadata::empty(),
+            None,
         )
         .unwrap();
         tx.add_entry(entry).unwrap();

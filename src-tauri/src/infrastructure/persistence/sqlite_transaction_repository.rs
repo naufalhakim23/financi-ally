@@ -56,8 +56,8 @@ impl TransactionRepository for SqliteTransactionRepository {
             let entry_row = LedgerEntryRow::from_domain(entry);
 
             sqlx::query(
-                "INSERT INTO ledger_entries (id, transaction_id, amount_cents, type, is_correction, parent_entry_id, metadata, created_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+                "INSERT INTO ledger_entries (id, transaction_id, amount_cents, type, is_correction, parent_entry_id, category_id, metadata, created_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
             )
             .bind(&entry_row.id)
             .bind(&entry_row.transaction_id)
@@ -65,6 +65,7 @@ impl TransactionRepository for SqliteTransactionRepository {
             .bind(&entry_row.entry_type)
             .bind(entry_row.is_correction)
             .bind(&entry_row.parent_entry_id)
+            .bind(&entry_row.category_id)
             .bind(&entry_row.metadata)
             .bind(&entry_row.created_at)
             .execute(&mut *tx)
@@ -101,7 +102,7 @@ impl TransactionRepository for SqliteTransactionRepository {
 
         // Fetch associated ledger entries
         let entry_rows: Vec<LedgerEntryRow> = sqlx::query_as(
-            "SELECT id, transaction_id, amount_cents, type, is_correction, parent_entry_id, metadata, created_at
+            "SELECT id, transaction_id, amount_cents, type, is_correction, parent_entry_id, category_id, metadata, created_at
              FROM ledger_entries
              WHERE transaction_id = ?
              ORDER BY created_at ASC"
@@ -146,7 +147,7 @@ impl TransactionRepository for SqliteTransactionRepository {
         // For each transaction, fetch its entries
         for tx_row in tx_rows {
             let entry_rows: Vec<LedgerEntryRow> = sqlx::query_as(
-                "SELECT id, transaction_id, amount_cents, type, is_correction, parent_entry_id, metadata, created_at
+                "SELECT id, transaction_id, amount_cents, type, is_correction, parent_entry_id, category_id, metadata, created_at
                  FROM ledger_entries
                  WHERE transaction_id = ?
                  ORDER BY created_at ASC"
@@ -199,7 +200,7 @@ impl TransactionRepository for SqliteTransactionRepository {
 
         for tx_row in tx_rows {
             let entry_rows: Vec<LedgerEntryRow> = sqlx::query_as(
-                "SELECT id, transaction_id, amount_cents, type, is_correction, parent_entry_id, metadata, created_at
+                "SELECT id, transaction_id, amount_cents, type, is_correction, parent_entry_id, category_id, metadata, created_at
                  FROM ledger_entries
                  WHERE transaction_id = ?
                  ORDER BY created_at ASC"
@@ -324,7 +325,7 @@ impl TransactionRepository for SqliteTransactionRepository {
 
         for tx_row in tx_rows {
             let entry_rows: Vec<LedgerEntryRow> = sqlx::query_as(
-                "SELECT id, transaction_id, amount_cents, type, is_correction, parent_entry_id, metadata, created_at
+                "SELECT id, transaction_id, amount_cents, type, is_correction, parent_entry_id, category_id, metadata, created_at
                  FROM ledger_entries
                  WHERE transaction_id = ?
                  ORDER BY created_at ASC"
@@ -491,7 +492,7 @@ mod tests {
 
         let amount = Amount::from_cents(1000);
         let metadata = EntryMetadata::empty();
-        let entry = LedgerEntry::new_expense(*tx.id(), amount, metadata).unwrap();
+        let entry = LedgerEntry::new_expense(*tx.id(), amount, metadata, None).unwrap();
         tx.add_entry(entry).unwrap();
 
         // Save to database
@@ -545,7 +546,7 @@ mod tests {
 
             let amount = Amount::from_cents((i + 1) * 100);
             let metadata = EntryMetadata::empty();
-            let entry = LedgerEntry::new_expense(*tx.id(), amount, metadata).unwrap();
+            let entry = LedgerEntry::new_expense(*tx.id(), amount, metadata, None).unwrap();
             tx.add_entry(entry).unwrap();
 
             repo.create(&tx).await.unwrap();
@@ -588,7 +589,7 @@ mod tests {
 
         let amount = Amount::from_cents(500);
         let metadata = EntryMetadata::empty();
-        let entry = LedgerEntry::new_income(*tx.id(), amount, metadata).unwrap();
+        let entry = LedgerEntry::new_income(*tx.id(), amount, metadata, None).unwrap();
         tx.add_entry(entry).unwrap();
 
         repo.create(&tx).await.unwrap();

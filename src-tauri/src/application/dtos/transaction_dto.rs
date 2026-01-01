@@ -134,7 +134,7 @@ mod tests {
 
         let amount = Amount::from_cents(1000);
         let metadata = EntryMetadata::empty();
-        let entry = LedgerEntry::new_expense(*tx.id(), amount, metadata).unwrap();
+        let entry = LedgerEntry::new_expense(*tx.id(), amount, metadata, None).unwrap();
         tx.add_entry(entry).unwrap();
 
         let dto = TransactionDto::from(&tx);
@@ -160,7 +160,7 @@ mod tests {
         )
         .unwrap();
 
-        let entry = LedgerEntry::new_income(tx_id, amount, metadata).unwrap();
+        let entry = LedgerEntry::new_income(tx_id, amount, metadata, None).unwrap();
         let dto = LedgerEntryDto::from(&entry);
 
         assert_eq!(dto.transaction_id, tx_id.to_string());

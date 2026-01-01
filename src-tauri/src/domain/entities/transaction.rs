@@ -265,7 +265,7 @@ mod tests {
 
         let amount = Amount::from_cents(1000);
         let metadata = EntryMetadata::empty();
-        let entry = LedgerEntry::new_expense(*tx.id(), amount, metadata).unwrap();
+        let entry = LedgerEntry::new_expense(*tx.id(), amount, metadata, None).unwrap();
 
         tx.add_entry(entry).unwrap();
 
@@ -281,7 +281,7 @@ mod tests {
         let wrong_tx_id = TransactionId::new();
         let amount = Amount::from_cents(1000);
         let metadata = EntryMetadata::empty();
-        let entry = LedgerEntry::new_expense(wrong_tx_id, amount, metadata).unwrap();
+        let entry = LedgerEntry::new_expense(wrong_tx_id, amount, metadata, None).unwrap();
 
         let result = tx.add_entry(entry);
         assert!(result.is_err());
@@ -294,7 +294,7 @@ mod tests {
 
         let amount = Amount::from_cents(1000);
         let metadata = EntryMetadata::empty();
-        let entry = LedgerEntry::new_expense(*tx.id(), amount, metadata).unwrap();
+        let entry = LedgerEntry::new_expense(*tx.id(), amount, metadata, None).unwrap();
         tx.add_entry(entry).unwrap();
 
         // Expense of 1000 should result in -1000 total
@@ -308,7 +308,7 @@ mod tests {
 
         let amount = Amount::from_cents(5000);
         let metadata = EntryMetadata::empty();
-        let entry = LedgerEntry::new_income(*tx.id(), amount, metadata).unwrap();
+        let entry = LedgerEntry::new_income(*tx.id(), amount, metadata, None).unwrap();
         tx.add_entry(entry).unwrap();
 
         // Income of 5000 should result in +5000 total

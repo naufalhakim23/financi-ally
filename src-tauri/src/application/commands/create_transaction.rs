@@ -37,7 +37,10 @@ pub struct CreateTransactionCommand {
     /// Optional description of the transaction
     pub description: Option<String>,
 
-    /// Optional category (e.g., "Food", "Transportation")
+    /// Optional category ID (new system, preferred over free-text category)
+    pub category_id: Option<String>,
+
+    /// Optional category (e.g., "Food", "Transportation") - legacy free-text
     pub category: Option<String>,
 
     /// Optional payment method (e.g., "Cash", "Credit Card")
@@ -108,6 +111,13 @@ impl CreateTransactionHandler {
         // Create amount
         let amount = Amount::from_cents(command.amount_cents);
 
+        // Parse category_id if provided
+        let category_id = if let Some(cat_id_str) = command.category_id {
+            Some(TransactionId::from_string(&cat_id_str)?)
+        } else {
+            None
+        };
+
         // Create metadata
         let metadata = EntryMetadata::new(
             command.category,
@@ -119,10 +129,10 @@ impl CreateTransactionHandler {
         // Create ledger entry based on transaction type
         let entry = match command.transaction_type {
             TransactionType::Income => {
-                LedgerEntry::new_income(*transaction.id(), amount, metadata)?
+                LedgerEntry::new_income(*transaction.id(), amount, metadata, category_id)?
             }
             TransactionType::Expense => {
-                LedgerEntry::new_expense(*transaction.id(), amount, metadata)?
+                LedgerEntry::new_expense(*transaction.id(), amount, metadata, category_id)?
             }
         };
 

@@ -33,7 +33,8 @@ use crate::{
     domain::{
         entities::types::{Scope, TransactionType},
         repositories::{
-            pocket_repository::PocketRepository, transaction_repository::TransactionRepository,
+            category_repository::CategoryRepository, pocket_repository::PocketRepository,
+            transaction_repository::TransactionRepository,
         },
         value_objects::Timestamp,
     },
@@ -43,6 +44,7 @@ use crate::{
 pub struct AppState {
     pub transaction_repository: Arc<dyn TransactionRepository>,
     pub pocket_repository: Arc<dyn PocketRepository>,
+    pub category_repository: Arc<dyn CategoryRepository>,
 }
 
 // ============================================================================
@@ -101,6 +103,7 @@ pub async fn create_transaction(
         scope,
         pocket_id: request.pocket_id,
         description: request.description,
+        category_id: request.category_id,
         category: request.category,
         payment_method: request.payment_method,
         notes: request.notes,

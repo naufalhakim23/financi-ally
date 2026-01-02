@@ -179,7 +179,7 @@
 {/snippet}
 
 <style>
-	/* Sidebar backdrop (mobile only) */
+	/* Sidebar backdrop (tablet only) */
 	.sidebar-backdrop {
 		position: fixed;
 		inset: 0;
@@ -189,7 +189,8 @@
 		animation: fadeIn var(--transition-base);
 	}
 
-	@media (min-width: 1024px) {
+	/* Hide backdrop on mobile and desktop */
+	@media (max-width: 639px), (min-width: 1024px) {
 		.sidebar-backdrop {
 			display: none;
 		}
@@ -210,26 +211,23 @@
 		transition: transform var(--transition-smooth);
 	}
 
-	/* Mobile: Hidden by default, slide in when open */
-	@media (max-width: 1023px) {
+	/* Mobile: Completely hidden (using bottom nav instead) */
+	@media (max-width: 639px) {
 		.sidebar {
-			transform: translateX(-100%);
-			box-shadow: var(--shadow-xl);
-		}
-
-		.sidebar.open {
-			transform: translateX(0);
+			display: none;
 		}
 	}
 
-	/* Tablet: Icon-only, collapsed */
+	/* Tablet: Icon-only by default, expands when open */
 	@media (min-width: 640px) and (max-width: 1023px) {
 		.sidebar {
 			width: var(--sidebar-collapsed);
+			transform: translateX(0);
 		}
 
 		.sidebar.open {
 			width: var(--sidebar-width);
+			box-shadow: var(--shadow-xl);
 		}
 	}
 

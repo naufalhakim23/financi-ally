@@ -36,9 +36,9 @@ pub async fn initialize_app_state(app_data_dir: PathBuf) -> Result<AppState, Str
     // In debug mode, use database in the repo for easier development
     // In release mode, use app data directory
     let db_path = if cfg!(debug_assertions) {
-        // Development: use repo database
+        // Development: use repo root database (not src-tauri to avoid file watcher triggers)
         std::env::current_dir()
-            .map(|p| p.join("pocket-log.db"))
+            .map(|p| p.parent().map(|parent| parent.join("pocket-log.db")).unwrap_or_else(|| p.join("pocket-log.db")))
             .unwrap_or_else(|_| app_data_dir.join("pocket-log.db"))
     } else {
         // Production: use app data directory

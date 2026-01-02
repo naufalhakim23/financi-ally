@@ -1,4 +1,8 @@
 <script lang="ts">
+	import Input from './ui/Input.svelte';
+	import Select from './ui/Select.svelte';
+	import Button from './ui/Button.svelte';
+
 	// Props
 	let {
 		filterType = $bindable(),
@@ -46,6 +50,19 @@
 	function handleFilterChange() {
 		onFilterChange();
 	}
+
+	// Options for select dropdowns
+	const TYPE_OPTIONS = [
+		{ value: '', label: 'All' },
+		{ value: 'income', label: 'Income' },
+		{ value: 'expense', label: 'Expense' }
+	];
+
+	const SCOPE_OPTIONS = [
+		{ value: '', label: 'All' },
+		{ value: 'personal', label: 'Personal' },
+		{ value: 'business', label: 'Business' }
+	];
 </script>
 
 <div class="filter-panel">
@@ -59,7 +76,7 @@
 			<span class="arrow">{isExpanded ? '▲' : '▼'}</span>
 		</button>
 		{#if hasActiveFilters}
-			<button class="clear-button" onclick={clearFilters} type="button"> Clear All </button>
+			<Button variant="danger" size="sm" onclick={clearFilters}>Clear All</Button>
 		{/if}
 	</div>
 
@@ -67,70 +84,54 @@
 		<div class="filter-content">
 			<div class="filter-grid">
 				<!-- Transaction Type Filter -->
-				<div class="filter-item">
-					<label for="filter-type">Type</label>
-					<select id="filter-type" bind:value={filterType} onchange={handleFilterChange}>
-						<option value="">All</option>
-						<option value="income">Income</option>
-						<option value="expense">Expense</option>
-					</select>
-				</div>
+				<Select
+					label="Type"
+					bind:value={filterType}
+					options={TYPE_OPTIONS}
+					onchange={handleFilterChange}
+				/>
 
 				<!-- Scope Filter -->
-				<div class="filter-item">
-					<label for="filter-scope">Scope</label>
-					<select id="filter-scope" bind:value={filterScope} onchange={handleFilterChange}>
-						<option value="">All</option>
-						<option value="personal">Personal</option>
-						<option value="business">Business</option>
-					</select>
-				</div>
+				<Select
+					label="Scope"
+					bind:value={filterScope}
+					options={SCOPE_OPTIONS}
+					onchange={handleFilterChange}
+				/>
 
 				<!-- Category Filter -->
-				<div class="filter-item">
-					<label for="filter-category">Category</label>
-					<input
-						id="filter-category"
-						type="text"
-						placeholder="e.g., Food, Transport"
-						bind:value={filterCategory}
-						oninput={handleFilterChange}
-					/>
-				</div>
+				<Input
+					type="text"
+					label="Category"
+					bind:value={filterCategory}
+					placeholder="e.g., Food, Transport"
+					oninput={handleFilterChange}
+				/>
 
 				<!-- Payment Method Filter -->
-				<div class="filter-item">
-					<label for="filter-payment">Payment Method</label>
-					<input
-						id="filter-payment"
-						type="text"
-						placeholder="e.g., Cash, Credit Card"
-						bind:value={filterPaymentMethod}
-						oninput={handleFilterChange}
-					/>
-				</div>
+				<Input
+					type="text"
+					label="Payment Method"
+					bind:value={filterPaymentMethod}
+					placeholder="e.g., Cash, Credit Card"
+					oninput={handleFilterChange}
+				/>
 
 				<!-- Date From Filter -->
-				<div class="filter-item">
-					<label for="filter-date-from">Date From</label>
-					<input
-						id="filter-date-from"
-						type="date"
-						bind:value={filterDateFrom}
-						onchange={handleFilterChange}
-					/>
-				</div>
+				<Input
+					type="date"
+					label="Date From"
+					bind:value={filterDateFrom}
+					onchange={handleFilterChange}
+				/>
 
 				<!-- Date To Filter -->
-				<div class="filter-item">
-					<label for="filter-date-to">Date To</label>
-					<input
-						id="filter-date-to"
-						type="date"
-						bind:value={filterDateTo}
-						onchange={handleFilterChange}
-					/>
-				</div>
+				<Input
+					type="date"
+					label="Date To"
+					bind:value={filterDateTo}
+					onchange={handleFilterChange}
+				/>
 			</div>
 		</div>
 	{/if}
@@ -138,10 +139,10 @@
 
 <style>
 	.filter-panel {
-		margin-bottom: 1rem;
-		background: white;
-		border: 1px solid #e2e8f0;
-		border-radius: 8px;
+		margin-bottom: var(--space-4);
+		background: var(--color-bg-primary);
+		border: 1px solid var(--color-border-primary);
+		border-radius: var(--radius-lg);
 		overflow: hidden;
 	}
 
@@ -149,59 +150,51 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		padding: 0.75rem 1rem;
-		background: #f8fafc;
+		padding: var(--space-3) var(--space-4);
+		background: var(--color-bg-secondary);
 	}
 
 	.toggle-button {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
+		gap: var(--space-2);
 		background: none;
 		border: none;
-		font-size: 1rem;
+		font-size: var(--text-base);
+		font-family: var(--font-body);
 		cursor: pointer;
-		padding: 0.25rem;
+		padding: var(--space-1);
+		color: var(--color-text-primary);
+		transition: opacity var(--transition-fast);
+	}
+
+	.toggle-button:hover {
+		opacity: 0.8;
 	}
 
 	.filter-icon {
-		font-size: 1.1rem;
+		font-size: var(--text-lg);
 	}
 
 	.filter-text {
-		font-weight: 600;
-		color: #334155;
+		font-weight: var(--font-weight-semibold);
+		color: var(--color-text-primary);
 	}
 
 	.active-badge {
-		color: #8b5cf6;
-		font-size: 0.8rem;
+		color: var(--color-primary-500);
+		font-size: var(--text-sm);
 	}
 
 	.arrow {
-		font-size: 0.8rem;
+		font-size: var(--text-sm);
 		opacity: 0.5;
-		margin-left: 0.25rem;
-	}
-
-	.clear-button {
-		background: #fee2e2;
-		border: 1px solid #fecaca;
-		color: #dc2626;
-		padding: 0.4rem 0.8rem;
-		border-radius: 6px;
-		font-size: 0.875rem;
-		cursor: pointer;
-		transition: all 0.2s;
-	}
-
-	.clear-button:hover {
-		background: #fecaca;
+		margin-left: var(--space-1);
 	}
 
 	.filter-content {
-		padding: 1rem;
-		border-top: 1px solid #e2e8f0;
+		padding: var(--space-4);
+		border-top: 1px solid var(--color-border-primary);
 		animation: slideDown 0.2s ease-out;
 	}
 
@@ -219,35 +212,6 @@
 	.filter-grid {
 		display: grid;
 		grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-		gap: 1rem;
-	}
-
-	.filter-item {
-		display: flex;
-		flex-direction: column;
-		gap: 0.375rem;
-	}
-
-	.filter-item label {
-		font-size: 0.875rem;
-		font-weight: 500;
-		color: #64748b;
-	}
-
-	.filter-item select,
-	.filter-item input {
-		padding: 0.5rem;
-		border: 1px solid #e2e8f0;
-		border-radius: 6px;
-		font-size: 0.875rem;
-		background: white;
-		transition: all 0.2s;
-	}
-
-	.filter-item select:focus,
-	.filter-item input:focus {
-		outline: none;
-		border-color: #8b5cf6;
-		box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+		gap: var(--space-4);
 	}
 </style>

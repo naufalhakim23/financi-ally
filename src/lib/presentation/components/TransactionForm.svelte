@@ -4,6 +4,9 @@
 	import { pocketStore } from '$lib/application/stores/pocketStore.svelte';
 	import { dollarsToCents } from '$lib/domain/Transaction';
 	import type { CreateTransactionRequest } from '$lib/domain/Transaction';
+	import Input from './ui/Input.svelte';
+	import Button from './ui/Button.svelte';
+	import Card from './ui/Card.svelte';
 	import ReceiptUpload from './ReceiptUpload.svelte';
 	import PocketSelector from './PocketSelector.svelte';
 	import CategorySelector from './CategorySelector.svelte';
@@ -123,214 +126,185 @@
 	}
 </script>
 
-<form onsubmit={handleSubmit} class="transaction-form">
-	<h2 class="form-title">New Transaction</h2>
+<Card padding="lg">
+	<form onsubmit={handleSubmit} class="transaction-form">
+		<h2 class="form-title">New Transaction</h2>
 
-	<!-- Success message -->
-	{#if showSuccess}
-		<div class="alert alert-success">Transaction created successfully!</div>
-	{/if}
+		<!-- Success message -->
+		{#if showSuccess}
+			<div class="alert alert-success">Transaction created successfully!</div>
+		{/if}
 
-	<!-- Error message -->
-	{#if formError}
-		<div class="alert alert-error">{formError}</div>
-	{/if}
+		<!-- Error message -->
+		{#if formError}
+			<div class="alert alert-error">{formError}</div>
+		{/if}
 
-	<!-- Amount -->
-	<div class="form-group">
-		<label for="amount">Amount *</label>
-		<input
-			id="amount"
+		<!-- Amount -->
+		<Input
 			type="number"
-			step="0.01"
-			min="0.01"
+			label="Amount"
 			bind:value={amount}
 			placeholder="0.00"
+			step="0.01"
 			required
 			disabled={isSubmitting}
 		/>
-	</div>
 
-	<!-- Pocket Selector -->
-	<PocketSelector
-		bind:selectedPocketId={selectedPocketId}
-		onselect={(id) => (selectedPocketId = id)}
-	/>
+		<!-- Pocket Selector -->
+		<PocketSelector
+			bind:selectedPocketId={selectedPocketId}
+			onselect={(id) => (selectedPocketId = id)}
+		/>
 
-	<!-- Transaction Type -->
-	<div class="form-group">
-		<label>Type *</label>
-		<div class="radio-group">
-			<label class="radio-label">
-				<input
-					type="radio"
-					bind:group={transactionType}
-					value="expense"
-					disabled={isSubmitting}
-				/>
-				<span>Expense</span>
-			</label>
-			<label class="radio-label">
-				<input
-					type="radio"
-					bind:group={transactionType}
-					value="income"
-					disabled={isSubmitting}
-				/>
-				<span>Income</span>
-			</label>
+		<!-- Transaction Type -->
+		<div class="form-group">
+			<label class="field-label">Type</label>
+			<div class="radio-group">
+				<label class="radio-label">
+					<input
+						type="radio"
+						bind:group={transactionType}
+						value="expense"
+						disabled={isSubmitting}
+					/>
+					<span>Expense</span>
+				</label>
+				<label class="radio-label">
+					<input
+						type="radio"
+						bind:group={transactionType}
+						value="income"
+						disabled={isSubmitting}
+					/>
+					<span>Income</span>
+				</label>
+			</div>
 		</div>
-	</div>
 
-	<!-- Scope -->
-	<div class="form-group">
-		<label for="scope-personal">Scope *</label>
-		<div class="radio-group">
-			<label class="radio-label">
-				<input id="scope-personal" type="radio" bind:group={scope} value="personal" disabled={isSubmitting} />
-				<span>Personal</span>
-			</label>
-			<label class="radio-label">
-				<input id="scope-business" type="radio" bind:group={scope} value="business" disabled={isSubmitting} />
-				<span>Business</span>
-			</label>
+		<!-- Scope -->
+		<div class="form-group">
+			<label class="field-label">Scope</label>
+			<div class="radio-group">
+				<label class="radio-label">
+					<input type="radio" bind:group={scope} value="personal" disabled={isSubmitting} />
+					<span>Personal</span>
+				</label>
+				<label class="radio-label">
+					<input type="radio" bind:group={scope} value="business" disabled={isSubmitting} />
+					<span>Business</span>
+				</label>
+			</div>
 		</div>
-	</div>
 
-	<!-- Description -->
-	<div class="form-group">
-		<label for="description">Description</label>
-		<input
-			id="description"
+		<!-- Description -->
+		<Input
 			type="text"
+			label="Description"
 			bind:value={description}
 			placeholder="What was this for?"
-			maxlength="500"
+			maxlength={500}
 			disabled={isSubmitting}
 		/>
-	</div>
 
-	<!-- Category Selector -->
-	{#if !showCategoryCreateForm}
-		<CategorySelector
-			bind:selectedCategoryId={selectedCategoryId}
-			transactionType={transactionType}
-			onselect={(id) => (selectedCategoryId = id)}
-			oncreatenew={() => (showCategoryCreateForm = true)}
-		/>
-	{:else}
-		<CategoryCreateForm
-			transactionType={transactionType}
-			oncancel={() => (showCategoryCreateForm = false)}
-			onsuccess={handleCategoryCreated}
-		/>
-	{/if}
+		<!-- Category Selector -->
+		{#if !showCategoryCreateForm}
+			<CategorySelector
+				bind:selectedCategoryId={selectedCategoryId}
+				transactionType={transactionType}
+				onselect={(id) => (selectedCategoryId = id)}
+				oncreatenew={() => (showCategoryCreateForm = true)}
+			/>
+		{:else}
+			<CategoryCreateForm
+				transactionType={transactionType}
+				oncancel={() => (showCategoryCreateForm = false)}
+				onsuccess={handleCategoryCreated}
+			/>
+		{/if}
 
-	<!-- Payment Method -->
-	<div class="form-group">
-		<label for="paymentMethod">Payment Method</label>
-		<input
-			id="paymentMethod"
+		<!-- Payment Method -->
+		<Input
 			type="text"
+			label="Payment Method"
 			bind:value={paymentMethod}
 			placeholder="e.g., Cash, Credit Card"
-			maxlength="100"
+			maxlength={100}
 			disabled={isSubmitting}
 		/>
-	</div>
 
-	<!-- Notes -->
-	<div class="form-group">
-		<label for="notes">Notes</label>
-		<textarea
-			id="notes"
-			bind:value={notes}
-			placeholder="Additional notes..."
-			maxlength="1000"
-			rows="3"
-			disabled={isSubmitting}
-		></textarea>
-	</div>
+		<!-- Notes -->
+		<div class="form-group">
+			<label for="notes" class="field-label">Notes</label>
+			<textarea
+				id="notes"
+				bind:value={notes}
+				placeholder="Additional notes..."
+				maxlength="1000"
+				rows="3"
+				disabled={isSubmitting}
+				class="textarea-input"
+			></textarea>
+		</div>
 
-	<!-- Receipt Upload -->
-	<div class="form-group">
-		<ReceiptUpload bind:receiptBase64 />
-	</div>
+		<!-- Receipt Upload -->
+		<div class="form-group">
+			<ReceiptUpload bind:receiptBase64 />
+		</div>
 
-	<!-- Actions -->
-	<div class="form-actions">
-		<button type="button" onclick={resetForm} disabled={isSubmitting} class="btn btn-secondary">
-			Clear
-		</button>
-		<button type="submit" disabled={isSubmitting} class="btn btn-primary">
-			{isSubmitting ? 'Creating...' : 'Create Transaction'}
-		</button>
-	</div>
-</form>
+		<!-- Actions -->
+		<div class="form-actions">
+			<Button variant="secondary" onclick={resetForm} disabled={isSubmitting}>Clear</Button>
+			<Button type="submit" variant="primary" loading={isSubmitting}>
+				Create Transaction
+			</Button>
+		</div>
+	</form>
+</Card>
 
 <style>
 	.transaction-form {
 		max-width: 600px;
 		margin: 0 auto;
-		padding: 1.5rem;
-		background: white;
-		border-radius: 8px;
-		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-5);
 	}
 
 	.form-title {
-		margin: 0 0 1.5rem 0;
-		font-size: 1.5rem;
-		font-weight: 600;
-		color: #1a202c;
+		margin: 0 0 var(--space-4) 0;
+		font-family: var(--font-display);
+		font-size: var(--text-2xl);
+		font-weight: var(--font-weight-semibold);
+		color: var(--color-text-primary);
 	}
 
 	.form-group {
-		margin-bottom: 1.25rem;
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
 	}
 
-	label {
+	.field-label {
 		display: block;
-		margin-bottom: 0.5rem;
-		font-weight: 500;
-		color: #4a5568;
-	}
-
-	input[type='text'],
-	input[type='number'],
-	textarea {
-		width: 100%;
-		padding: 0.75rem;
-		border: 1px solid #cbd5e0;
-		border-radius: 4px;
-		font-size: 1rem;
-		transition: border-color 0.2s;
-	}
-
-	input[type='text']:focus,
-	input[type='number']:focus,
-	textarea:focus {
-		outline: none;
-		border-color: #4299e1;
-		box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
-	}
-
-	input:disabled,
-	textarea:disabled {
-		background-color: #f7fafc;
-		cursor: not-allowed;
+		font-weight: var(--font-weight-medium);
+		font-size: var(--text-sm);
+		color: var(--color-text-primary);
 	}
 
 	.radio-group {
 		display: flex;
-		gap: 1rem;
+		gap: var(--space-4);
+		padding: var(--space-2) 0;
 	}
 
 	.radio-label {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
+		gap: var(--space-2);
 		cursor: pointer;
+		font-size: var(--text-base);
+		color: var(--color-text-primary);
 	}
 
 	.radio-label input[type='radio'] {
@@ -342,79 +316,75 @@
 		font-weight: normal;
 	}
 
+	.textarea-input {
+		width: 100%;
+		padding: var(--space-3) var(--space-4);
+		font-family: var(--font-body);
+		font-size: var(--text-base);
+		color: var(--color-text-primary);
+		background: var(--color-bg-primary);
+		border: 1px solid var(--color-border-primary);
+		border-radius: var(--radius-md);
+		outline: none;
+		transition: all var(--transition-fast);
+		resize: vertical;
+		min-height: 80px;
+	}
+
+	.textarea-input::placeholder {
+		color: var(--color-text-tertiary);
+	}
+
+	.textarea-input:hover {
+		border-color: var(--color-border-secondary);
+	}
+
+	.textarea-input:focus {
+		border-color: var(--color-border-focus);
+		box-shadow: var(--shadow-focus);
+	}
+
+	.textarea-input:disabled {
+		background-color: var(--color-bg-secondary);
+		cursor: not-allowed;
+		opacity: 0.6;
+	}
+
 	.form-actions {
 		display: flex;
-		gap: 1rem;
-		margin-top: 1.5rem;
+		gap: var(--space-3);
+		margin-top: var(--space-4);
 	}
 
-	.btn {
+	.form-actions :global(button) {
 		flex: 1;
-		padding: 0.75rem 1.5rem;
-		border: none;
-		border-radius: 4px;
-		font-size: 1rem;
-		font-weight: 500;
-		cursor: pointer;
-		transition: all 0.2s;
-	}
-
-	.btn:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-	}
-
-	.btn-primary {
-		background-color: #4299e1;
-		color: white;
-	}
-
-	.btn-primary:hover:not(:disabled) {
-		background-color: #3182ce;
-	}
-
-	.btn-secondary {
-		background-color: #e2e8f0;
-		color: #2d3748;
-	}
-
-	.btn-secondary:hover:not(:disabled) {
-		background-color: #cbd5e0;
 	}
 
 	.alert {
-		padding: 1rem;
-		border-radius: 4px;
-		margin-bottom: 1rem;
+		padding: var(--space-4);
+		border-radius: var(--radius-md);
+		margin-bottom: var(--space-4);
 	}
 
 	.alert-success {
-		background-color: #c6f6d5;
-		color: #22543d;
-		border: 1px solid #9ae6b4;
+		background-color: var(--color-success-100);
+		color: var(--color-success-700);
+		border: 1px solid var(--color-success-200);
 	}
 
 	.alert-error {
-		background-color: #fed7d7;
-		color: #742a2a;
-		border: 1px solid #fc8181;
+		background-color: var(--color-error-100);
+		color: var(--color-error-700);
+		border: 1px solid var(--color-error-200);
 	}
 
 	/* Mobile optimizations */
 	@media (max-width: 640px) {
-		.transaction-form {
-			padding: 1rem;
-		}
-
-		.form-title {
-			font-size: 1.25rem;
-		}
-
 		.form-actions {
 			flex-direction: column;
 		}
 
-		.btn {
+		.form-actions :global(button) {
 			width: 100%;
 		}
 	}

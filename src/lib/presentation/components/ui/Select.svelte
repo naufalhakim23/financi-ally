@@ -363,4 +363,11 @@
 		color: var(--color-error-500);
 		line-height: var(--leading-snug);
 	}
+
+	/* Mobile: Increase touch target to 44px minimum for accessibility */
+	@media (max-width: 640px) {
+		.select-trigger {
+			height: 44px;
+		}
+	}
 </style>

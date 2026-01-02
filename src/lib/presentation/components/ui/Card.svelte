@@ -9,6 +9,7 @@
 		onclick?: (event: MouseEvent) => void;
 		padding?: 'none' | 'sm' | 'md' | 'lg';
 		class?: string;
+		children?: () => any;
 	}
 
 	let {

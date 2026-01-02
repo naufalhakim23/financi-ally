@@ -9,6 +9,7 @@
 	interface BadgeProps {
 		variant?: BadgeVariant;
 		class?: string;
+		children?: () => any;
 	}
 
 	let {

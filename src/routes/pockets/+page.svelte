@@ -1,38 +1,40 @@
 <script lang="ts">
 	/**
-	 * Pockets Page - Wallet/pocket management
-	 * TODO: Will be enhanced with refactored components in Phase 4
+	 * Pockets Page - Full pocket management with PocketForm and PocketList
 	 */
 
-	import Card from '$lib/presentation/components/ui/Card.svelte';
-	import Button from '$lib/presentation/components/ui/Button.svelte';
+	import PocketForm from '$lib/presentation/components/PocketForm.svelte';
+	import PocketList from '$lib/presentation/components/PocketList.svelte';
 </script>
 
 <div class="pockets-page">
+	<!-- Page Header -->
 	<header class="page-header">
 		<div>
 			<h1 class="page-title">Pockets</h1>
 			<p class="page-subtitle">Manage your wallets and financial accounts</p>
 		</div>
-		<div class="header-actions">
-			<Button variant="primary">New Pocket</Button>
-		</div>
 	</header>
 
-	<Card padding="lg">
-		<p style="text-align: center; color: var(--color-text-tertiary); padding: var(--space-12);">
-			Pocket management coming in Phase 4...
-		</p>
-	</Card>
+	<!-- Pocket Creation Form -->
+	<section class="form-section">
+		<PocketForm />
+	</section>
+
+	<!-- Pocket List -->
+	<section class="list-section">
+		<PocketList />
+	</section>
 </div>
 
 <style>
 	.pockets-page {
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-6);
+		gap: var(--space-8);
 	}
 
+	/* Page Header */
 	.page-header {
 		display: flex;
 		align-items: flex-start;
@@ -52,5 +54,24 @@
 		margin: 0;
 		font-size: var(--text-lg);
 		color: var(--color-text-tertiary);
+	}
+
+	/* Sections */
+	.form-section,
+	.list-section {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-4);
+	}
+
+	/* Responsive */
+	@media (max-width: 640px) {
+		.page-header {
+			flex-direction: column;
+		}
+
+		.pockets-page {
+			gap: var(--space-6);
+		}
 	}
 </style>

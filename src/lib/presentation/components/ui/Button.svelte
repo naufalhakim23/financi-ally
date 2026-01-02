@@ -15,6 +15,7 @@
 		type?: 'button' | 'submit' | 'reset';
 		onclick?: (event: MouseEvent) => void;
 		class?: string;
+		children?: () => any;
 	}
 
 	let {
@@ -84,6 +85,18 @@
 		padding: var(--space-4) var(--space-6);
 		font-size: var(--text-lg);
 		height: 48px;
+	}
+
+	/* Mobile: Increase touch targets to 44px minimum for accessibility */
+	@media (max-width: 640px) {
+		.btn-sm {
+			height: 44px;
+			padding: var(--space-3) var(--space-4);
+		}
+
+		.btn-md {
+			height: 44px;
+		}
 	}
 
 	/* Variants */

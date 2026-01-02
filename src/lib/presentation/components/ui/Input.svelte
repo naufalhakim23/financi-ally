@@ -157,6 +157,13 @@
 		transition: all var(--transition-fast);
 	}
 
+	/* Mobile: Increase touch target to 44px minimum for accessibility */
+	@media (max-width: 640px) {
+		.input {
+			height: 44px;
+		}
+	}
+
 	.input.has-prefix {
 		padding-left: var(--space-10);
 	}

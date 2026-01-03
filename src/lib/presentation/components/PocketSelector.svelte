@@ -71,50 +71,52 @@
 	.pocket-selector {
 		display: flex;
 		flex-direction: column;
-		gap: 0.5rem;
-		margin-bottom: 1rem;
+		gap: var(--space-2);
+		margin-bottom: var(--space-4);
 	}
 
 	label {
-		font-weight: 500;
-		font-size: 0.875rem;
-		color: #374151;
+		font-weight: var(--font-weight-medium);
+		font-size: var(--text-sm);
+		color: var(--color-text-primary);
 	}
 
 	select {
-		padding: 0.5rem;
-		border: 1px solid #d1d5db;
-		border-radius: 0.375rem;
-		font-size: 1rem;
-		background-color: white;
+		padding: var(--space-3) var(--space-4);
+		border: 1px solid var(--color-border-primary);
+		border-radius: var(--radius-md);
+		font-size: var(--text-base);
+		font-family: var(--font-body);
+		background-color: var(--color-bg-primary);
+		color: var(--color-text-primary);
 		cursor: pointer;
-		transition: border-color 0.2s;
+		transition: all var(--transition-fast);
 	}
 
 	select:hover {
-		border-color: #9ca3af;
+		border-color: var(--color-border-secondary);
 	}
 
 	select:focus {
 		outline: none;
-		border-color: #4299e1;
-		box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+		border-color: var(--color-border-focus);
+		box-shadow: var(--shadow-focus);
 	}
 
 	.loading,
 	.error {
-		padding: 0.5rem;
-		border-radius: 0.375rem;
-		font-size: 0.875rem;
+		padding: var(--space-3);
+		border-radius: var(--radius-md);
+		font-size: var(--text-sm);
 	}
 
 	.loading {
-		background-color: #f3f4f6;
-		color: #6b7280;
+		background-color: var(--color-bg-secondary);
+		color: var(--color-text-tertiary);
 	}
 
 	.error {
-		background-color: #fee2e2;
-		color: #dc2626;
+		background-color: var(--color-error-100);
+		color: var(--color-error-700);
 	}
 </style>

@@ -82,48 +82,56 @@
 
 <style>
 	.search-bar {
-		margin-bottom: 1rem;
+		margin-bottom: var(--space-4);
 	}
 
 	.search-input-wrapper {
 		position: relative;
 		display: flex;
 		align-items: center;
-		background: white;
-		border: 1px solid #e2e8f0;
-		border-radius: 8px;
-		padding: 0.5rem 1rem;
-		transition: all 0.2s ease;
+		background: var(--color-bg-primary);
+		border: 1px solid var(--color-border-primary);
+		border-radius: var(--radius-md);
+		padding: var(--space-2) var(--space-4);
+		transition: all var(--transition-fast);
 	}
 
 	.search-input-wrapper:focus-within {
-		border-color: #8b5cf6;
-		box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+		border-color: var(--color-border-focus);
+		box-shadow: var(--shadow-focus);
 	}
 
 	.search-icon {
-		font-size: 1.1rem;
-		margin-right: 0.5rem;
+		font-size: var(--text-lg);
+		margin-right: var(--space-2);
 		opacity: 0.5;
+		color: var(--color-text-tertiary);
 	}
 
 	.search-input {
 		flex: 1;
 		border: none;
 		outline: none;
-		font-size: 1rem;
+		font-size: var(--text-base);
+		font-family: var(--font-body);
 		background: transparent;
+		color: var(--color-text-primary);
+	}
+
+	.search-input::placeholder {
+		color: var(--color-text-tertiary);
 	}
 
 	.clear-button {
 		background: none;
 		border: none;
-		font-size: 1.2rem;
+		font-size: var(--text-xl);
 		cursor: pointer;
 		opacity: 0.4;
-		transition: opacity 0.2s;
-		padding: 0.25rem;
-		margin-left: 0.5rem;
+		transition: opacity var(--transition-fast);
+		padding: var(--space-1);
+		margin-left: var(--space-2);
+		color: var(--color-text-secondary);
 	}
 
 	.clear-button:hover {
@@ -131,8 +139,8 @@
 	}
 
 	.spinner {
-		font-size: 1rem;
-		margin-left: 0.5rem;
+		font-size: var(--text-base);
+		margin-left: var(--space-2);
 		animation: spin 1s linear infinite;
 	}
 

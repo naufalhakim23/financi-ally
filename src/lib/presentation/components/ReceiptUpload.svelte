@@ -137,33 +137,34 @@
 	.receipt-upload {
 		display: flex;
 		flex-direction: column;
-		gap: 0.5rem;
+		gap: var(--space-2);
 	}
 
 	.upload-label {
 		display: block;
-		font-weight: 500;
-		color: #4a5568;
-		font-size: 0.875rem;
+		font-weight: var(--font-weight-medium);
+		color: var(--color-text-primary);
+		font-size: var(--text-sm);
 	}
 
 	.upload-button {
 		width: 100%;
-		padding: 1rem;
-		background: #f7fafc;
-		border: 2px dashed #cbd5e0;
-		border-radius: 8px;
-		color: #4a5568;
-		font-size: 1rem;
-		font-weight: 500;
+		padding: var(--space-4);
+		background: var(--color-bg-secondary);
+		border: 2px dashed var(--color-border-primary);
+		border-radius: var(--radius-md);
+		color: var(--color-text-secondary);
+		font-size: var(--text-base);
+		font-family: var(--font-body);
+		font-weight: var(--font-weight-medium);
 		cursor: pointer;
-		transition: all 0.2s;
+		transition: all var(--transition-fast);
 	}
 
 	.upload-button:hover:not(:disabled) {
-		background: #edf2f7;
-		border-color: #8b5cf6;
-		color: #8b5cf6;
+		background: var(--color-bg-hover);
+		border-color: var(--color-primary-500);
+		color: var(--color-primary-600);
 	}
 
 	.upload-button:disabled {
@@ -177,10 +178,10 @@
 
 	.receipt-preview {
 		position: relative;
-		border-radius: 8px;
+		border-radius: var(--radius-md);
 		overflow: hidden;
-		background: #f7fafc;
-		border: 1px solid #e2e8f0;
+		background: var(--color-bg-secondary);
+		border: 1px solid var(--color-border-primary);
 	}
 
 	.preview-image {
@@ -197,12 +198,12 @@
 		left: 0;
 		right: 0;
 		bottom: 0;
-		background: rgba(0, 0, 0, 0.4);
+		background: rgba(0, 0, 0, 0.5);
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		opacity: 0;
-		transition: opacity 0.2s;
+		transition: opacity var(--transition-fast);
 	}
 
 	.receipt-preview:hover .preview-overlay {
@@ -210,33 +211,35 @@
 	}
 
 	.btn-clear {
-		padding: 0.75rem 1.5rem;
-		background: white;
-		color: #e53e3e;
-		border: 1px solid #e53e3e;
-		border-radius: 6px;
-		font-weight: 500;
+		padding: var(--space-3) var(--space-6);
+		background: var(--color-bg-primary);
+		color: var(--color-error-600);
+		border: 1px solid var(--color-error-600);
+		border-radius: var(--radius-md);
+		font-weight: var(--font-weight-medium);
+		font-family: var(--font-body);
 		cursor: pointer;
-		transition: all 0.2s;
+		transition: all var(--transition-fast);
 	}
 
 	.btn-clear:hover {
-		background: #e53e3e;
-		color: white;
+		background: var(--color-error-600);
+		color: var(--color-bg-primary);
 	}
 
 	.error-message {
 		margin: 0;
-		padding: 0.5rem;
-		background: #fed7d7;
-		color: #742a2a;
-		border-radius: 4px;
-		font-size: 0.875rem;
+		padding: var(--space-3);
+		background: var(--color-error-100);
+		color: var(--color-error-700);
+		border-radius: var(--radius-md);
+		font-size: var(--text-sm);
+		border: 1px solid var(--color-error-200);
 	}
 
 	.help-text {
 		margin: 0;
-		font-size: 0.75rem;
-		color: #a0aec0;
+		font-size: var(--text-xs);
+		color: var(--color-text-tertiary);
 	}
 </style>

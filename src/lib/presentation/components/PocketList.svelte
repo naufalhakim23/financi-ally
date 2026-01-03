@@ -1,15 +1,16 @@
 <script lang="ts">
 	/**
-	 * Pocket List Component
-	 *
-	 * Displays all pockets as cards with actions.
-	 * Allows setting default pocket and deleting pockets.
+	 * Pocket List Component - Refactored with new design system
+	 * Displays all pockets as cards with actions
 	 */
 
 	import { onMount } from 'svelte';
 	import { pocketStore } from '$lib/application/stores/pocketStore.svelte';
 	import { formatPocketBalance } from '$lib/domain/Pocket';
 	import type { Pocket } from '$lib/domain/Pocket';
+	import Card from './ui/Card.svelte';
+	import Button from './ui/Button.svelte';
+	import Badge from './ui/Badge.svelte';
 
 	// Load pockets on mount
 	onMount(() => {
@@ -39,83 +40,93 @@
 		const result = await pocketStore.deletePocket(pocket.id);
 
 		if (!result.success) {
-			alert(
-				result.error ||
-					'Failed to delete pocket. Make sure it has no transactions.'
-			);
+			alert(result.error || 'Failed to delete pocket. Make sure it has no transactions.');
 		}
 	}
 </script>
 
 <div class="pocket-list-container">
-	<h2>Your Pockets</h2>
+	<h2 class="section-title">Your Pockets</h2>
 
 	{#if pocketStore.isLoading}
 		<div class="loading-state">
+			<div class="spinner"></div>
 			<p>Loading pockets...</p>
 		</div>
 	{:else if pocketStore.error}
-		<div class="error-state">
-			<p>{pocketStore.error}</p>
-			<button onclick={() => pocketStore.loadPockets()}>Retry</button>
-		</div>
+		<Card padding="lg">
+			<div class="error-state">
+				<p>{pocketStore.error}</p>
+				<Button variant="primary" size="sm" onclick={() => pocketStore.loadPockets()}>
+					Retry
+				</Button>
+			</div>
+		</Card>
 	{:else if pocketStore.pockets.length === 0}
-		<div class="empty-state">
-			<p>No pockets yet. Create your first pocket above!</p>
-		</div>
+		<Card padding="lg">
+			<div class="empty-state">
+				<div class="empty-icon">💰</div>
+				<h3>No pockets yet</h3>
+				<p>Create your first pocket above to start tracking your finances!</p>
+			</div>
+		</Card>
 	{:else}
 		<div class="pocket-grid">
 			{#each pocketStore.pockets as pocket (pocket.id)}
-				<div class="pocket-card" style="border-left: 4px solid {pocket.color}">
-					<div class="pocket-header">
-						<div class="pocket-title">
-							{#if pocket.icon}
-								<span class="pocket-icon">{pocket.icon}</span>
+				<Card padding="lg">
+					<div class="pocket-card" style="border-left: 4px solid {pocket.color}">
+						<div class="pocket-header">
+							<div class="pocket-title-row">
+								{#if pocket.icon}
+									<span class="pocket-icon">{pocket.icon}</span>
+								{/if}
+								<h3 class="pocket-name">{pocket.name}</h3>
+							</div>
+							{#if pocket.isDefault}
+								<Badge variant="primary">Default</Badge>
 							{/if}
-							<h3>{pocket.name}</h3>
 						</div>
-						{#if pocket.isDefault}
-							<span class="default-badge">Default</span>
+
+						<div class="pocket-balance">
+							<span class="balance-label">Current Balance</span>
+							<span class="balance-amount">{formatPocketBalance(pocket)}</span>
+						</div>
+
+						{#if pocket.description}
+							<p class="pocket-description">{pocket.description}</p>
 						{/if}
-					</div>
 
-					<div class="pocket-balance">
-						<span class="balance-label">Balance:</span>
-						<span class="balance-amount">{formatPocketBalance(pocket)}</span>
-					</div>
+						<div class="pocket-meta">
+							<Badge variant="neutral">{pocket.currency}</Badge>
+							<span class="initial-balance">
+								Initial: {formatPocketBalance({
+									...pocket,
+									current_balance_cents: pocket.initial_balance_cents
+								})}
+							</span>
+						</div>
 
-					{#if pocket.description}
-						<p class="pocket-description">{pocket.description}</p>
-					{/if}
-
-					<div class="pocket-meta">
-						<span class="currency-badge">{pocket.currency}</span>
-						<span class="initial-balance">
-							Initial: {formatPocketBalance({
-								...pocket,
-								current_balance_cents: pocket.initial_balance_cents
-							})}
-						</span>
-					</div>
-
-					<div class="pocket-actions">
-						{#if !pocket.isDefault}
-							<button
-								class="btn-secondary"
-								onclick={() => handleSetDefault(pocket)}
+						<div class="pocket-actions">
+							{#if !pocket.isDefault}
+								<Button
+									variant="secondary"
+									size="sm"
+									onclick={() => handleSetDefault(pocket)}
+								>
+									Set as Default
+								</Button>
+							{/if}
+							<Button
+								variant="danger"
+								size="sm"
+								onclick={() => handleDelete(pocket)}
+								disabled={pocket.isDefault}
 							>
-								Set as Default
-							</button>
-						{/if}
-						<button
-							class="btn-danger"
-							onclick={() => handleDelete(pocket)}
-							disabled={pocket.isDefault}
-						>
-							Delete
-						</button>
+								Delete
+							</Button>
+						</div>
 					</div>
-				</div>
+				</Card>
 			{/each}
 		</div>
 	{/if}
@@ -123,174 +134,184 @@
 
 <style>
 	.pocket-list-container {
-		background: white;
-		padding: 1.5rem;
-		border-radius: 0.5rem;
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+		width: 100%;
 	}
 
-	h2 {
-		margin: 0 0 1.5rem 0;
-		font-size: 1.5rem;
-		font-weight: 600;
-		color: #1f2937;
+	.section-title {
+		margin: 0 0 var(--space-6) 0;
+		font-family: var(--font-display);
+		font-size: var(--text-2xl);
+		font-weight: var(--font-weight-semibold);
+		color: var(--color-text-primary);
 	}
 
-	.loading-state,
-	.error-state,
-	.empty-state {
-		padding: 2rem;
-		text-align: center;
-		color: #6b7280;
+	/* Loading State */
+	.loading-state {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		padding: var(--space-12);
+		gap: var(--space-4);
+		color: var(--color-text-tertiary);
 	}
 
+	.spinner {
+		width: 32px;
+		height: 32px;
+		border: 3px solid var(--color-border-primary);
+		border-top-color: var(--color-primary-500);
+		border-radius: 50%;
+		animation: spin 0.8s linear infinite;
+	}
+
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}
+
+	/* Error State */
 	.error-state {
-		color: #dc2626;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: var(--space-4);
+		padding: var(--space-6);
+		text-align: center;
 	}
 
-	.error-state button {
-		margin-top: 1rem;
-		padding: 0.5rem 1rem;
-		background-color: #4299e1;
-		color: white;
-		border: none;
-		border-radius: 0.375rem;
-		cursor: pointer;
-		transition: background-color 0.2s;
+	.error-state p {
+		margin: 0;
+		color: var(--color-error-600);
+		font-weight: var(--font-weight-medium);
 	}
 
-	.error-state button:hover {
-		background-color: #3182ce;
+	/* Empty State */
+	.empty-state {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		padding: var(--space-12) var(--space-4);
+		text-align: center;
 	}
 
+	.empty-icon {
+		font-size: var(--text-5xl);
+		margin-bottom: var(--space-4);
+		opacity: 0.5;
+	}
+
+	.empty-state h3 {
+		margin: 0 0 var(--space-2) 0;
+		font-size: var(--text-xl);
+		font-weight: var(--font-weight-semibold);
+		color: var(--color-text-primary);
+	}
+
+	.empty-state p {
+		margin: 0;
+		color: var(--color-text-tertiary);
+	}
+
+	/* Pocket Grid */
 	.pocket-grid {
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-		gap: 1.5rem;
+		gap: var(--space-6);
 	}
 
 	.pocket-card {
-		background: white;
-		border: 1px solid #e5e7eb;
-		border-radius: 0.5rem;
-		padding: 1.25rem;
 		display: flex;
 		flex-direction: column;
-		gap: 1rem;
-		transition: box-shadow 0.2s;
-	}
-
-	.pocket-card:hover {
-		box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+		gap: var(--space-4);
+		padding-left: var(--space-4);
+		border-radius: var(--radius-md);
 	}
 
 	.pocket-header {
 		display: flex;
 		justify-content: space-between;
 		align-items: flex-start;
+		gap: var(--space-3);
 	}
 
-	.pocket-title {
+	.pocket-title-row {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
+		gap: var(--space-3);
+		flex: 1;
 	}
 
 	.pocket-icon {
-		font-size: 1.5rem;
+		font-size: var(--text-3xl);
+		line-height: 1;
 	}
 
-	.pocket-title h3 {
+	.pocket-name {
 		margin: 0;
-		font-size: 1.25rem;
-		font-weight: 600;
-		color: #1f2937;
-	}
-
-	.default-badge {
-		background-color: #dbeafe;
-		color: #1e40af;
-		padding: 0.25rem 0.5rem;
-		border-radius: 0.25rem;
-		font-size: 0.75rem;
-		font-weight: 500;
+		font-family: var(--font-display);
+		font-size: var(--text-xl);
+		font-weight: var(--font-weight-semibold);
+		color: var(--color-text-primary);
 	}
 
 	.pocket-balance {
 		display: flex;
 		flex-direction: column;
-		gap: 0.25rem;
+		gap: var(--space-1);
 	}
 
 	.balance-label {
-		font-size: 0.875rem;
-		color: #6b7280;
+		font-size: var(--text-sm);
+		font-weight: var(--font-weight-medium);
+		color: var(--color-text-tertiary);
+		text-transform: uppercase;
+		letter-spacing: var(--tracking-wide);
 	}
 
 	.balance-amount {
-		font-size: 1.5rem;
-		font-weight: 700;
-		color: #1f2937;
+		font-family: var(--font-display);
+		font-size: var(--text-3xl);
+		font-weight: var(--font-weight-bold);
+		color: var(--color-text-primary);
 	}
 
 	.pocket-description {
 		margin: 0;
-		font-size: 0.875rem;
-		color: #6b7280;
-		line-height: 1.5;
+		font-size: var(--text-sm);
+		color: var(--color-text-secondary);
+		line-height: var(--leading-relaxed);
 	}
 
 	.pocket-meta {
 		display: flex;
-		gap: 1rem;
-		font-size: 0.75rem;
-		color: #6b7280;
+		align-items: center;
+		gap: var(--space-3);
+		padding-top: var(--space-2);
+		border-top: 1px solid var(--color-border-primary);
 	}
 
-	.currency-badge {
-		background-color: #f3f4f6;
-		padding: 0.25rem 0.5rem;
-		border-radius: 0.25rem;
-		font-weight: 500;
+	.initial-balance {
+		font-size: var(--text-sm);
+		color: var(--color-text-tertiary);
 	}
 
 	.pocket-actions {
 		display: flex;
-		gap: 0.5rem;
+		gap: var(--space-2);
 		margin-top: auto;
+		padding-top: var(--space-4);
 	}
 
-	.pocket-actions button {
+	.pocket-actions :global(button) {
 		flex: 1;
-		padding: 0.5rem;
-		border: none;
-		border-radius: 0.375rem;
-		font-size: 0.875rem;
-		font-weight: 500;
-		cursor: pointer;
-		transition: all 0.2s;
 	}
 
-	.btn-secondary {
-		background-color: #f3f4f6;
-		color: #374151;
-	}
-
-	.btn-secondary:hover {
-		background-color: #e5e7eb;
-	}
-
-	.btn-danger {
-		background-color: #fee2e2;
-		color: #dc2626;
-	}
-
-	.btn-danger:hover:not(:disabled) {
-		background-color: #fecaca;
-	}
-
-	.btn-danger:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
+	/* Responsive */
+	@media (max-width: 640px) {
+		.pocket-grid {
+			grid-template-columns: 1fr;
+		}
 	}
 </style>

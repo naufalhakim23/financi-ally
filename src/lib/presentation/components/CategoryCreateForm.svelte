@@ -17,6 +17,8 @@
 		CATEGORY_COLORS
 	} from '$lib/domain/Category';
 	import type { CreateCategoryRequest } from '$lib/domain/Category';
+	import Input from './ui/Input.svelte';
+	import Button from './ui/Button.svelte';
 
 	interface Props {
 		transactionType?: 'income' | 'expense';
@@ -136,53 +138,42 @@
 </script>
 
 <form class="category-create-form" onsubmit={handleSubmit}>
-	<h3>Create New Category</h3>
+	<h3 class="form-title">Create New Category</h3>
 
 	<!-- Name -->
-	<div class="form-group">
-		<label for="category-name">Name *</label>
-		<input
-			id="category-name"
-			type="text"
-			bind:value={name}
-			placeholder="e.g., Food & Dining"
-			required
-		/>
-		{#if nameError}
-			<span class="error-text">{nameError}</span>
-		{/if}
-	</div>
+	<Input
+		type="text"
+		label="Name"
+		bind:value={name}
+		placeholder="e.g., Food & Dining"
+		required
+		error={nameError}
+	/>
 
 	<!-- Code (auto-generated, editable) -->
 	<div class="form-group">
-		<label for="category-code">Code *</label>
-		<input
-			id="category-code"
+		<Input
 			type="text"
+			label="Code"
 			bind:value={code}
 			placeholder="e.g., food_dining"
 			required
+			error={codeError}
 		/>
 		<span class="help-text">Auto-generated from name, lowercase snake_case</span>
-		{#if codeError}
-			<span class="error-text">{codeError}</span>
-		{/if}
 	</div>
 
 	<!-- Description (optional) -->
-	<div class="form-group">
-		<label for="category-description">Description</label>
-		<input
-			id="category-description"
-			type="text"
-			bind:value={description}
-			placeholder="Optional description"
-		/>
-	</div>
+	<Input
+		type="text"
+		label="Description"
+		bind:value={description}
+		placeholder="Optional description"
+	/>
 
 	<!-- Color picker -->
 	<div class="form-group">
-		<label for="category-color">Color *</label>
+		<label class="field-label">Color</label>
 		<div class="color-picker">
 			{#each CATEGORY_COLORS as colorOption}
 				<button
@@ -192,24 +183,16 @@
 					style="background-color: {colorOption}"
 					onclick={() => (color = colorOption)}
 					title={colorOption}
+					aria-label="Select color {colorOption}"
 				></button>
 			{/each}
 		</div>
-		<input
-			id="category-color"
-			type="text"
-			bind:value={color}
-			placeholder="#4299E1"
-			pattern="^#[0-9A-Fa-f]{6}$"
-		/>
-		{#if colorError}
-			<span class="error-text">{colorError}</span>
-		{/if}
+		<Input type="text" bind:value={color} placeholder="#4299E1" error={colorError} />
 	</div>
 
 	<!-- Type checkboxes -->
 	<div class="form-group">
-		<label>Category Type *</label>
+		<label class="field-label">Category Type</label>
 		<div class="checkbox-group">
 			<label class="checkbox-label">
 				<input type="checkbox" bind:checked={isExpense} />
@@ -233,13 +216,11 @@
 	<!-- Actions -->
 	<div class="form-actions">
 		{#if oncancel}
-			<button type="button" class="btn-secondary" onclick={handleCancel}>
-				Cancel
-			</button>
+			<Button variant="secondary" onclick={handleCancel}>Cancel</Button>
 		{/if}
-		<button type="submit" class="btn-primary" disabled={isSubmitting}>
-			{isSubmitting ? 'Creating...' : 'Create Category'}
-		</button>
+		<Button type="submit" variant="primary" loading={isSubmitting}>
+			Create Category
+		</Button>
 	</div>
 </form>
 
@@ -247,79 +228,68 @@
 	.category-create-form {
 		display: flex;
 		flex-direction: column;
-		gap: 1rem;
-		padding: 1.5rem;
-		background-color: white;
-		border-radius: 0.5rem;
-		border: 1px solid #e5e7eb;
+		gap: var(--space-4);
+		padding: var(--space-6);
+		background-color: var(--color-bg-primary);
+		border-radius: var(--radius-lg);
+		border: 1px solid var(--color-border-primary);
 	}
 
-	h3 {
-		margin: 0 0 0.5rem 0;
-		font-size: 1.25rem;
-		font-weight: 600;
-		color: #111827;
+	.form-title {
+		margin: 0 0 var(--space-2) 0;
+		font-family: var(--font-display);
+		font-size: var(--text-xl);
+		font-weight: var(--font-weight-semibold);
+		color: var(--color-text-primary);
 	}
 
 	.form-group {
 		display: flex;
 		flex-direction: column;
-		gap: 0.375rem;
+		gap: var(--space-2);
 	}
 
-	label {
-		font-weight: 500;
-		font-size: 0.875rem;
-		color: #374151;
-	}
-
-	input[type='text'] {
-		padding: 0.5rem;
-		border: 1px solid #d1d5db;
-		border-radius: 0.375rem;
-		font-size: 0.875rem;
-		transition: border-color 0.2s;
-	}
-
-	input[type='text']:focus {
-		outline: none;
-		border-color: #4299e1;
-		box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+	.field-label {
+		font-weight: var(--font-weight-medium);
+		font-size: var(--text-sm);
+		color: var(--color-text-primary);
 	}
 
 	.help-text {
-		font-size: 0.75rem;
-		color: #6b7280;
+		font-size: var(--text-xs);
+		color: var(--color-text-tertiary);
+		margin-top: calc(var(--space-2) * -1);
 	}
 
 	.error-text {
-		font-size: 0.75rem;
-		color: #dc2626;
+		font-size: var(--text-xs);
+		color: var(--color-error-600);
 	}
 
 	.error-banner {
-		padding: 0.75rem;
-		background-color: #fee2e2;
-		color: #dc2626;
-		border-radius: 0.375rem;
-		font-size: 0.875rem;
+		padding: var(--space-3);
+		background-color: var(--color-error-100);
+		color: var(--color-error-700);
+		border-radius: var(--radius-md);
+		font-size: var(--text-sm);
+		border: 1px solid var(--color-error-200);
 	}
 
 	/* Color picker */
 	.color-picker {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.5rem;
-		margin-bottom: 0.5rem;
+		gap: var(--space-2);
+		margin-bottom: var(--space-2);
 	}
 
 	.color-option {
-		width: 2rem;
-		height: 2rem;
-		border-radius: 0.25rem;
+		width: 32px;
+		height: 32px;
+		border-radius: var(--radius-md);
 		border: 2px solid transparent;
 		cursor: pointer;
-		transition: transform 0.2s;
+		transition: transform var(--transition-fast);
 	}
 
 	.color-option:hover {
@@ -327,72 +297,39 @@
 	}
 
 	.color-option.selected {
-		border-color: #111827;
-		box-shadow: 0 0 0 2px white, 0 0 0 4px #111827;
+		border-color: var(--color-text-primary);
+		box-shadow: 0 0 0 2px var(--color-bg-primary), 0 0 0 4px var(--color-text-primary);
 	}
 
 	/* Checkboxes */
 	.checkbox-group {
 		display: flex;
 		flex-direction: column;
-		gap: 0.5rem;
-		padding: 0.5rem 0;
+		gap: var(--space-2);
+		padding: var(--space-2) 0;
 	}
 
 	.checkbox-label {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
+		gap: var(--space-2);
 		font-weight: normal;
+		font-size: var(--text-sm);
+		color: var(--color-text-primary);
 		cursor: pointer;
 	}
 
 	.checkbox-label input[type='checkbox'] {
-		width: 1.125rem;
-		height: 1.125rem;
+		width: 18px;
+		height: 18px;
 		cursor: pointer;
 	}
 
 	/* Form actions */
 	.form-actions {
 		display: flex;
-		gap: 0.75rem;
+		gap: var(--space-3);
 		justify-content: flex-end;
-		margin-top: 0.5rem;
-	}
-
-	.btn-primary,
-	.btn-secondary {
-		padding: 0.5rem 1rem;
-		border-radius: 0.375rem;
-		font-size: 0.875rem;
-		font-weight: 500;
-		cursor: pointer;
-		transition: all 0.2s;
-		border: none;
-	}
-
-	.btn-primary {
-		background-color: #4299e1;
-		color: white;
-	}
-
-	.btn-primary:hover:not(:disabled) {
-		background-color: #3182ce;
-	}
-
-	.btn-primary:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-	}
-
-	.btn-secondary {
-		background-color: #f3f4f6;
-		color: #374151;
-		border: 1px solid #d1d5db;
-	}
-
-	.btn-secondary:hover {
-		background-color: #e5e7eb;
+		margin-top: var(--space-2);
 	}
 </style>

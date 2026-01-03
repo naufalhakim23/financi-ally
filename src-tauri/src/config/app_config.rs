@@ -25,7 +25,7 @@ use crate::{
 /// Initialize the application state with database connection
 ///
 /// This function:
-/// 1. Uses the provided app data directory (or repo path in dev mode)
+/// 1. Uses the provided app data directory (or repo path in dev mode on desktop)
 /// 2. Creates connection pool (migrations run automatically)
 /// 3. Initializes repository
 /// 4. Returns AppState for Tauri managed state
@@ -33,15 +33,17 @@ use crate::{
 /// # Arguments
 /// * `app_data_dir` - The application's data directory (from Tauri)
 pub async fn initialize_app_state(app_data_dir: PathBuf) -> Result<AppState, String> {
-    // In debug mode, use database in the repo for easier development
-    // In release mode, use app data directory
-    let db_path = if cfg!(debug_assertions) {
-        // Development: use repo root database (not src-tauri to avoid file watcher triggers)
+    // Determine database path based on platform and build mode
+    let db_path = if cfg!(target_os = "android") || cfg!(target_os = "ios") {
+        // Mobile: Always use app data directory (debug and release)
+        app_data_dir.join("pocket-log.db")
+    } else if cfg!(debug_assertions) {
+        // Desktop debug mode: use repo root database (not src-tauri to avoid file watcher triggers)
         std::env::current_dir()
             .map(|p| p.parent().map(|parent| parent.join("pocket-log.db")).unwrap_or_else(|| p.join("pocket-log.db")))
             .unwrap_or_else(|_| app_data_dir.join("pocket-log.db"))
     } else {
-        // Production: use app data directory
+        // Desktop release mode: use app data directory
         app_data_dir.join("pocket-log.db")
     };
 

@@ -219,6 +219,10 @@
 			padding: var(--space-4);
 			background: var(--color-bg-primary);
 			border-bottom: 1px solid var(--color-border-primary);
+			/* Safe area for notch/camera cutout on tablets */
+			padding-top: max(var(--space-4), env(safe-area-inset-top));
+			padding-left: max(var(--space-4), env(safe-area-inset-left));
+			padding-right: max(var(--space-4), env(safe-area-inset-right));
 		}
 	}
 
@@ -285,11 +289,25 @@
 		margin: 0 auto;
 	}
 
-	/* Mobile: Add bottom padding for bottom nav, reduce side padding */
+	/* Mobile: Add bottom padding for bottom nav + safe area, add top padding for safe area */
 	@media (max-width: 639px) {
 		.page-content {
 			padding: var(--space-4);
-			padding-bottom: calc(var(--space-4) + 60px); /* 60px = bottom nav height */
+			/* Top safe area for notch/status bar */
+			padding-top: max(var(--space-4), env(safe-area-inset-top));
+			/* Bottom safe area for home indicator + bottom nav */
+			padding-bottom: calc(var(--space-4) + 60px + env(safe-area-inset-bottom));
+			/* Left/right safe area for edge-to-edge displays */
+			padding-left: max(var(--space-4), env(safe-area-inset-left));
+			padding-right: max(var(--space-4), env(safe-area-inset-right));
+		}
+	}
+
+	/* Tablet: Safe areas for content */
+	@media (min-width: 640px) and (max-width: 1023px) {
+		.page-content {
+			padding-left: max(var(--space-6), env(safe-area-inset-left));
+			padding-right: max(var(--space-6), env(safe-area-inset-right));
 		}
 	}
 
@@ -308,6 +326,10 @@
 		border-top: 1px solid var(--color-border-primary);
 		box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
 		padding: 0 var(--space-2);
+		/* Safe area for home indicator and gesture bars */
+		padding-bottom: env(safe-area-inset-bottom);
+		padding-left: max(var(--space-2), env(safe-area-inset-left));
+		padding-right: max(var(--space-2), env(safe-area-inset-right));
 	}
 
 	/* Hide bottom nav on tablet and desktop */

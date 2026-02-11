@@ -83,6 +83,20 @@ pub trait PocketRepository: Send + Sync {
     /// * `Err(RepositoryError::DatabaseError)` for database errors
     async fn find_default(&self) -> Result<Option<Pocket>, RepositoryError>;
 
+    /// Recompute the pocket's current_balance_cents from its transactions
+    ///
+    /// Formula: initial_balance_cents + SUM(ledger_entries.amount_cents)
+    /// for all entries in transactions belonging to this pocket.
+    ///
+    /// # Arguments
+    /// * `id` - The pocket ID to recompute balance for
+    ///
+    /// # Returns
+    /// * `Ok(i64)` - The new computed balance in cents
+    /// * `Err(RepositoryError::NotFound)` if pocket doesn't exist
+    /// * `Err(RepositoryError::DatabaseError)` for database errors
+    async fn recompute_balance(&self, id: &TransactionId) -> Result<i64, RepositoryError>;
+
     /// Set a pocket as the default pocket
     ///
     /// This operation is atomic:

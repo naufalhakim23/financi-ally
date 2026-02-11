@@ -4,7 +4,10 @@ use crate::{
     application::dtos::TransactionDto,
     domain::{
         entities::{correction::CorrectionData, ledger_entry::EntryMetadata},
-        repositories::transaction_repository::{RepositoryError, TransactionRepository},
+        repositories::{
+            pocket_repository::PocketRepository,
+            transaction_repository::{RepositoryError, TransactionRepository},
+        },
         services::CorrectionService,
         value_objects::{Amount, TransactionId},
     },
@@ -45,11 +48,12 @@ pub struct CorrectTransactionCommand {
 /// Handler for CorrectTransactionCommand
 pub struct CorrectTransactionHandler {
     repository: Arc<dyn TransactionRepository>,
+    pocket_repo: Arc<dyn PocketRepository>,
 }
 
 impl CorrectTransactionHandler {
-    pub fn new(repository: Arc<dyn TransactionRepository>) -> Self {
-        Self { repository }
+    pub fn new(repository: Arc<dyn TransactionRepository>, pocket_repo: Arc<dyn PocketRepository>) -> Self {
+        Self { repository, pocket_repo }
     }
 
     pub async fn handle(
@@ -104,6 +108,9 @@ impl CorrectTransactionHandler {
             .apply_correction(&tx_id, correction_result)
             .await?;
 
+        // Recompute pocket balance after correction
+        self.pocket_repo.recompute_balance(transaction.pocket_id()).await?;
+
         // Retrieve updated transaction
         let updated_transaction = self
             .repository
@@ -135,7 +142,7 @@ mod tests {
 
     /// Helper to create test pocket and return pocket_id
     async fn create_test_pocket(pocket_repo: Arc<dyn crate::domain::repositories::pocket_repository::PocketRepository>) -> String {
-        let create_pocket_handler = CreatePocketHandler::new(pocket_repo);
+        let create_pocket_handler = CreatePocketHandler::new(pocket_repo.clone());
         let create_pocket_cmd = CreatePocketCommand {
             name: "Test Wallet".to_string(),
             currency: "USD".to_string(),
@@ -158,7 +165,7 @@ mod tests {
         let pocket_id = create_test_pocket(pocket_repo.clone()).await;
 
         // Create a transaction first
-        let create_handler = CreateTransactionHandler::new(tx_repo.clone(), pocket_repo);
+        let create_handler = CreateTransactionHandler::new(tx_repo.clone(), pocket_repo.clone());
         let create_cmd = CreateTransactionCommand {
             amount_cents: 1000,
             transaction_type: TransactionType::Expense,
@@ -178,7 +185,7 @@ mod tests {
         let entry_id = created.entries[0].id.clone();
 
         // Correct the transaction
-        let correct_handler = CorrectTransactionHandler::new(tx_repo.clone());
+        let correct_handler = CorrectTransactionHandler::new(tx_repo.clone(), pocket_repo.clone());
         let correct_cmd = CorrectTransactionCommand {
             transaction_id: created.id.clone(),
             entry_id,
@@ -217,7 +224,7 @@ mod tests {
         let pocket_id = create_test_pocket(pocket_repo.clone()).await;
 
         // Create transaction
-        let create_handler = CreateTransactionHandler::new(tx_repo.clone(), pocket_repo);
+        let create_handler = CreateTransactionHandler::new(tx_repo.clone(), pocket_repo.clone());
         let create_cmd = CreateTransactionCommand {
             amount_cents: 500,
             transaction_type: TransactionType::Income,
@@ -235,7 +242,7 @@ mod tests {
         let entry_id = created.entries[0].id.clone();
 
         // Correct metadata only
-        let correct_handler = CorrectTransactionHandler::new(tx_repo);
+        let correct_handler = CorrectTransactionHandler::new(tx_repo, pocket_repo);
         let correct_cmd = CorrectTransactionCommand {
             transaction_id: created.id.clone(),
             entry_id,
@@ -270,8 +277,9 @@ mod tests {
     #[tokio::test]
     async fn test_cannot_correct_nonexistent_transaction() {
         let pool = create_test_pool().await.unwrap();
-        let tx_repo = Arc::new(SqliteTransactionRepository::new(Arc::new(pool)));
-        let handler = CorrectTransactionHandler::new(tx_repo);
+        let tx_repo = Arc::new(SqliteTransactionRepository::new(Arc::new(pool.clone())));
+        let pocket_repo = Arc::new(SqlitePocketRepository::new(Arc::new(pool)));
+        let handler = CorrectTransactionHandler::new(tx_repo, pocket_repo);
 
         let fake_tx_id = TransactionId::new();
         let fake_entry_id = TransactionId::new();

@@ -199,6 +199,45 @@ impl PocketRepository for SqlitePocketRepository {
         }
     }
 
+    async fn recompute_balance(&self, id: &TransactionId) -> Result<i64, RepositoryError> {
+        let id_str = id.to_string();
+        let now = chrono::Utc::now().to_rfc3339();
+
+        // Compute: initial_balance + SUM(all ledger entry amounts for this pocket's transactions)
+        let row: (i64, i64) = sqlx::query_as(
+            "SELECT p.initial_balance_cents,
+                    COALESCE((
+                        SELECT SUM(CASE WHEN le.type = 'expense' THEN -le.amount_cents ELSE le.amount_cents END)
+                        FROM ledger_entries le
+                        INNER JOIN transactions t ON le.transaction_id = t.id
+                        WHERE t.pocket_id = p.id
+                    ), 0)
+             FROM pockets p
+             WHERE p.id = ? AND p.deleted_at IS NULL"
+        )
+        .bind(&id_str)
+        .fetch_optional(self.pool.as_ref())
+        .await
+        .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?
+        .ok_or_else(|| RepositoryError::NotFound(format!("Pocket with id {} not found", id_str)))?;
+
+        let (initial_balance, sum_entries) = row;
+        let new_balance = initial_balance + sum_entries;
+
+        // Update the pocket's current_balance_cents
+        sqlx::query(
+            "UPDATE pockets SET current_balance_cents = ?, updated_at = ? WHERE id = ?"
+        )
+        .bind(new_balance)
+        .bind(&now)
+        .bind(&id_str)
+        .execute(self.pool.as_ref())
+        .await
+        .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?;
+
+        Ok(new_balance)
+    }
+
     async fn set_default(&self, id: &TransactionId) -> Result<(), RepositoryError> {
         let id_str = id.to_string();
         let now = chrono::Utc::now().to_rfc3339();

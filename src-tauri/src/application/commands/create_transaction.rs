@@ -142,6 +142,9 @@ impl CreateTransactionHandler {
         // Persist to database
         self.transaction_repo.create(&transaction).await?;
 
+        // Recompute pocket balance after transaction creation
+        self.pocket_repo.recompute_balance(&pocket_id).await?;
+
         // Convert to DTO for response
         Ok(TransactionDto::from(&transaction))
     }
@@ -257,5 +260,49 @@ mod tests {
         let retrieved_tx = retrieved.unwrap();
         assert_eq!(retrieved_tx.id().to_string(), created.id);
         assert!(retrieved_tx.has_entries());
+    }
+
+    #[tokio::test]
+    async fn test_create_transaction_updates_pocket_balance() {
+        let pool = create_test_pool().await.unwrap();
+        let transaction_repo = Arc::new(SqliteTransactionRepository::new(Arc::new(pool.clone())));
+        let pocket_repo = Arc::new(SqlitePocketRepository::new(Arc::new(pool.clone())));
+        let handler = CreateTransactionHandler::new(transaction_repo.clone(), pocket_repo.clone());
+
+        // Get default pocket — balance should be 0
+        let default_pocket = pocket_repo.find_default().await.unwrap().unwrap();
+        assert_eq!(default_pocket.current_balance_cents(), 0);
+
+        // Create income transaction: +5000
+        let cmd1 = CreateTransactionCommand {
+            amount_cents: 5000,
+            transaction_type: TransactionType::Income,
+            scope: Scope::Personal,
+            pocket_id: default_pocket.id().to_string(),
+            description: Some("Salary".to_string()),
+            category: None, category_id: None, payment_method: None,
+            notes: None, receipt_base64: None, occurred_at: None,
+        };
+        handler.handle(cmd1).await.unwrap();
+
+        // Check balance updated to +5000
+        let pocket = pocket_repo.find_by_id(default_pocket.id()).await.unwrap().unwrap();
+        assert_eq!(pocket.current_balance_cents(), 5000);
+
+        // Create expense transaction: -1500
+        let cmd2 = CreateTransactionCommand {
+            amount_cents: 1500,
+            transaction_type: TransactionType::Expense,
+            scope: Scope::Personal,
+            pocket_id: default_pocket.id().to_string(),
+            description: Some("Groceries".to_string()),
+            category: None, category_id: None, payment_method: None,
+            notes: None, receipt_base64: None, occurred_at: None,
+        };
+        handler.handle(cmd2).await.unwrap();
+
+        // Check balance: 5000 - 1500 = 3500
+        let pocket = pocket_repo.find_by_id(default_pocket.id()).await.unwrap().unwrap();
+        assert_eq!(pocket.current_balance_cents(), 3500);
     }
 }

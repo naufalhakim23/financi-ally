@@ -246,7 +246,7 @@ pub async fn correct_transaction(
         new_receipt_base64: request.new_receipt_base64,
     };
 
-    let handler = CorrectTransactionHandler::new(state.transaction_repository.clone());
+    let handler = CorrectTransactionHandler::new(state.transaction_repository.clone(), state.pocket_repository.clone());
     match handler.handle(command).await {
         Ok(dto) => Ok(TransactionResponse::ok(dto)),
         Err(e) => Err(ErrorResponse::internal_error(e.to_string())),

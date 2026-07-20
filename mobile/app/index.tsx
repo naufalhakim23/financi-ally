@@ -1,58 +1,55 @@
-import { ActivityIndicator, ScrollView, Text, View } from "react-native";
-import { useQuery } from "@tanstack/react-query";
-import { getHealth } from "../src/lib/api";
+import { useEffect } from "react";
+import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { router } from "expo-router";
 
-// Home — M0 smoke screen. Pings backend /healthz every 10s so the moment the
-// Go service + Postgres are up, the tile flips green. Replaced by the real
-// dashboard (net worth, budget, recent) in M3.
+import { useAuth } from "../src/lib/auth";
+
+// Home — M1 gate. While tokens hydrate we show a spinner; with no session we
+// redirect to /login; signed in we show the account summary + sign out. The
+// real dashboard (net worth, budget, recent) lands in M3.
 export default function Home() {
-  const { data, isLoading, isError, error } = useQuery({
-    queryKey: ["health"],
-    queryFn: getHealth,
-    refetchInterval: 10_000,
-  });
+  const { user, loading, logout } = useAuth();
+
+  useEffect(() => {
+    if (!loading && !user) router.replace("/login");
+  }, [loading, user]);
+
+  if (loading || !user) {
+    return (
+      <View className="flex-1 items-center justify-center bg-white">
+        <ActivityIndicator />
+      </View>
+    );
+  }
 
   return (
-    <ScrollView
-      contentContainerStyle={{
-        flexGrow: 1,
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 24,
-      }}
-    >
-      <Text style={{ fontSize: 30, fontWeight: "700", marginBottom: 4 }}>
-        FinanciAlly
-      </Text>
-      <Text style={{ color: "#6b7280", marginBottom: 28 }}>M0 scaffold</Text>
+    <View className="flex-1 bg-white px-6 justify-center">
+      <Text className="text-2xl font-bold mb-1">Signed in</Text>
+      <Text className="text-gray-500 mb-6">M1 — auth. Dashboard arrives in M3.</Text>
 
-      {isLoading && <ActivityIndicator testID="health-loading" />}
-      {isError && (
-        <Text style={{ color: "#dc2626" }} testID="health-error">
-          backend unreachable: {(error as Error).message}
-        </Text>
-      )}
-      {data && (
-        <View
-          testID="health-ok"
-          style={{
-            padding: 18,
-            borderRadius: 12,
-            backgroundColor: "#f3f4f6",
-            gap: 4,
-          }}
-        >
-          <Text>status: {data.status}</Text>
-          <Text
-            style={{
-              color: data.db === "up" ? "#16a34a" : "#dc2626",
-              fontWeight: "600",
-            }}
-          >
-            db: {data.db}
-          </Text>
-        </View>
-      )}
-    </ScrollView>
+      <View className="border border-gray-200 rounded-xl p-5 mb-8">
+        <Row label="Email" value={user.email} />
+        <Row label="Base currency" value={user.base_currency} />
+        <Row label="User ID" value={user.id} />
+      </View>
+
+      <Pressable
+        onPress={logout}
+        className="border border-red-300 rounded-lg py-4 items-center"
+      >
+        <Text className="text-red-600 font-semibold">Sign out</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <View className="flex-row justify-between py-2">
+      <Text className="text-gray-500">{label}</Text>
+      <Text className="font-medium text-right" style={{ maxWidth: 220 }}>
+        {value}
+      </Text>
+    </View>
   );
 }

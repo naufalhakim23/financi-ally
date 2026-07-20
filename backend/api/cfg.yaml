@@ -1,0 +1,16 @@
+# oapi-codegen config — single source of truth for the API surface.
+# `make gen` regenerates api/generated.go from openapi.yaml.
+#
+# M0: chi-server (non-strict). Flip `strict-server: true` in M1 when the first
+# request/response-typed endpoint (register/login) lands — strict gives typed
+# binding but is more machinery than one GET /healthz needs.
+package: api
+output: api/generated.go
+output-options:
+  skip-prune: true
+generate:
+  models: true
+  chi-server: true
+  strict-server: false
+  client: false
+  embedded-spec: false

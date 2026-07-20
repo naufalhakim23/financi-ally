@@ -1,0 +1,53 @@
+openapi: 3.0.3
+info:
+  title: FinanciAlly API
+  version: 0.1.0
+  description: |
+    Personal finance double-entry ledger. M0 scaffold — only /healthz exists.
+    Auth, accounts, entries, lines, budgets, fx, recurring, reporting, and sync
+    operations are added here as each milestone lands; the Go server interface
+    is regenerated from this file via `make gen`.
+servers:
+  - url: http://localhost:8080
+    description: local dev
+tags:
+  - name: system
+    description: Health & operational endpoints
+paths:
+  /healthz:
+    get:
+      operationId: getHealthz
+      tags: [system]
+      summary: Liveness + DB connectivity
+      description: |
+        Returns 200 with `db:"up"` when Postgres answers, 503 with `db:"down"`
+        when it does not. The mobile app uses this to confirm the backend is
+        reachable before attempting a sync.
+      responses:
+        '200':
+          description: healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+        '503':
+          description: database unreachable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      required: [status, db]
+      properties:
+        status:
+          type: string
+          description: process liveness
+          example: ok
+        db:
+          type: string
+          enum: [up, down]
+          description: Postgres connectivity
+          example: up

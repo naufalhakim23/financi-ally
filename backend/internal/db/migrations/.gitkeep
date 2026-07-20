@@ -1,0 +1,3 @@
+# SQL migrations land here in M2 (ledger core). M0 ships an empty migrations
+# directory so the layout is in place; the runner (golang-migrate) wires up
+# with the first 001_*.sql file.

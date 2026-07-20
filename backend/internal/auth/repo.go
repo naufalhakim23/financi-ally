@@ -19,7 +19,7 @@ var (
 	ErrEmailExists = errors.New("email already registered")
 )
 
-// Repo is the persistence boundary for auth. Raw SQL via pgx — goqu/query
+// Repo is the persistence boundary for auth. Raw SQL via pgx; goqu/query
 // builder lands in M2 where the ledger queries get complex; these CRUD calls
 // are clearer as plain SQL.
 type Repo struct {
@@ -95,7 +95,7 @@ func (r *Repo) CreateRefreshToken(ctx context.Context, userID string, tokenHash 
 // RotateRefreshToken atomically revokes the old token (only if still valid) and
 // issues the new one in the same transaction, returning the owning user.
 // If the old token is missing, already revoked, or expired, nothing is written
-// and ErrInvalidToken is returned — that's the single-use-theft signal.
+// and ErrInvalidToken is returned; that's the single-use-theft signal.
 func (r *Repo) RotateRefreshToken(ctx context.Context, oldHash, newHash []byte, newExpiresAt time.Time) (*User, error) {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
@@ -177,7 +177,7 @@ func (r *Repo) FindOrCreateOAuth(ctx context.Context, provider, providerUID, ema
 }
 
 // tryFindOrCreateOAuth is one attempt. The retry bool signals "a concurrent
-// write beat us — start over" (unique violation on users or oauth_identities);
+// write beat us; start over" (unique violation on users or oauth_identities);
 // any other error is terminal.
 func (r *Repo) tryFindOrCreateOAuth(ctx context.Context, provider, providerUID, email string) (*User, bool, error) {
 	tx, err := r.db.Begin(ctx)
@@ -205,13 +205,13 @@ func (r *Repo) tryFindOrCreateOAuth(ctx context.Context, provider, providerUID, 
 	u, err = scanUser(tx.QueryRow(ctx, `SELECT `+colUser+` FROM users WHERE email = $1`, email))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			// 3. No existing user — create an OAuth-only one (no password).
+			// 3. No existing user; create an OAuth-only one (no password).
 			u, err = scanUser(tx.QueryRow(ctx, `
 				INSERT INTO users (email, password_hash) VALUES ($1, NULL)
 				RETURNING `+colUser, email))
 			if err != nil {
 				if isUniqueViolation(err) {
-					return nil, true, ErrEmailExists // email appeared concurrently — re-read
+					return nil, true, ErrEmailExists // email appeared concurrently; re-read
 				}
 				return nil, false, fmt.Errorf("create oauth user: %w", err)
 			}
@@ -225,7 +225,7 @@ func (r *Repo) tryFindOrCreateOAuth(ctx context.Context, provider, providerUID, 
 		`INSERT INTO oauth_identities (user_id, provider, provider_uid) VALUES ($1, $2, $3)`,
 		u.ID, provider, providerUID); err != nil {
 		if isUniqueViolation(err) {
-			return nil, true, ErrEmailExists // identity linked concurrently — re-read
+			return nil, true, ErrEmailExists // identity linked concurrently; re-read
 		}
 		return nil, false, fmt.Errorf("insert oauth identity: %w", err)
 	}

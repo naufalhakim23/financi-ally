@@ -1,4 +1,4 @@
-# oapi-codegen config — single source of truth for the API surface.
+# oapi-codegen config, the single source of truth for the API surface.
 # `make gen` regenerates api/generated.go from openapi.yaml.
 #
 # M1: strict-server flipped on. The first typed request/response endpoints

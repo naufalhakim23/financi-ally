@@ -1,4 +1,4 @@
-// API client. Pure functions — no token awareness. The auth provider
+// API client. Pure functions; no token awareness. The auth provider
 // (src/lib/auth.tsx) owns tokens and passes them in; this module only knows
 // shapes and the base URL.
 
@@ -36,7 +36,7 @@ async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
     ...init,
     headers: { "Content-Type": "application/json", ...(init.headers ?? {}) },
   });
-  // 204 has no body — caller treats as void.
+  // 204 has no body; caller treats as void.
   if (res.status === 204) return undefined as T;
   const text = await res.text();
   const parsed = text ? ((JSON.parse(text) as unknown) ?? null) : null;

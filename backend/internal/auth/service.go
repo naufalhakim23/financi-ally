@@ -15,7 +15,7 @@ import (
 // layer maps a single auth-domain error vocabulary to HTTP statuses.
 var (
 	// ErrInvalidCredentials: wrong email/password. Deliberately identical for
-	// "no such user" and "bad password" — never reveal which.
+	// "no such user" and "bad password"; never reveal which.
 	ErrInvalidCredentials = errors.New("invalid credentials")
 	// ErrInvalidInput: malformed email or too-short password at the service
 	// trust boundary (defense in depth alongside OpenAPI binding).
@@ -91,7 +91,7 @@ func (s *Service) Login(ctx context.Context, email, password string) (*Session, 
 		return nil, err
 	}
 	if user.PasswordHash == nil {
-		// OAuth-only account — no password to check. Surface the same error so
+		// OAuth-only account; no password to check. Surface the same error so
 		// a password login attempt doesn't reveal that the email exists via OAuth.
 		return nil, ErrInvalidCredentials
 	}
@@ -107,7 +107,7 @@ func (s *Service) Login(ctx context.Context, email, password string) (*Session, 
 
 // Refresh rotates a refresh token: the presented token is revoked and a brand
 // new access+refresh pair is issued. A replayed, expired, or forged token
-// returns ErrInvalidToken (rotate is atomic — no half-state).
+// returns ErrInvalidToken (rotate is atomic; no half-state).
 func (s *Service) Refresh(ctx context.Context, rawToken string) (*Session, error) {
 	oldHash := hashToken(rawToken)
 	newRaw, newHash, err := newRefreshToken()
@@ -187,7 +187,7 @@ func hashToken(raw string) []byte {
 	return h[:]
 }
 
-// validEmail is a deliberately cheap check — "non-empty, has one @, something
+// validEmail is a deliberately cheap check; "non-empty, has one @, something
 // each side". Authoritative format validation isn't the auth layer's job and
 // exhaustive regexes reject valid addresses; we only guard against garbage.
 func validEmail(s string) bool {

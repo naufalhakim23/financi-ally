@@ -99,7 +99,7 @@ paths:
       summary: Rotate a refresh token into a new session
       description: |
         The presented refresh token is revoked and a fresh access+refresh pair
-        is returned. A replayed, expired, or forged token yields 401 — rotation
+        is returned. A replayed, expired, or forged token yields 401; rotation
         is atomic, so reuse is detected on the second presentation.
       requestBody:
         required: true

@@ -13,7 +13,7 @@ import (
 )
 
 // argon2id parameters. OWASP-recommended band (64 MiB / 3 iterations / degree-2
-// parallelism) — strong against offline GPU cracking, ~50ms on a laptop. Tunable
+// parallelism); strong against offline GPU cracking, ~50ms on a laptop. Tunable
 // here in one place if the threat model or hardware changes.
 const (
 	argonMemory      uint32 = 64 * 1024
@@ -23,7 +23,7 @@ const (
 	argonKeyLen             = 32
 )
 
-// ErrMalformedHash means a stored hash didn't parse — treat as a server error,
+// ErrMalformedHash means a stored hash didn't parse; treat as a server error,
 // never as "wrong password" (a bad parse is a data-integrity problem).
 var ErrMalformedHash = errors.New("malformed password hash")
 

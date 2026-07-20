@@ -127,7 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         await api.logout(access, refresh);
       } catch {
-        // Server may already be unreachable or the token dead — clear locally
+        // Server may already be unreachable or the token dead; clear locally
         // regardless so the user is signed out of the app.
       }
     }

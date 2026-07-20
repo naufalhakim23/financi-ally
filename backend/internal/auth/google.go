@@ -21,7 +21,7 @@ type GoogleService struct {
 	clientSecret string
 }
 
-// NewGoogle builds the service. Empty clientID means disabled — callers should
+// NewGoogle builds the service. Empty clientID means disabled; callers should
 // check Enabled() before presenting Google as an option.
 func NewGoogle(clientID, clientSecret string) *GoogleService {
 	return &GoogleService{clientID: clientID, clientSecret: clientSecret}
@@ -42,7 +42,7 @@ type userInfo struct {
 // Exchange redeems the authorization code for tokens, then fetches userinfo.
 // redirectURI must match the one the app used to build the auth URL (expo-auth-
 // session's makeRedirect output). Returns ErrOAuthUnverifiedEmail if Google has
-// not verified the address — we never mint our session on an unverified email.
+// not verified the address; we never mint our session on an unverified email.
 func (g *GoogleService) Exchange(ctx context.Context, code, redirectURI string) (providerUID, email string, err error) {
 	// Bound the round-trips to Google so a slow/unreachable Google can't hold a
 	// request handler (and its pool connection) open to the chi 30s ceiling.
@@ -56,7 +56,7 @@ func (g *GoogleService) Exchange(ctx context.Context, code, redirectURI string) 
 		Endpoint:     google.Endpoint,
 		Scopes:       []string{"openid", "email"},
 	}
-	// Fresh config per call — RedirectURI varies by client/platform, so we can't
+	// Fresh config per call; RedirectURI varies by client/platform, so we can't
 	// share one immutable config.
 	tok, err := conf.Exchange(ctx, code)
 	if err != nil {

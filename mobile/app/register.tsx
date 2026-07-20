@@ -18,7 +18,7 @@ export default function RegisterScreen() {
     setError(null);
     setBusy(true);
     try {
-      // base_currency is optional — omit when blank so the server default (IDR) applies.
+      // base_currency is optional; omit when blank so the server default (IDR) applies.
       await register(email.trim(), password, baseCurrency.trim() || undefined);
     } catch (e) {
       setError(messageFor(e, "Registration failed"));

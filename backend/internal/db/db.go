@@ -22,7 +22,7 @@ type Config struct {
 	ConnMaxLife  string
 }
 
-// New creates and pings a connection pool. A failed ping fails fast — the
+// New creates and pings a connection pool. A failed ping fails fast; the
 // caller (main) treats a DB-less backend as a startup error, which is what
 // /healthz depends on to mean anything.
 func New(cfg *Config) (*Pool, error) {

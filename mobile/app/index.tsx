@@ -4,7 +4,7 @@ import { router } from "expo-router";
 
 import { useAuth } from "../src/lib/auth";
 
-// Home — M1 gate. While tokens hydrate we show a spinner; with no session we
+// Home (M1 gate). While tokens hydrate we show a spinner; with no session we
 // redirect to /login; signed in we show the account summary + sign out. The
 // real dashboard (net worth, budget, recent) lands in M3.
 export default function Home() {
@@ -25,7 +25,7 @@ export default function Home() {
   return (
     <View className="flex-1 bg-white px-6 justify-center">
       <Text className="text-2xl font-bold mb-1">Signed in</Text>
-      <Text className="text-gray-500 mb-6">M1 — auth. Dashboard arrives in M3.</Text>
+      <Text className="text-gray-500 mb-6">M1 auth. Dashboard arrives in M3.</Text>
 
       <View className="border border-gray-200 rounded-xl p-5 mb-8">
         <Row label="Email" value={user.email} />

@@ -18,7 +18,7 @@ import (
 var migrationsFS embed.FS
 
 // Migrate runs all pending up migrations against dsn. It opens its own short-lived
-// *sql.DB (via pgx stdlib) — golang-migrate speaks database/sql, not the pgx pool,
+// *sql.DB (via pgx stdlib); golang-migrate speaks database/sql, not the pgx pool,
 // and we don't want migration locking to share pool connections with request traffic.
 // Fail-closed: any migration error returns and the caller (main) refuses to start.
 func Migrate(dsn string) error {

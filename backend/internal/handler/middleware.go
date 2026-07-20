@@ -12,8 +12,8 @@ import (
 // protected is the allowlist of operations that require a valid bearer token.
 // Everything else (healthz, register, login, refresh, google) is public.
 //
-// ponytail: path allowlist over a kin-openapi spec-driven request validator —
-// two protected ops don't justify the validator dependency yet. Upgrade to
+// ponytail: path allowlist over a kin-openapi spec-driven request validator.
+// Two protected ops don't justify the validator dependency yet. Upgrade to
 // spec-derived security (middleware.OapiRequestValidatorWithOptions) once the
 // protected surface grows past a handful and hand-maintenance becomes a footgun.
 var protected = map[string]map[string]bool{
@@ -24,7 +24,7 @@ var protected = map[string]map[string]bool{
 // AuthMiddleware verifies a Bearer JWT on protected operations and stashes the
 // principal in the request context. Public operations pass through untouched.
 // On any failure (missing/malformed header, bad signature, expired) it writes a
-// 401 and short-circuits — never calls next.
+// 401 and short-circuits; never calls next.
 func AuthMiddleware(verifier *auth.JWTService) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -51,7 +51,7 @@ func AuthMiddleware(verifier *auth.JWTService) func(http.Handler) http.Handler {
 
 // PrincipalFrom extracts the authenticated principal, if present. Protected
 // handlers can treat its absence as 401, but the middleware already guarantees
-// presence on protected paths — the check is defense in depth.
+// presence on protected paths; the check is defense in depth.
 func PrincipalFrom(ctx context.Context) (*auth.Principal, bool) {
 	p, ok := ctx.Value(ctxkey.Auth).(*auth.Principal)
 	return p, ok && p != nil

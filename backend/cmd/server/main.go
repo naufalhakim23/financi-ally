@@ -48,7 +48,7 @@ func main() {
 	defer pool.Close()
 	slog.Info("database connected")
 
-	// Migrate on boot: fail-closed — a backend that can't reach schema parity
+	// Migrate on boot: fail-closed; a backend that can't reach schema parity
 	// is worse than one that refuses to start.
 	if err := db.Migrate(cfg.Database.URL); err != nil {
 		slog.Error("failed to apply migrations", "err", err)

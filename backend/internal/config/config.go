@@ -8,7 +8,7 @@ import (
 )
 
 // devJWTSecret is the insecure default used only in development. A production
-// load fails fast if JWTSecret is still this value — a forgetful deploy must
+// load fails fast if JWTSecret is still this value; a forgetful deploy must
 // never mint tokens signed with a public default.
 const devJWTSecret = "change-this-jwt-secret-in-production"
 
@@ -45,7 +45,7 @@ type AuthConfig struct {
 
 // GoogleOAuthConfig holds the server-side Google OAuth client used to exchange
 // the authorization code that the mobile app (expo-auth-session, PKCE) produces.
-// ClientSecret lives on the server only — the app never sees it.
+// ClientSecret lives on the server only; the app never sees it.
 type GoogleOAuthConfig struct {
 	ClientID    string
 	ClientSecret string

@@ -25,7 +25,7 @@ func NewServerImpl(pool *db.Pool, svc *auth.Service) *ServerImpl {
 	return &ServerImpl{db: pool, svc: svc}
 }
 
-// Compile-time interface satisfaction — breaks at build if the generated
+// Compile-time interface satisfaction; breaks at build if the generated
 // strict interface drifts from our impl.
 var _ api.StrictServerInterface = (*ServerImpl)(nil)
 

@@ -1,6 +1,6 @@
 // Package auth owns the authentication surface: email+password credentials,
 // JWT access tokens, opaque rotated refresh tokens, and OAuth (Google) identity
-// linking. It is feature-scoped and self-contained — the future service boundary
+// linking. It is feature-scoped and self-contained; the future service boundary
 // if auth ever splits out.
 package auth
 

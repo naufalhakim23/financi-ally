@@ -34,7 +34,7 @@ func TestJWTRejectsBad(t *testing.T) {
 }
 
 func TestJWTExpired(t *testing.T) {
-	// Negative TTL mints a token already in the past — verifies as expired.
+	// Negative TTL mints a token already in the past; verifies as expired.
 	j := NewJWTService("s", -time.Minute)
 	tok, _, _ := j.Issue("u", "e")
 	if _, err := j.Verify(tok); err != ErrExpiredToken {

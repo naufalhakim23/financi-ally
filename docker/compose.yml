@@ -11,7 +11,7 @@ services:
       POSTGRES_USER: financially
       POSTGRES_PASSWORD: financially
     ports:
-      # Host 5433, not 5432 — Boss's Homebrew Postgres already owns loopback
+      # Host 5433, not 5432; Boss's Homebrew Postgres already owns loopback
       # 5432. Keeping our own port keeps the project self-contained.
       - "5433:5432"
     volumes:

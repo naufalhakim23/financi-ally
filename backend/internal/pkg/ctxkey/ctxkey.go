@@ -3,7 +3,7 @@
 // on bare strings.
 package ctxkey
 
-// Key is an unexported type — only this package can mint keys of this type,
+// Key is an unexported type; only this package can mint keys of this type,
 // which makes the constants below impossible to forge from another package.
 type Key string
 

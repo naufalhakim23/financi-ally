@@ -1,0 +1,27 @@
+# --- secrets / env ---
+.env
+.env.*
+!.env.example
+
+# --- Go ---
+backend/bin/
+backend/coverage.out
+backend/coverage.html
+backend/tmp/
+*.log
+
+# --- Node / Expo ---
+mobile/node_modules/
+mobile/.expo/
+mobile/dist/
+mobile/web-build/
+mobile/expo-env.d.ts
+mobile/*.tsbuildinfo
+npm-debug.*
+yarn-error.*
+ios/
+android/
+
+# --- OS ---
+.DS_Store
+Thumbs.db

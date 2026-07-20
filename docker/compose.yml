@@ -1,0 +1,26 @@
+# Local dev Postgres for FinanciAlly.
+# M0: database only. Backend runs via `make run` / `make dev` on the host.
+# A backend service (build from ../backend/Dockerfile) gets added when a
+# milestone needs containerized runs / CI.
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: financially_db
+    environment:
+      POSTGRES_DB: financially
+      POSTGRES_USER: financially
+      POSTGRES_PASSWORD: financially
+    ports:
+      # Host 5433, not 5432 — Boss's Homebrew Postgres already owns loopback
+      # 5432. Keeping our own port keeps the project self-contained.
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U financially"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

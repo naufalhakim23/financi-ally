@@ -4,7 +4,7 @@ Personal expense & budget tracker — double-entry ledger, multi-currency, offli
 Go (chi + oapi-codegen) backend + Expo (Router + NativeWind + TanStack Query) mobile.
 
 > Plan: `docs/plans/01-financi-ally/plan.html` (in the atlas workspace).
-> Status: **M0 — scaffold**. See milestones in the plan.
+> Status: **M1 — auth** (email+pw JWT + Google OAuth). See milestones in the plan.
 
 ## Repo map
 
@@ -62,7 +62,7 @@ npx expo start       # press i / a / scan QR
 ## Roadmap
 
 - **M0** ✅ scaffold — monorepo, Go module, Expo app, OpenAPI skeleton, Postgres, oapi-codegen wired
-- **M1** auth — email+pw JWT, then Apple/Google OAuth
+- **M1** ✅ auth — email+pw JWT (argon2id, rotated refresh tokens), Google OAuth; Apple in M7
 - **M2** ledger core — accounts (5 types), entries, lines, `Post()` balance invariant
 - **M3** pockets UI + offline — WatermelonDB, sync pull/push, add-entry, dashboard
 - **M4** multi-currency + FX job + reports

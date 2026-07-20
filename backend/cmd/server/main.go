@@ -15,13 +15,13 @@ import (
 	"github.com/joho/godotenv"
 
 	"github.com/naufalhakim23/financi-ally/backend/api"
+	"github.com/naufalhakim23/financi-ally/backend/internal/auth"
 	"github.com/naufalhakim23/financi-ally/backend/internal/config"
 	"github.com/naufalhakim23/financi-ally/backend/internal/db"
 	"github.com/naufalhakim23/financi-ally/backend/internal/handler"
 )
 
 func main() {
-	// Text logger until config-driven logger lands; slog default is fine for M0.
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, nil)))
 
 	if err := godotenv.Load(); err != nil {
@@ -48,13 +48,42 @@ func main() {
 	defer pool.Close()
 	slog.Info("database connected")
 
-	// Generated chi handler mounts the OpenAPI operations onto r.
+	// Migrate on boot: fail-closed — a backend that can't reach schema parity
+	// is worse than one that refuses to start.
+	if err := db.Migrate(cfg.Database.URL); err != nil {
+		slog.Error("failed to apply migrations", "err", err)
+		os.Exit(1)
+	}
+	slog.Info("migrations applied")
+
+	// Auth wiring: repo → password/jwt/google primitives → service → handler.
+	repo := auth.NewRepo(pool.Pool)
+	jwtSvc := auth.NewJWTService(cfg.Auth.JWTSecret, cfg.Auth.AccessTokenTTL)
+	googleSvc := auth.NewGoogle(cfg.Google.ClientID, cfg.Google.ClientSecret)
+	svc := auth.NewService(repo, jwtSvc, googleSvc, cfg.Auth.RefreshTokenTTL, cfg.Auth.BaseCurrencyDefault)
+
+	serverImpl := handler.NewServerImpl(pool, svc)
+
+	// Strict-server error handlers emit our JSON Error shape instead of plain
+	// text, and never leak internal error strings to clients.
+	opts := api.StrictHTTPServerOptions{
+		RequestErrorHandlerFunc: func(w http.ResponseWriter, _ *http.Request, _ error) {
+			writeStrictError(w, http.StatusBadRequest, "bad_request", "malformed request body")
+		},
+		ResponseErrorHandlerFunc: func(w http.ResponseWriter, _ *http.Request, err error) {
+			slog.Error("unhandled auth error", "err", err)
+			writeStrictError(w, http.StatusInternalServerError, "internal_error", "internal server error")
+		},
+	}
+	strict := api.NewStrictHandlerWithOptions(serverImpl, nil, opts)
+
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(30 * time.Second))
-	r.Mount("/", api.Handler(handler.NewServerImpl(pool)))
+	r.Use(handler.AuthMiddleware(jwtSvc))
+	r.Mount("/", api.Handler(strict))
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Server.Port,
@@ -63,7 +92,8 @@ func main() {
 	}
 
 	go func() {
-		slog.Info("server starting", "port", cfg.Server.Port, "env", cfg.Server.Environment)
+		slog.Info("server starting", "port", cfg.Server.Port, "env", cfg.Server.Environment,
+			"google_enabled", googleSvc.Enabled())
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("failed to start server", "err", err)
 			os.Exit(1)
@@ -82,4 +112,13 @@ func main() {
 		os.Exit(1)
 	}
 	slog.Info("server exited")
+}
+
+// writeStrictError writes a JSON Error body for the strict-server fallback
+// handlers (bad request body / unhandled 500). Kept in main because it's the
+// only place these top-level fallbacks fire.
+func writeStrictError(w http.ResponseWriter, code int, errCode, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	_, _ = w.Write([]byte(`{"code":"` + errCode + `","message":"` + message + `"}`))
 }

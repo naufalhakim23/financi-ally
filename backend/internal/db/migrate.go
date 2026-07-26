@@ -21,6 +21,13 @@ var migrationsFS embed.FS
 // *sql.DB (via pgx stdlib); golang-migrate speaks database/sql, not the pgx pool,
 // and we don't want migration locking to share pool connections with request traffic.
 // Fail-closed: any migration error returns and the caller (main) refuses to start.
+//
+// Dirty-migration recovery: if a migration fails partway, golang-migrate marks the
+// schema_versions row dirty and every subsequent boot fails on ErrDirty. To recover,
+// inspect `migrate version` against the embedded migrations, fix the offending SQL,
+// and force the version back: `migrate -database <dsn> -path migrations force <n>`
+// (or the equivalent golang-migrate CLI / `m.Force(n)`). Never force forward past an
+// unapplied migration; that skips it and desyncs the cluster.
 func Migrate(dsn string) error {
 	src, err := iofs.New(migrationsFS, "migrations")
 	if err != nil {

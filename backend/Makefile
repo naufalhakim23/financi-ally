@@ -5,7 +5,7 @@
 GOBIN := $(shell go env GOPATH)/bin
 
 help:
-	@echo "FinanciAlly backend — targets:"
+	@echo "FinanciAlly backend targets:"
 	@echo "  make gen            regenerate api/generated.go from openapi.yaml"
 	@echo "  make build          build ./bin/server"
 	@echo "  make run            build + run"
@@ -20,7 +20,7 @@ gen generate:
 	@echo ">> generating API from openapi.yaml"
 	@$(GOBIN)/oapi-codegen -config api/cfg.yaml api/openapi.yaml
 
-# Build (does NOT regenerate — run `make gen` after editing openapi.yaml).
+# Build (does NOT regenerate. Run `make gen` after editing openapi.yaml).
 build:
 	@echo ">> building server"
 	@go build -o bin/server ./cmd/server

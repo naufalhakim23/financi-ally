@@ -1,4 +1,4 @@
-# air hot-reload config — `make dev`.
+# air hot-reload config. Run with `make dev`.
 root = "."
 tmp_dir = "tmp"
 

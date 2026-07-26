@@ -1,18 +1,20 @@
 openapi: 3.0.3
 info:
   title: FinanciAlly API
-  version: 0.1.0
+  version: 0.2.0
   description: |
-    Personal finance double-entry ledger. M0 scaffold — only /healthz exists.
-    Auth, accounts, entries, lines, budgets, fx, recurring, reporting, and sync
-    operations are added here as each milestone lands; the Go server interface
-    is regenerated from this file via `make gen`.
+    Personal finance double-entry ledger. M1 adds the auth surface
+    (register/login/refresh/google + protected me/logout). Accounts, entries,
+    lines, budgets, fx, recurring, reporting, and sync land in later milestones;
+    the Go server interface is regenerated from this file via `make gen`.
 servers:
   - url: http://localhost:8080
     description: local dev
 tags:
   - name: system
     description: Health & operational endpoints
+  - name: auth
+    description: Registration, login, token refresh, OAuth, session
 paths:
   /healthz:
     get:
@@ -36,7 +38,179 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthStatus'
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      summary: Create a credential account and start a session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '200':
+          description: session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: malformed body or weak password
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: email already registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Exchange credentials for a session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /auth/refresh:
+    post:
+      operationId: refresh
+      tags: [auth]
+      summary: Rotate a refresh token into a new session
+      description: |
+        The presented refresh token is revoked and a fresh access+refresh pair
+        is returned. A replayed, expired, or forged token yields 401; rotation
+        is atomic, so reuse is detected on the second presentation.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: rotated session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: token invalid, expired, or already used
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /auth/google:
+    post:
+      operationId: googleAuth
+      tags: [auth]
+      summary: Exchange a Google authorization code for a session
+      description: |
+        The mobile app runs the authorization-code flow via expo-auth-session and
+        sends the resulting authorization code + redirect_uri here. The server
+        redeems the code (it is the confidential client holding the Google
+        client_secret), verifies the email, and find-or-creates the user. PKCE is
+        intentionally not used: the code is exchanged server-side with the secret,
+        so there is no code_verifier to thread.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GoogleRequest'
+      responses:
+        '200':
+          description: session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: malformed body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: code rejected or email unverified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: google oauth not configured on the server
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Current authenticated user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: the authenticated user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Revoke the presented refresh token
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '204':
+          description: token revoked
+        '401':
+          description: missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   schemas:
     HealthStatus:
       type: object
@@ -51,3 +225,85 @@ components:
           enum: [up, down]
           description: Postgres connectivity
           example: up
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: stable machine code for this error class
+          example: invalid_credentials
+        message:
+          type: string
+          description: human-readable detail
+          example: invalid credentials
+    User:
+      type: object
+      required: [id, email, base_currency, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        base_currency:
+          type: string
+          description: ISO 4217 currency code
+          example: IDR
+        created_at:
+          type: string
+          format: date-time
+    AuthResponse:
+      type: object
+      required: [access_token, refresh_token, user]
+      properties:
+        access_token:
+          type: string
+          description: "short-lived HS256 JWT; send as `Authorization: Bearer <token>`"
+        refresh_token:
+          type: string
+          description: single-use opaque token; rotate via /auth/refresh
+        user:
+          $ref: '#/components/schemas/User'
+    RegisterRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+          minLength: 8
+        base_currency:
+          type: string
+          description: optional; defaults to server BASE_CURRENCY_DEFAULT
+          example: IDR
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+    RefreshRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token:
+          type: string
+    GoogleRequest:
+      type: object
+      required: [code, redirect_uri]
+      properties:
+        code:
+          type: string
+          description: authorization code from expo-auth-session
+        redirect_uri:
+          type: string
+          description: the redirect URI the app used in the auth request

@@ -2,7 +2,7 @@ package config
 
 import "testing"
 
-// TestLoadDefaults verifies env defaults apply when nothing is set — the
+// TestLoadDefaults verifies env defaults apply when nothing is set; the
 // smallest check that proves `make test` runs and the config path compiles.
 func TestLoadDefaults(t *testing.T) {
 	cfg, err := Load()

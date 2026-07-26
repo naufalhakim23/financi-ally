@@ -126,10 +126,12 @@ paths:
       tags: [auth]
       summary: Exchange a Google authorization code for a session
       description: |
-        The mobile app runs the PKCE flow via expo-auth-session and sends the
-        resulting authorization code + redirect_uri here. The server redeems the
-        code (holding the client secret), verifies the email, and find-or-creates
-        the user.
+        The mobile app runs the authorization-code flow via expo-auth-session and
+        sends the resulting authorization code + redirect_uri here. The server
+        redeems the code (it is the confidential client holding the Google
+        client_secret), verifies the email, and find-or-creates the user. PKCE is
+        intentionally not used: the code is exchanged server-side with the secret,
+        so there is no code_verifier to thread.
       requestBody:
         required: true
         content:

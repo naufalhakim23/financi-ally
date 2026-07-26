@@ -70,7 +70,7 @@ export default function LoginScreen() {
           </>
         )}
 
-        <Pressable onPress={() => router.push("/register")} className="mt-6 self-center">
+        <Pressable onPress={() => router.replace("/register")} className="mt-6 self-center">
           <Text className="text-gray-600">
             No account? <Text className="text-blue-600 font-semibold">Register</Text>
           </Text>

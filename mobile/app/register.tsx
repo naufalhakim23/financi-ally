@@ -60,7 +60,7 @@ export default function RegisterScreen() {
 
         <PrimaryButton label="Create account" onPress={submit} busy={busy} />
 
-        <Pressable onPress={() => router.push("/login")} className="mt-6 self-center">
+        <Pressable onPress={() => router.replace("/login")} className="mt-6 self-center">
           <Text className="text-gray-600">
             Already have an account? <Text className="text-blue-600 font-semibold">Sign in</Text>
           </Text>

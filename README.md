@@ -27,7 +27,7 @@ financi-ally/
 - Docker (for local Postgres)
 - `oapi-codegen` + `air`: `cd backend && make install-tools`
 
-## Quick start (M0)
+## Quick start
 
 ```bash
 # 1. Postgres

@@ -32,14 +32,35 @@ export class HTTPError extends Error {
 }
 
 async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...init,
-    headers: { "Content-Type": "application/json", ...(init.headers ?? {}) },
-  });
+  // 15s ceiling so a stalled network can't leave the UI spinning forever. If
+  // the caller already supplied a signal (e.g. health poll), defer to it.
+  const ctrl = new AbortController();
+  const timeout = setTimeout(() => ctrl.abort(), 15000);
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, {
+      ...init,
+      signal: init.signal ?? ctrl.signal,
+      headers: { "Content-Type": "application/json", ...(init.headers ?? {}) },
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
   // 204 has no body; caller treats as void.
   if (res.status === 204) return undefined as T;
   const text = await res.text();
-  const parsed = text ? ((JSON.parse(text) as unknown) ?? null) : null;
+  // A proxy / 5xx can hand back HTML or plain text; JSON.parse would throw a
+  // raw SyntaxError and callers would see that instead of an HTTPError. Parse
+  // defensively: malformed body → null, and on !res.ok that surfaces as a
+  // status-only HTTPError rather than a parse crash.
+  let parsed: unknown = null;
+  if (text) {
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      parsed = null;
+    }
+  }
   if (!res.ok) {
     const body =
       parsed && typeof parsed === "object" && "code" in (parsed as object)

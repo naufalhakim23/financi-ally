@@ -30,15 +30,28 @@ var (
 // minLength:8; this is the backstop if Service is called outside HTTP later.
 const minPasswordLen = 8
 
+// dummyHash is a valid argon2id encoding of a throwaway password, computed once
+// at package init. Login runs VerifyPassword against it on every "user not
+// found" / OAuth-only-account path so the ~50ms argon2id cost is identical
+// whether or not the email exists — otherwise latency leaks which emails are
+// registered (user enumeration).
+var dummyHash = func() string {
+	h, err := HashPassword("timing-normalization-only")
+	if err != nil {
+		panic("build login timing dummy hash: " + err.Error())
+	}
+	return h
+}()
+
 // Service orchestrates auth flows: hash + persist credentials, mint JWTs and
 // refresh tokens, and bind OAuth identities to users. It owns the session shape
 // so every path that logs a user in produces an identical response.
 type Service struct {
-	repo          *Repo
-	jwt           *JWTService
-	google        *GoogleService
-	refreshTTL    time.Duration
-	baseCurrency  string // default when register omits it
+	repo         *Repo
+	jwt          *JWTService
+	google       *GoogleService
+	refreshTTL   time.Duration
+	baseCurrency string // default when register omits it
 }
 
 // NewService wires the service with its dependencies and policy knobs.
@@ -57,14 +70,15 @@ func (s *Service) Register(ctx context.Context, email, password, baseCurrency st
 	if !validEmail(email) || len(password) < minPasswordLen {
 		return nil, ErrInvalidInput
 	}
+	email = normalizeEmail(email)
 	if baseCurrency == "" {
 		baseCurrency = s.baseCurrency
 	} else {
-		// ISO 4217 is 3 uppercase letters. Normalize + reject anything else at
-		// the trust boundary so a malformed value can't reach the char(3) column
-		// and surface as a generic 500.
+		// ISO 4217 is 3 uppercase ASCII letters. Normalize + reject anything else
+		// at the trust boundary so a malformed value ("123", "us1") can't reach
+		// the char(3) column and surface as a generic 500.
 		baseCurrency = strings.ToUpper(baseCurrency)
-		if len(baseCurrency) != 3 {
+		if !isAlpha3(baseCurrency) {
 			return nil, ErrInvalidInput
 		}
 	}
@@ -83,9 +97,12 @@ func (s *Service) Register(ctx context.Context, email, password, baseCurrency st
 // Login verifies credentials and starts a session. User-not-found and bad
 // password both yield ErrInvalidCredentials.
 func (s *Service) Login(ctx context.Context, email, password string) (*Session, error) {
-	user, err := s.repo.GetUserByEmail(ctx, email)
+	user, err := s.repo.GetUserByEmail(ctx, normalizeEmail(email))
 	if err != nil {
 		if errors.Is(err, ErrUserNotFound) {
+			// Burn the argon2id budget on the not-found path so its latency matches
+			// the found-user path; otherwise response time leaks email existence.
+			_, _ = VerifyPassword(dummyHash, password)
 			return nil, ErrInvalidCredentials
 		}
 		return nil, err
@@ -93,6 +110,8 @@ func (s *Service) Login(ctx context.Context, email, password string) (*Session, 
 	if user.PasswordHash == nil {
 		// OAuth-only account; no password to check. Surface the same error so
 		// a password login attempt doesn't reveal that the email exists via OAuth.
+		// Same timing-normalization as the not-found path.
+		_, _ = VerifyPassword(dummyHash, password)
 		return nil, ErrInvalidCredentials
 	}
 	ok, err := VerifyPassword(*user.PasswordHash, password)
@@ -146,7 +165,7 @@ func (s *Service) GoogleLogin(ctx context.Context, code, redirectURI string) (*S
 	if err != nil {
 		return nil, err
 	}
-	user, err := s.repo.FindOrCreateOAuth(ctx, "google", providerUID, email)
+	user, err := s.repo.FindOrCreateOAuth(ctx, "google", providerUID, normalizeEmail(email))
 	if err != nil {
 		return nil, err
 	}
@@ -185,6 +204,26 @@ func newRefreshToken() (raw string, hash []byte, err error) {
 func hashToken(raw string) []byte {
 	h := sha256.Sum256([]byte(raw))
 	return h[:]
+}
+
+// normalizeEmail lowercases the address so a mixed-case register and a
+// differently-cased login resolve to the same row (email unique constraint is
+// case-sensitive in Postgres). Applied at every entry to the repo.
+func normalizeEmail(email string) string { return strings.ToLower(email) }
+
+// isAlpha3 reports whether s is exactly 3 ASCII letters (A–Z). Used to validate
+// ISO 4217 currency codes after ToUpper so "123" or "US1" can't slip through a
+// length-only check.
+func isAlpha3(s string) bool {
+	if len(s) != 3 {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		if s[i] < 'A' || s[i] > 'Z' {
+			return false
+		}
+	}
+	return true
 }
 
 // validEmail is a deliberately cheap check; "non-empty, has one @, something

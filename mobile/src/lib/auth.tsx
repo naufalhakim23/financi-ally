@@ -90,11 +90,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(u);
         } catch (e) {
           if (cancelled) return;
-          if (e instanceof HTTPError && e.status === 401 && refresh) {
-            await refreshTokens(refresh);
-          } else {
-            await clearAll();
+          if (e instanceof HTTPError && e.status === 401) {
+            // Access token definitively rejected by the server. Rotate via
+            // refresh if we have one; otherwise the session is genuinely dead.
+            if (refresh) await refreshTokens(refresh);
+            else await clearAll();
           }
+          // else: network blip / timeout / 5xx. Keep stored tokens intact so a
+          // transient failure can't sign the user out — user stays null until a
+          // later load re-validates successfully.
         }
       }
       if (!cancelled) setLoading(false);

@@ -31,6 +31,11 @@ func NewRepo(pool *pgxpool.Pool) *Repo { return &Repo{db: pool} }
 
 const (
 	colUser = "id, email, password_hash, base_currency, created_at"
+	// colUserQualified is colUser with every column table-aliased to `u.`. Use in
+	// joins where the other table shares a column name (oauth_identities also has
+	// created_at) — a bare `u.`+colUser concatenation only qualifies the first
+	// column and Postgres rejects the rest as ambiguous.
+	colUserQualified = "u.id, u.email, u.password_hash, u.base_currency, u.created_at"
 )
 
 func scanUser(row pgx.Row) (*User, error) {
@@ -188,7 +193,7 @@ func (r *Repo) tryFindOrCreateOAuth(ctx context.Context, provider, providerUID, 
 
 	// 1. Existing link?
 	u, err := scanUser(tx.QueryRow(ctx, `
-		SELECT u.`+colUser+`
+		SELECT `+colUserQualified+`
 		  FROM oauth_identities o JOIN users u ON u.id = o.user_id
 		 WHERE o.provider = $1 AND o.provider_uid = $2`, provider, providerUID))
 	if err == nil {

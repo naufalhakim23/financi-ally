@@ -1,5 +1,5 @@
 # oapi-codegen config, the single source of truth for the API surface.
-# `make gen` regenerates api/generated.go from openapi.yaml.
+# `make gen` regenerates api/generated.go from ../shared-context/contracts/openapi.yaml.
 #
 # M1: strict-server flipped on. The first typed request/response endpoints
 # (register/login/refresh/google/me/logout) need the typed binding strict gives;

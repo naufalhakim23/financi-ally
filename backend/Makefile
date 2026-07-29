@@ -3,10 +3,12 @@
 .PHONY: help gen generate build run dev test fmt vet install-tools clean
 
 GOBIN := $(shell go env GOPATH)/bin
+# Single source of truth lives in the shared contract; both BE and FE gen from it.
+CONTRACT := ../shared-context/contracts/openapi.yaml
 
 help:
 	@echo "FinanciAlly backend targets:"
-	@echo "  make gen            regenerate api/generated.go from openapi.yaml"
+	@echo "  make gen            regenerate api/generated.go from $(CONTRACT)"
 	@echo "  make build          build ./bin/server"
 	@echo "  make run            build + run"
 	@echo "  make dev            hot-reload via air"
@@ -16,12 +18,12 @@ help:
 	@echo ""
 	@echo "Go bin: $(GOBIN)"
 
-# Generate API code from OpenAPI spec.
+# Generate API code from the shared OpenAPI contract.
 gen generate:
-	@echo ">> generating API from openapi.yaml"
-	@$(GOBIN)/oapi-codegen -config api/cfg.yaml api/openapi.yaml
+	@echo ">> generating API from $(CONTRACT)"
+	@$(GOBIN)/oapi-codegen -config api/cfg.yaml $(CONTRACT)
 
-# Build (does NOT regenerate. Run `make gen` after editing openapi.yaml).
+# Build (does NOT regenerate. Run `make gen` after editing the contract).
 build:
 	@echo ">> building server"
 	@go build -o bin/server ./cmd/server

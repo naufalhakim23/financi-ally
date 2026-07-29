@@ -212,6 +212,35 @@ type AuthResponse struct {
 	User         User   `json:"user"`
 }
 
+// Budget defines model for Budget.
+type Budget struct {
+	AccountId string    `json:"account_id"`
+	CreatedAt time.Time `json:"created_at"`
+
+	// Currency Example: IDR
+	Currency    string             `json:"currency"`
+	Id          string             `json:"id"`
+	PeriodMonth openapi_types.Date `json:"period_month"`
+	TargetMinor int64              `json:"target_minor"`
+	UpdatedAt   time.Time          `json:"updated_at"`
+}
+
+// BudgetWithSpent defines model for BudgetWithSpent.
+type BudgetWithSpent struct {
+	AccountId string    `json:"account_id"`
+	CreatedAt time.Time `json:"created_at"`
+
+	// Currency Example: IDR
+	Currency    string             `json:"currency"`
+	Id          string             `json:"id"`
+	PeriodMonth openapi_types.Date `json:"period_month"`
+
+	// SpentMinor actual spending so far this month
+	SpentMinor  int64     `json:"spent_minor"`
+	TargetMinor int64     `json:"target_minor"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
 // Entry defines model for Entry.
 type Entry struct {
 	CreatedAt time.Time `json:"created_at"`
@@ -339,6 +368,20 @@ type NewAccountRequest struct {
 	Type AccountType `json:"type"`
 }
 
+// NewBudgetRequest defines model for NewBudgetRequest.
+type NewBudgetRequest struct {
+	AccountId string `json:"account_id"`
+
+	// Id optional client id; server generates a uuid when omitted
+	Id *string `json:"id,omitempty"`
+
+	// PeriodMonth first day of the month e.g. 2026-07-01
+	PeriodMonth openapi_types.Date `json:"period_month"`
+
+	// TargetMinor budgeted amount in minor units
+	TargetMinor int64 `json:"target_minor"`
+}
+
 // NewEntryRequest defines model for NewEntryRequest.
 type NewEntryRequest struct {
 	// Currency Example: IDR
@@ -377,6 +420,48 @@ type RegisterRequest struct {
 	Password     string              `json:"password"`
 }
 
+// SyncChanges map of table name -> changes, conforming to WatermelonDB protocol
+type SyncChanges map[string]SyncTableChanges
+
+// SyncPullRequest defines model for SyncPullRequest.
+type SyncPullRequest struct {
+	// LastPulledAt server timestamp of the last successful pull; 0 for initial sync
+	LastPulledAt int64 `json:"last_pulled_at"`
+}
+
+// SyncPullResponse defines model for SyncPullResponse.
+type SyncPullResponse struct {
+	// Changes map of table name -> changes, conforming to WatermelonDB protocol
+	Changes SyncChanges `json:"changes"`
+
+	// Timestamp server timestamp; client sends this as last_pulled_at on the next pull
+	Timestamp int64 `json:"timestamp"`
+}
+
+// SyncPushRequest defines model for SyncPushRequest.
+type SyncPushRequest struct {
+	// Changes map of table name -> changes, conforming to WatermelonDB protocol
+	Changes SyncChanges `json:"changes"`
+}
+
+// SyncPushResponse defines model for SyncPushResponse.
+type SyncPushResponse struct {
+	// Errors per-record error messages for records that could not be applied (422 etc)
+	Errors *[]string `json:"errors,omitempty"`
+}
+
+// SyncTableChanges defines model for SyncTableChanges.
+type SyncTableChanges struct {
+	Created *[]map[string]interface{} `json:"created,omitempty"`
+	Deleted *[]string                 `json:"deleted,omitempty"`
+	Updated *[]map[string]interface{} `json:"updated,omitempty"`
+}
+
+// UpdateBudgetRequest defines model for UpdateBudgetRequest.
+type UpdateBudgetRequest struct {
+	TargetMinor int64 `json:"target_minor"`
+}
+
 // User defines model for User.
 type User struct {
 	// BaseCurrency ISO 4217 currency code
@@ -391,6 +476,11 @@ type User struct {
 // ListAccountsParams defines parameters for ListAccounts.
 type ListAccountsParams struct {
 	Type *AccountType `form:"type,omitempty" json:"type,omitempty"`
+}
+
+// ListBudgetsParams defines parameters for ListBudgets.
+type ListBudgetsParams struct {
+	Month openapi_types.Date `form:"month" json:"month"`
 }
 
 // ListEntriesParams defines parameters for ListEntries.
@@ -417,8 +507,20 @@ type RefreshJSONRequestBody = RefreshRequest
 // RegisterJSONRequestBody defines body for Register for application/json ContentType.
 type RegisterJSONRequestBody = RegisterRequest
 
+// SetBudgetJSONRequestBody defines body for SetBudget for application/json ContentType.
+type SetBudgetJSONRequestBody = NewBudgetRequest
+
+// UpdateBudgetJSONRequestBody defines body for UpdateBudget for application/json ContentType.
+type UpdateBudgetJSONRequestBody = UpdateBudgetRequest
+
 // PostEntryJSONRequestBody defines body for PostEntry for application/json ContentType.
 type PostEntryJSONRequestBody = NewEntryRequest
+
+// SyncPullJSONRequestBody defines body for SyncPull for application/json ContentType.
+type SyncPullJSONRequestBody = SyncPullRequest
+
+// SyncPushJSONRequestBody defines body for SyncPush for application/json ContentType.
+type SyncPushJSONRequestBody = SyncPushRequest
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
@@ -449,6 +551,18 @@ type ServerInterface interface {
 	// Register Create a credential account and start a session
 	// (POST /auth/register)
 	Register(w http.ResponseWriter, r *http.Request)
+	// ListBudgets List budgets for a month, with spent amounts
+	// (GET /budgets)
+	ListBudgets(w http.ResponseWriter, r *http.Request, params ListBudgetsParams)
+	// SetBudget Create or update a monthly category budget
+	// (POST /budgets)
+	SetBudget(w http.ResponseWriter, r *http.Request)
+	// DeleteBudget Delete a budget
+	// (DELETE /budgets/{id})
+	DeleteBudget(w http.ResponseWriter, r *http.Request, id string)
+	// UpdateBudget Update a budget's target
+	// (PUT /budgets/{id})
+	UpdateBudget(w http.ResponseWriter, r *http.Request, id string)
 	// ListEntries List posted entries with their lines
 	// (GET /entries)
 	ListEntries(w http.ResponseWriter, r *http.Request, params ListEntriesParams)
@@ -461,6 +575,12 @@ type ServerInterface interface {
 	// GetHealthz Liveness + DB connectivity
 	// (GET /healthz)
 	GetHealthz(w http.ResponseWriter, r *http.Request)
+	// SyncPull Pull server changes since a watermark (WatermelonDB native protocol)
+	// (POST /sync/pull)
+	SyncPull(w http.ResponseWriter, r *http.Request)
+	// SyncPush Push local changes to the server (WatermelonDB native protocol)
+	// (POST /sync/push)
+	SyncPush(w http.ResponseWriter, r *http.Request)
 }
 
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
@@ -521,6 +641,30 @@ func (_ Unimplemented) Register(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// ListBudgets List budgets for a month, with spent amounts
+// (GET /budgets)
+func (_ Unimplemented) ListBudgets(w http.ResponseWriter, r *http.Request, params ListBudgetsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// SetBudget Create or update a monthly category budget
+// (POST /budgets)
+func (_ Unimplemented) SetBudget(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// DeleteBudget Delete a budget
+// (DELETE /budgets/{id})
+func (_ Unimplemented) DeleteBudget(w http.ResponseWriter, r *http.Request, id string) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// UpdateBudget Update a budget's target
+// (PUT /budgets/{id})
+func (_ Unimplemented) UpdateBudget(w http.ResponseWriter, r *http.Request, id string) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // ListEntries List posted entries with their lines
 // (GET /entries)
 func (_ Unimplemented) ListEntries(w http.ResponseWriter, r *http.Request, params ListEntriesParams) {
@@ -542,6 +686,18 @@ func (_ Unimplemented) GetEntry(w http.ResponseWriter, r *http.Request, id strin
 // GetHealthz Liveness + DB connectivity
 // (GET /healthz)
 func (_ Unimplemented) GetHealthz(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// SyncPull Pull server changes since a watermark (WatermelonDB native protocol)
+// (POST /sync/pull)
+func (_ Unimplemented) SyncPull(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// SyncPush Push local changes to the server (WatermelonDB native protocol)
+// (POST /sync/push)
+func (_ Unimplemented) SyncPush(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -711,6 +867,105 @@ func (siw *ServerInterfaceWrapper) Register(w http.ResponseWriter, r *http.Reque
 	handler.ServeHTTP(w, r)
 }
 
+// ListBudgets operation middleware
+func (siw *ServerInterfaceWrapper) ListBudgets(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListBudgetsParams
+
+	// ------------- Required query parameter "month" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "month", r.URL.Query(), &params.Month, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "month"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "month", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListBudgets(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetBudget operation middleware
+func (siw *ServerInterfaceWrapper) SetBudget(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetBudget(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteBudget operation middleware
+func (siw *ServerInterfaceWrapper) DeleteBudget(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteBudget(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateBudget operation middleware
+func (siw *ServerInterfaceWrapper) UpdateBudget(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateBudget(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListEntries operation middleware
 func (siw *ServerInterfaceWrapper) ListEntries(w http.ResponseWriter, r *http.Request) {
 
@@ -802,6 +1057,34 @@ func (siw *ServerInterfaceWrapper) GetHealthz(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetHealthz(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SyncPull operation middleware
+func (siw *ServerInterfaceWrapper) SyncPull(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SyncPull(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SyncPush operation middleware
+func (siw *ServerInterfaceWrapper) SyncPush(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SyncPush(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -962,6 +1245,24 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/entries/{id}", wrapper.GetEntry)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/budgets", wrapper.ListBudgets)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/budgets", wrapper.SetBudget)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/budgets/{id}", wrapper.DeleteBudget)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/budgets/{id}", wrapper.UpdateBudget)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/sync/pull", wrapper.SyncPull)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/sync/push", wrapper.SyncPush)
 	})
 
 	return r
@@ -1368,6 +1669,187 @@ func (response Register409JSONResponse) VisitRegisterResponse(w http.ResponseWri
 	return err
 }
 
+type ListBudgetsRequestObject struct {
+	Params ListBudgetsParams
+}
+
+type ListBudgetsResponseObject interface {
+	VisitListBudgetsResponse(w http.ResponseWriter) error
+}
+
+type ListBudgets200JSONResponse []BudgetWithSpent
+
+func (response ListBudgets200JSONResponse) VisitListBudgetsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListBudgets401JSONResponse Error
+
+func (response ListBudgets401JSONResponse) VisitListBudgetsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetBudgetRequestObject struct {
+	Body *SetBudgetJSONRequestBody
+}
+
+type SetBudgetResponseObject interface {
+	VisitSetBudgetResponse(w http.ResponseWriter) error
+}
+
+type SetBudget201JSONResponse Budget
+
+func (response SetBudget201JSONResponse) VisitSetBudgetResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetBudget400JSONResponse Error
+
+func (response SetBudget400JSONResponse) VisitSetBudgetResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetBudget401JSONResponse Error
+
+func (response SetBudget401JSONResponse) VisitSetBudgetResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteBudgetRequestObject struct {
+	Id string `json:"id"`
+}
+
+type DeleteBudgetResponseObject interface {
+	VisitDeleteBudgetResponse(w http.ResponseWriter) error
+}
+
+type DeleteBudget204Response struct {
+}
+
+func (response DeleteBudget204Response) VisitDeleteBudgetResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteBudget401JSONResponse Error
+
+func (response DeleteBudget401JSONResponse) VisitDeleteBudgetResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteBudget404JSONResponse Error
+
+func (response DeleteBudget404JSONResponse) VisitDeleteBudgetResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateBudgetRequestObject struct {
+	Id   string `json:"id"`
+	Body *UpdateBudgetJSONRequestBody
+}
+
+type UpdateBudgetResponseObject interface {
+	VisitUpdateBudgetResponse(w http.ResponseWriter) error
+}
+
+type UpdateBudget200JSONResponse Budget
+
+func (response UpdateBudget200JSONResponse) VisitUpdateBudgetResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateBudget401JSONResponse Error
+
+func (response UpdateBudget401JSONResponse) VisitUpdateBudgetResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateBudget404JSONResponse Error
+
+func (response UpdateBudget404JSONResponse) VisitUpdateBudgetResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListEntriesRequestObject struct {
 	Params ListEntriesParams
 }
@@ -1553,6 +2035,92 @@ func (response GetHealthz503JSONResponse) VisitGetHealthzResponse(w http.Respons
 	return err
 }
 
+type SyncPullRequestObject struct {
+	Body *SyncPullJSONRequestBody
+}
+
+type SyncPullResponseObject interface {
+	VisitSyncPullResponse(w http.ResponseWriter) error
+}
+
+type SyncPull200JSONResponse SyncPullResponse
+
+func (response SyncPull200JSONResponse) VisitSyncPullResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SyncPull401JSONResponse Error
+
+func (response SyncPull401JSONResponse) VisitSyncPullResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SyncPushRequestObject struct {
+	Body *SyncPushJSONRequestBody
+}
+
+type SyncPushResponseObject interface {
+	VisitSyncPushResponse(w http.ResponseWriter) error
+}
+
+type SyncPush200JSONResponse SyncPushResponse
+
+func (response SyncPush200JSONResponse) VisitSyncPushResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SyncPush401JSONResponse Error
+
+func (response SyncPush401JSONResponse) VisitSyncPushResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SyncPush422JSONResponse Error
+
+func (response SyncPush422JSONResponse) VisitSyncPushResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// ListAccounts List the user's accounts (pockets and categories)
@@ -1582,6 +2150,18 @@ type StrictServerInterface interface {
 	// Register Create a credential account and start a session
 	// (POST /auth/register)
 	Register(ctx context.Context, request RegisterRequestObject) (RegisterResponseObject, error)
+	// ListBudgets List budgets for a month, with spent amounts
+	// (GET /budgets)
+	ListBudgets(ctx context.Context, request ListBudgetsRequestObject) (ListBudgetsResponseObject, error)
+	// SetBudget Create or update a monthly category budget
+	// (POST /budgets)
+	SetBudget(ctx context.Context, request SetBudgetRequestObject) (SetBudgetResponseObject, error)
+	// DeleteBudget Delete a budget
+	// (DELETE /budgets/{id})
+	DeleteBudget(ctx context.Context, request DeleteBudgetRequestObject) (DeleteBudgetResponseObject, error)
+	// UpdateBudget Update a budget's target
+	// (PUT /budgets/{id})
+	UpdateBudget(ctx context.Context, request UpdateBudgetRequestObject) (UpdateBudgetResponseObject, error)
 	// ListEntries List posted entries with their lines
 	// (GET /entries)
 	ListEntries(ctx context.Context, request ListEntriesRequestObject) (ListEntriesResponseObject, error)
@@ -1594,6 +2174,12 @@ type StrictServerInterface interface {
 	// GetHealthz Liveness + DB connectivity
 	// (GET /healthz)
 	GetHealthz(ctx context.Context, request GetHealthzRequestObject) (GetHealthzResponseObject, error)
+	// SyncPull Pull server changes since a watermark (WatermelonDB native protocol)
+	// (POST /sync/pull)
+	SyncPull(ctx context.Context, request SyncPullRequestObject) (SyncPullResponseObject, error)
+	// SyncPush Push local changes to the server (WatermelonDB native protocol)
+	// (POST /sync/push)
+	SyncPush(ctx context.Context, request SyncPushRequestObject) (SyncPushResponseObject, error)
 }
 
 type StrictHandlerFunc func(ctx context.Context, w http.ResponseWriter, r *http.Request, request any) (any, error)
@@ -1897,6 +2483,122 @@ func (sh *strictHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// ListBudgets operation middleware
+func (sh *strictHandler) ListBudgets(w http.ResponseWriter, r *http.Request, params ListBudgetsParams) {
+	var request ListBudgetsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListBudgets(ctx, request.(ListBudgetsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListBudgets")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListBudgetsResponseObject); ok {
+		if err := validResponse.VisitListBudgetsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SetBudget operation middleware
+func (sh *strictHandler) SetBudget(w http.ResponseWriter, r *http.Request) {
+	var request SetBudgetRequestObject
+
+	var body SetBudgetJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetBudget(ctx, request.(SetBudgetRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetBudget")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetBudgetResponseObject); ok {
+		if err := validResponse.VisitSetBudgetResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteBudget operation middleware
+func (sh *strictHandler) DeleteBudget(w http.ResponseWriter, r *http.Request, id string) {
+	var request DeleteBudgetRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteBudget(ctx, request.(DeleteBudgetRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteBudget")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteBudgetResponseObject); ok {
+		if err := validResponse.VisitDeleteBudgetResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateBudget operation middleware
+func (sh *strictHandler) UpdateBudget(w http.ResponseWriter, r *http.Request, id string) {
+	var request UpdateBudgetRequestObject
+
+	request.Id = id
+
+	var body UpdateBudgetJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateBudget(ctx, request.(UpdateBudgetRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateBudget")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateBudgetResponseObject); ok {
+		if err := validResponse.VisitUpdateBudgetResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // ListEntries operation middleware
 func (sh *strictHandler) ListEntries(w http.ResponseWriter, r *http.Request, params ListEntriesParams) {
 	var request ListEntriesRequestObject
@@ -2004,69 +2706,149 @@ func (sh *strictHandler) GetHealthz(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// SyncPull operation middleware
+func (sh *strictHandler) SyncPull(w http.ResponseWriter, r *http.Request) {
+	var request SyncPullRequestObject
+
+	var body SyncPullJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SyncPull(ctx, request.(SyncPullRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SyncPull")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SyncPullResponseObject); ok {
+		if err := validResponse.VisitSyncPullResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SyncPush operation middleware
+func (sh *strictHandler) SyncPush(w http.ResponseWriter, r *http.Request) {
+	var request SyncPushRequestObject
+
+	var body SyncPushJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SyncPush(ctx, request.(SyncPushRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SyncPush")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SyncPushResponseObject); ok {
+		if err := validResponse.VisitSyncPushResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // Base64 encoded, compressed with deflate, json marshaled OpenAPI spec.
 // Stored as a slice of fixed-width chunks rather than one concatenated
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
-	"AP//",
+	"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",
+	"p1NaPF4Or/mj0uT27e3/BQAA//8=",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

@@ -25,3 +25,6 @@ android/
 # --- OS ---
 .DS_Store
 Thumbs.db
+
+backend_original/
+mobile_original/

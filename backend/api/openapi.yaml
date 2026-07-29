@@ -21,6 +21,10 @@ tags:
     description: Monthly category budgets
   - name: sync
     description: WatermelonDB pull/push offline sync
+  - name: fx
+    description: Exchange rates and multi-currency
+  - name: reports
+    description: Aggregated financial reports
 paths:
   /healthz:
     get:
@@ -433,14 +437,14 @@ paths:
             schema:
               $ref: '#/components/schemas/NewBudgetRequest'
       responses:
-        '201':
-          description: budget set
+        '200':
+          description: budget created or updated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Budget'
         '400':
-          description: malformed body or invalid account/currency/month
+          description: malformed body or account is not an owned expense account
           content:
             application/json:
               schema:
@@ -454,26 +458,32 @@ paths:
     get:
       operationId: listBudgets
       tags: [budget]
-      summary: List budgets for a month, with spent amounts
+      summary: List a month's budgets with live spent totals
       security:
         - bearerAuth: []
       parameters:
-        - name: month
+        - name: period
           in: query
           required: true
           schema:
             type: string
             format: date
-            description: first day of the month e.g. 2026-07-01
+          description: first day of the month (YYYY-MM-01)
       responses:
         '200':
-          description: budgets for the month with spent rollup
+          description: budgets with spent
           content:
             application/json:
               schema:
                 type: array
                 items:
                   $ref: '#/components/schemas/BudgetWithSpent'
+        '400':
+          description: missing or invalid period
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '401':
           description: missing or invalid token
           content:
@@ -498,7 +508,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateBudgetRequest'
+              type: object
+              required: [target_minor]
+              properties:
+                target_minor:
+                  type: integer
+                  format: int64
+                  minimum: 0
       responses:
         '200':
           description: budget updated
@@ -521,7 +537,7 @@ paths:
     delete:
       operationId: deleteBudget
       tags: [budget]
-      summary: Delete a budget
+      summary: Delete a budget (idempotent)
       security:
         - bearerAuth: []
       parameters:
@@ -539,35 +555,29 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '404':
-          description: budget not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
   /sync/pull:
-    post:
+    get:
       operationId: syncPull
       tags: [sync]
-      summary: Pull server changes since a watermark (WatermelonDB native protocol)
+      summary: Pull changes since a watermark (WatermelonDB)
       description: |
-        WatermelonDB's native pull/push protocol. The mobile provides
-        last_pulled_at (the timestamp of its last successful pull); the server
-        returns all records created, updated, or soft-deleted after that moment,
-        grouped by table. The mobile merges these into its local WatermelonDB
-        store. Empty-changeset responses are normal (nothing changed since the
-        last pull).
+        Returns all records on synced tables (accounts, entries, journal_lines,
+        budgets) whose server updated_at is after last_pulled_at, split into
+        created/updated/deleted per table, plus a new timestamp watermark. The
+        mobile passes the returned timestamp as last_pulled_at on the next pull.
       security:
         - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SyncPullRequest'
+      parameters:
+        - name: last_pulled_at
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+            default: 0
       responses:
         '200':
-          description: changed records grouped by table
+          description: change set + new watermark
           content:
             application/json:
               schema:
@@ -582,13 +592,12 @@ paths:
     post:
       operationId: syncPush
       tags: [sync]
-      summary: Push local changes to the server (WatermelonDB native protocol)
+      summary: Push local changes to the server (WatermelonDB)
       description: |
-        WatermelonDB sends a batch of created/updated/deleted records; the
-        server processes them and returns a new timestamp. The protocol is
-        idempotent: reapplying the same batch yields no error. Posted entries
-        are immutable and their balance invariant is asserted server-side; an
-        unbalanced entry returns 422 and the mobile flags it for user review.
+        Applies client-created/updated/deleted records per table. Entries re-run
+        the balance invariant; an unbalanced or otherwise invalid pushed entry
+        is reported in `errors` keyed by client id, never silently dropped.
+        Accepted records get a server updated_at; LWW on metadata mutables.
       security:
         - bearerAuth: []
       requestBody:
@@ -599,7 +608,7 @@ paths:
               $ref: '#/components/schemas/SyncPushRequest'
       responses:
         '200':
-          description: push accepted, new timestamp for next pull
+          description: apply result with per-record errors
           content:
             application/json:
               schema:
@@ -610,8 +619,197 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '422':
-          description: unbalanced entry rejected
+  /fx/rates:
+    get:
+      operationId: listFxRates
+      tags: [fx]
+      summary: List available FX rates
+      description: |
+        Returns available base currencies and their latest rate dates.
+        The mobile calls this to check whether the local rate cache is stale.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: available FX rate bases
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FxRateList'
+        '401':
+          description: missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /fx/rates/refresh:
+    post:
+      operationId: refreshFxRates
+      tags: [fx]
+      summary: Trigger a manual FX rate refresh from frankfurter.app
+      description: |
+        Fetches today's rates for the configured base currencies. Idempotent.
+        Returns the number of rates inserted or updated.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: rates refreshed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FxRefreshResult'
+        '401':
+          description: missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /fx/rates/{base}/{quote}:
+    get:
+      operationId: getFxRate
+      tags: [fx]
+      summary: Get the most recent rate for a currency pair
+      parameters:
+        - name: base
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ISO 4217 base currency
+        - name: quote
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ISO 4217 quote currency
+        - name: as_of
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: optional as-of date (defaults to today)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: the rate
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FxRate'
+        '401':
+          description: missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: rate not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /reports/net-worth:
+    get:
+      operationId: getNetWorth
+      tags: [reports]
+      summary: Net worth (assets minus liabilities) in base currency
+      description: |
+        Aggregates all asset and liability accounts, converting each to the
+        user's base currency using the most recent available FX rate.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: net worth breakdown
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NetWorth'
+        '401':
+          description: missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /reports/spending:
+    get:
+      operationId: getSpending
+      tags: [reports]
+      summary: Spending by category for a period
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: spending per category
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CategorySpend'
+        '400':
+          description: invalid date range
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /reports/cash-flow:
+    get:
+      operationId: getCashFlow
+      tags: [reports]
+      summary: Income vs expense for a period, in base currency
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: cash flow summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CashFlow'
+        '400':
+          description: invalid date range
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: missing or invalid token
           content:
             application/json:
               schema:
@@ -893,6 +1091,32 @@ components:
           type: integer
           format: int64
           description: normal-balance-signed amount (asset/expense = debit−credit; others = credit−debit); positive is healthy/normal
+    Budget:
+      type: object
+      required: [id, account_id, period_month, target_minor, currency, created_at, updated_at]
+      properties:
+        id:
+          type: string
+        account_id:
+          type: string
+          description: the expense account (category) this budget targets
+        period_month:
+          type: string
+          format: date
+          description: first day of the month (YYYY-MM-01)
+        target_minor:
+          type: integer
+          format: int64
+          minimum: 0
+        currency:
+          type: string
+          example: IDR
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
     NewBudgetRequest:
       type: object
       required: [account_id, period_month, target_minor]
@@ -905,34 +1129,11 @@ components:
         period_month:
           type: string
           format: date
-          description: first day of the month e.g. 2026-07-01
+          description: must be the first day of a month
         target_minor:
           type: integer
           format: int64
-          description: budgeted amount in minor units
-    Budget:
-      type: object
-      required: [id, account_id, period_month, target_minor, currency, created_at, updated_at]
-      properties:
-        id:
-          type: string
-        account_id:
-          type: string
-        period_month:
-          type: string
-          format: date
-        target_minor:
-          type: integer
-          format: int64
-        currency:
-          type: string
-          example: IDR
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
+          minimum: 0
     BudgetWithSpent:
       type: object
       required: [id, account_id, period_month, target_minor, spent_minor, currency, created_at, updated_at]
@@ -950,7 +1151,7 @@ components:
         spent_minor:
           type: integer
           format: int64
-          description: actual spending so far this month
+          description: live total of posted debit lines on the account this month
         currency:
           type: string
           example: IDR
@@ -960,24 +1161,11 @@ components:
         updated_at:
           type: string
           format: date-time
-    UpdateBudgetRequest:
-      type: object
-      required: [target_minor]
-      properties:
-        target_minor:
-          type: integer
-          format: int64
-    SyncPullRequest:
-      type: object
-      required: [last_pulled_at]
-      properties:
-        last_pulled_at:
-          type: integer
-          format: int64
-          description: server timestamp of the last successful pull; 0 for initial sync
     SyncChanges:
       type: object
-      description: map of table name -> changes, conforming to WatermelonDB protocol
+      description: |
+        Per-table change buckets. Keys are table names: accounts, entries,
+        journal_lines, budgets. Each table maps to created/updated/deleted.
       additionalProperties:
         $ref: '#/components/schemas/SyncTableChanges'
     SyncTableChanges:
@@ -987,10 +1175,12 @@ components:
           type: array
           items:
             type: object
+            additionalProperties: true
         updated:
           type: array
           items:
             type: object
+            additionalProperties: true
         deleted:
           type: array
           items:
@@ -1004,18 +1194,122 @@ components:
         timestamp:
           type: integer
           format: int64
-          description: server timestamp; client sends this as last_pulled_at on the next pull
+          description: new watermark; pass as last_pulled_at on the next pull
     SyncPushRequest:
       type: object
       required: [changes]
       properties:
         changes:
           $ref: '#/components/schemas/SyncChanges'
+    FxRate:
+      type: object
+      required: [base, quote, day, rate, source]
+      properties:
+        base:
+          type: string
+          example: USD
+        quote:
+          type: string
+          example: IDR
+        day:
+          type: string
+          format: date
+        rate:
+          type: string
+          description: decimal rate (1 base = rate quote)
+          example: "15000.00"
+        source:
+          type: string
+          example: frankfurter
+    FxRateList:
+      type: object
+      required: [rates, as_of]
+      properties:
+        rates:
+          type: array
+          items:
+            $ref: '#/components/schemas/FxRate'
+        as_of:
+          type: string
+          format: date
+    FxRefreshResult:
+      type: object
+      required: [count]
+      properties:
+        count:
+          type: integer
+          description: number of rates inserted or updated
+    NetWorth:
+      type: object
+      required: [base_currency, as_of_date, total_asset, total_liability, net_minor]
+      properties:
+        base_currency:
+          type: string
+        as_of_date:
+          type: string
+          format: date-time
+        total_asset:
+          $ref: '#/components/schemas/NormalizedAmount'
+        total_liability:
+          $ref: '#/components/schemas/NormalizedAmount'
+        net_minor:
+          type: integer
+          format: int64
+    NormalizedAmount:
+      type: object
+      required: [raw_minor, currency, base_minor]
+      properties:
+        raw_minor:
+          type: integer
+          format: int64
+          description: total in the original currencies
+        currency:
+          type: string
+          description: the base currency used for normalization
+        base_minor:
+          type: integer
+          format: int64
+          description: total normalized to base currency
+    CategorySpend:
+      type: object
+      required: [account_id, account_name, currency, spent_minor, base_minor]
+      properties:
+        account_id:
+          type: string
+        account_name:
+          type: string
+        currency:
+          type: string
+        spent_minor:
+          type: integer
+          format: int64
+        base_minor:
+          type: integer
+          format: int64
+    CashFlow:
+      type: object
+      required: [base_currency, period_start, period_end, income_minor, expense_minor, net_minor]
+      properties:
+        base_currency:
+          type: string
+        period_start:
+          type: string
+          format: date
+        period_end:
+          type: string
+          format: date
+        income_minor:
+          $ref: '#/components/schemas/NormalizedAmount'
+        expense_minor:
+          $ref: '#/components/schemas/NormalizedAmount'
+        net_minor:
+          type: integer
+          format: int64
     SyncPushResponse:
       type: object
       properties:
         errors:
-          type: array
-          items:
+          type: object
+          additionalProperties:
             type: string
-          description: per-record error messages for records that could not be applied (422 etc)
+          description: per-client-id error message for rejected records (never silently dropped)

@@ -19,6 +19,7 @@ import (
 	"github.com/naufalhakim23/financi-ally/backend/internal/config"
 	"github.com/naufalhakim23/financi-ally/backend/internal/db"
 	"github.com/naufalhakim23/financi-ally/backend/internal/handler"
+	"github.com/naufalhakim23/financi-ally/backend/internal/ledger"
 )
 
 func main() {
@@ -48,30 +49,30 @@ func main() {
 	defer pool.Close()
 	slog.Info("database connected")
 
-	// Migrate on boot: fail-closed; a backend that can't reach schema parity
-	// is worse than one that refuses to start.
 	if err := db.Migrate(cfg.Database.URL); err != nil {
 		slog.Error("failed to apply migrations", "err", err)
 		os.Exit(1)
 	}
 	slog.Info("migrations applied")
 
-	// Auth wiring: repo → password/jwt/google primitives → service → handler.
+	// Auth wiring
 	repo := auth.NewRepo(pool.Pool)
 	jwtSvc := auth.NewJWTService(cfg.Auth.JWTSecret, cfg.Auth.AccessTokenTTL)
 	googleSvc := auth.NewGoogle(cfg.Google.ClientID, cfg.Google.ClientSecret)
 	svc := auth.NewService(repo, jwtSvc, googleSvc, cfg.Auth.RefreshTokenTTL, cfg.Auth.BaseCurrencyDefault)
 
-	serverImpl := handler.NewServerImpl(pool, svc)
+	// Ledger wiring
+	ledgerRepo := ledger.NewRepo(pool.Pool)
+	ledgerSvc := ledger.NewService(ledgerRepo)
 
-	// Strict-server error handlers emit our JSON Error shape instead of plain
-	// text, and never leak internal error strings to clients.
+	serverImpl := handler.NewServerImpl(pool, svc, ledgerSvc)
+
 	opts := api.StrictHTTPServerOptions{
 		RequestErrorHandlerFunc: func(w http.ResponseWriter, _ *http.Request, _ error) {
 			writeStrictError(w, http.StatusBadRequest, "bad_request", "malformed request body")
 		},
 		ResponseErrorHandlerFunc: func(w http.ResponseWriter, _ *http.Request, err error) {
-			slog.Error("unhandled auth error", "err", err)
+			slog.Error("unhandled error", "err", err)
 			writeStrictError(w, http.StatusInternalServerError, "internal_error", "internal server error")
 		},
 	}
@@ -82,13 +83,20 @@ func main() {
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(30 * time.Second))
-	r.Use(handler.AuthMiddleware(jwtSvc))
+
+	specValidator, err := handler.SpecValidator()
+	if err != nil {
+		slog.Error("failed to build spec validator", "err", err)
+		os.Exit(1)
+	}
+	r.Use(handler.AuthInject(jwtSvc))
+	r.Use(specValidator)
 	r.Mount("/", api.Handler(strict))
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Server.Port,
 		Handler:           r,
-		ReadHeaderTimeout: 5 * time.Second, // cheap Slowloris guard
+		ReadHeaderTimeout: 5 * time.Second,
 	}
 
 	go func() {
@@ -114,9 +122,6 @@ func main() {
 	slog.Info("server exited")
 }
 
-// writeStrictError writes a JSON Error body for the strict-server fallback
-// handlers (bad request body / unhandled 500). Kept in main because it's the
-// only place these top-level fallbacks fire.
 func writeStrictError(w http.ResponseWriter, code int, errCode, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)

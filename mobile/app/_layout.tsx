@@ -18,8 +18,10 @@ import {
 
 import { AuthProvider } from "../src/lib/auth";
 
+// Single QueryClient for the app lifetime (module scope, not per-render).
 const queryClient = new QueryClient();
 
+// Family keys here are the exact strings tailwind.config fontFamily resolves to.
 export default function RootLayout() {
   const [loaded] = useFonts({
     Outfit: Outfit_400Regular,

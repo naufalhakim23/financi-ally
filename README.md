@@ -4,20 +4,21 @@ Personal expense & budget tracker. Double-entry ledger, multi-currency, offline-
 Go (chi + oapi-codegen) backend + Expo (Router + NativeWind + TanStack Query) mobile.
 
 > Plan: `docs/plans/01-financi-ally/plan.html` (in the atlas workspace).
-> Status: **M1: auth** (email+pw JWT + Google OAuth). See milestones in the plan.
+> Status: **M3: pockets UI + offline** — ledger core, budgets, WatermelonDB sync.
+> See milestones + decision logs (`docs/decision_logs/`).
 
 ## Repo map
 
 ```
 financi-ally/
 ├─ docker/compose.yml   local Postgres (postgres:16-alpine)
-├─ backend/             Go service (chi + oapi-codegen + pgx + goqu)
+├─ backend/             Go service (chi + oapi-codegen + pgx)
 │  ├─ cmd/server/       entrypoint
 │  ├─ api/              openapi.yaml + oapi-codegen cfg + generated.go
-│  └─ internal/         config · db · handler · (ledger/budget/fx/... land later)
-└─ mobile/              Expo app (Expo Router + NativeWind + TanStack Query)
-   ├─ app/              file-based routes
-   └─ src/              lib · (features/model/components land later)
+│  └─ internal/         config · db · handler · auth · ledger · budget · sync · pkg/{ctxkey,money}
+└─ mobile/              Expo app (Router + NativeWind + WatermelonDB)
+   ├─ app/              routes (auth screens + (app) tab group)
+   └─ src/              lib · model (WatermelonDB) · components
 ```
 
 ## Prerequisites
@@ -43,10 +44,27 @@ make run             # http://localhost:8080/healthz
 # 3. Mobile
 cd ../mobile
 npm install
-npx expo start       # press i / a / scan QR
+npx expo start       # needs a dev-client build (WatermelonDB is native, not in Expo Go)
 ```
 
+> **WatermelonDB is native** — the app does **not** run in Expo Go. Build a dev
+> client once: `npx expo prebuild` then `npx expo run:ios` / `run:android`
+> (or EAS Build). After that, `npx expo start --dev-client` hot-reloads.
+> Point the app at the backend via `EXPO_PUBLIC_API_URL` (defaults to
+> `http://localhost:8080`).
+
 `GET /healthz` → `{"status":"ok","db":"up"}` means the whole backend→DB chain is wired.
+
+## Tests
+
+Backend integration tests hit a real Postgres; set `DATABASE_URL` or they skip.
+
+```bash
+cd backend
+DATABASE_URL="postgres://financially:financially@localhost:5433/financially?sslmode=disable" make test
+# Run serialized if packages share the DB (each truncates all tables):
+DATABASE_URL=... go test -p 1 ./internal/...
+```
 
 ## Make targets (backend)
 
@@ -63,9 +81,12 @@ npx expo start       # press i / a / scan QR
 
 - **M0** ✅ scaffold: monorepo, Go module, Expo app, OpenAPI skeleton, Postgres, oapi-codegen wired
 - **M1** ✅ auth: email+pw JWT (argon2id, rotated refresh tokens), Google OAuth; Apple in M7
-- **M2** ledger core: accounts (5 types), entries, lines, `Post()` balance invariant
-- **M3** pockets UI + offline: WatermelonDB, sync pull/push, add-entry, dashboard
+- **M2** ✅ ledger core: accounts (5 types), entries, lines, `Post()` balance invariant (in-tx + trigger)
+- **M3** ✅ pockets UI + offline: WatermelonDB sync (pull/push), add-entry, dashboard, budgets
 - **M4** multi-currency + FX job + reports
-- **M5** budgets
+- **M5** budgets — pulled forward into M3 (targets + spent rollup)
 - **M6** recurring (RRULE)
 - **M7** polish: DESIGN.md, charts, onboarding, EAS build
+
+> Synced tables use client-generated text IDs (WatermelonDB-native); `users`
+> stays server-uuid. See `docs/decision_logs/0004-m3-sync.md`.

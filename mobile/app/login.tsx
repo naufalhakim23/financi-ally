@@ -18,6 +18,7 @@ export default function LoginScreen() {
     setBusy(true);
     try {
       await login(email.trim(), password);
+      router.replace("/(app)");
     } catch (e) {
       setError(messageFor(e, "Sign in failed"));
     } finally {
@@ -30,6 +31,7 @@ export default function LoginScreen() {
     setBusy(true);
     try {
       await googleSignin();
+      router.replace("/(app)");
     } catch (e) {
       setError(messageFor(e, "Google sign-in failed"));
     } finally {

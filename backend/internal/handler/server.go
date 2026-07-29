@@ -12,20 +12,24 @@ import (
 
 	"github.com/naufalhakim23/financi-ally/backend/api"
 	"github.com/naufalhakim23/financi-ally/backend/internal/auth"
+	"github.com/naufalhakim23/financi-ally/backend/internal/budget"
 	"github.com/naufalhakim23/financi-ally/backend/internal/db"
 	"github.com/naufalhakim23/financi-ally/backend/internal/ledger"
+	syncpkg "github.com/naufalhakim23/financi-ally/backend/internal/sync"
 )
 
 // ServerImpl implements api.StrictServerInterface.
 type ServerImpl struct {
-	db     *db.Pool
-	svc    *auth.Service
-	ledger *ledger.Service
+	db      *db.Pool
+	svc     *auth.Service
+	ledger  *ledger.Service
+	budget  *budget.Service
+	syncSvc *syncpkg.Service
 }
 
 // NewServerImpl wires the handler with its dependencies.
-func NewServerImpl(pool *db.Pool, svc *auth.Service, led *ledger.Service) *ServerImpl {
-	return &ServerImpl{db: pool, svc: svc, ledger: led}
+func NewServerImpl(pool *db.Pool, svc *auth.Service, led *ledger.Service, bud *budget.Service, syn *syncpkg.Service) *ServerImpl {
+	return &ServerImpl{db: pool, svc: svc, ledger: led, budget: bud, syncSvc: syn}
 }
 
 // Compile-time interface satisfaction; breaks at build if the generated
@@ -378,4 +382,171 @@ func toAPIEntry(e *ledger.Entry) api.Entry {
 		CreatedAt: e.CreatedAt,
 		UpdatedAt: e.UpdatedAt,
 	}
+}
+
+// --- budget handlers -------------------------------------------------------
+
+// SetBudget creates or updates a monthly category budget.
+func (s *ServerImpl) SetBudget(ctx context.Context, req api.SetBudgetRequestObject) (api.SetBudgetResponseObject, error) {
+	p, ok := PrincipalFrom(ctx)
+	if !ok {
+		return api.SetBudget401JSONResponse(api.Error{Code: "unauthenticated", Message: "missing or invalid token"}), nil
+	}
+	id := ""
+	if req.Body.Id != nil {
+		id = *req.Body.Id
+	}
+	b, err := s.budget.Set(ctx, p.UserID, id, req.Body.AccountId, req.Body.PeriodMonth.Time, req.Body.TargetMinor)
+	if errors.Is(err, budget.ErrInvalidInput) {
+		return api.SetBudget400JSONResponse(api.Error{Code: "invalid_input", Message: "account must be an owned expense account; period must be month-start"}), nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return api.SetBudget201JSONResponse(toAPIBudget(b)), nil
+}
+
+// ListBudgets returns a month's budgets with live spent totals.
+func (s *ServerImpl) ListBudgets(ctx context.Context, req api.ListBudgetsRequestObject) (api.ListBudgetsResponseObject, error) {
+	p, ok := PrincipalFrom(ctx)
+	if !ok {
+		return api.ListBudgets401JSONResponse(api.Error{Code: "unauthenticated", Message: "missing or invalid token"}), nil
+	}
+	bs, err := s.budget.List(ctx, p.UserID, req.Params.Month.Time)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]api.BudgetWithSpent, 0, len(bs))
+	for _, b := range bs {
+		out = append(out, api.BudgetWithSpent{
+			Id:          b.ID,
+			AccountId:   b.AccountID,
+			PeriodMonth: openapi_types.Date{Time: b.PeriodMonth},
+			TargetMinor: b.TargetMinor,
+			SpentMinor:  b.SpentMinor,
+			Currency:    b.Currency,
+			CreatedAt:   b.CreatedAt,
+			UpdatedAt:   b.UpdatedAt,
+		})
+	}
+	return api.ListBudgets200JSONResponse(out), nil
+}
+
+// UpdateBudget changes a budget's target.
+func (s *ServerImpl) UpdateBudget(ctx context.Context, req api.UpdateBudgetRequestObject) (api.UpdateBudgetResponseObject, error) {
+	p, ok := PrincipalFrom(ctx)
+	if !ok {
+		return api.UpdateBudget401JSONResponse(api.Error{Code: "unauthenticated", Message: "missing or invalid token"}), nil
+	}
+	b, err := s.budget.UpdateTarget(ctx, p.UserID, req.Id, req.Body.TargetMinor)
+	if errors.Is(err, budget.ErrBudgetNotFound) || errors.Is(err, budget.ErrInvalidInput) {
+		return api.UpdateBudget404JSONResponse(api.Error{Code: "not_found", Message: "budget not found"}), nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return api.UpdateBudget200JSONResponse(toAPIBudget(b)), nil
+}
+
+// DeleteBudget removes a budget (idempotent).
+func (s *ServerImpl) DeleteBudget(ctx context.Context, req api.DeleteBudgetRequestObject) (api.DeleteBudgetResponseObject, error) {
+	p, ok := PrincipalFrom(ctx)
+	if !ok {
+		return api.DeleteBudget401JSONResponse(api.Error{Code: "unauthenticated", Message: "missing or invalid token"}), nil
+	}
+	if err := s.budget.Delete(ctx, p.UserID, req.Id); err != nil {
+		return nil, err
+	}
+	return api.DeleteBudget204Response{}, nil
+}
+
+// --- sync handlers ---------------------------------------------------------
+
+// SyncPull returns changes since the client's watermark.
+func (s *ServerImpl) SyncPull(ctx context.Context, req api.SyncPullRequestObject) (api.SyncPullResponseObject, error) {
+	p, ok := PrincipalFrom(ctx)
+	if !ok {
+		return api.SyncPull401JSONResponse(api.Error{Code: "unauthenticated", Message: "missing or invalid token"}), nil
+	}
+	resp, err := s.syncSvc.Pull(ctx, p.UserID, req.Body.LastPulledAt)
+	if err != nil {
+		return nil, err
+	}
+	return api.SyncPull200JSONResponse(api.SyncPullResponse{
+		Changes:   toAPIChanges(resp.Changes),
+		Timestamp: resp.Timestamp,
+	}), nil
+}
+
+// SyncPush applies client changes; per-record failures are returned, never dropped.
+func (s *ServerImpl) SyncPush(ctx context.Context, req api.SyncPushRequestObject) (api.SyncPushResponseObject, error) {
+	p, ok := PrincipalFrom(ctx)
+	if !ok {
+		return api.SyncPush401JSONResponse(api.Error{Code: "unauthenticated", Message: "missing or invalid token"}), nil
+	}
+	resp, err := s.syncSvc.Push(ctx, p.UserID, syncpkg.PushRequest{Changes: fromAPIChanges(req.Body.Changes)})
+	if err != nil {
+		return nil, err
+	}
+	out := api.SyncPushResponse{}
+	if len(resp.Errors) > 0 {
+		errs := make([]string, 0, len(resp.Errors))
+		for recordID, msg := range resp.Errors {
+			errs = append(errs, recordID+": "+msg)
+		}
+		out.Errors = &errs
+	}
+	return api.SyncPush200JSONResponse(out), nil
+}
+
+// --- mappers ---------------------------------------------------------------
+
+func toAPIBudget(b *budget.Budget) api.Budget {
+	return api.Budget{
+		Id:          b.ID,
+		AccountId:   b.AccountID,
+		PeriodMonth: openapi_types.Date{Time: b.PeriodMonth},
+		TargetMinor: b.TargetMinor,
+		Currency:    b.Currency,
+		CreatedAt:   b.CreatedAt,
+		UpdatedAt:   b.UpdatedAt,
+	}
+}
+
+func toAPIChanges(c syncpkg.ChangeSet) api.SyncChanges {
+	out := api.SyncChanges{}
+	for table, tc := range c {
+		entry := api.SyncTableChanges{}
+		if len(tc.Created) > 0 {
+			cr := tc.Created
+			entry.Created = &cr
+		}
+		if len(tc.Updated) > 0 {
+			up := tc.Updated
+			entry.Updated = &up
+		}
+		if len(tc.Deleted) > 0 {
+			entry.Deleted = &tc.Deleted
+		}
+		out[table] = entry
+	}
+	return out
+}
+
+func fromAPIChanges(c api.SyncChanges) syncpkg.ChangeSet {
+	out := syncpkg.ChangeSet{}
+	for table, tc := range c {
+		entry := syncpkg.TableChanges{}
+		if tc.Created != nil {
+			entry.Created = *tc.Created
+		}
+		if tc.Updated != nil {
+			entry.Updated = *tc.Updated
+		}
+		if tc.Deleted != nil {
+			entry.Deleted = *tc.Deleted
+		}
+		out[table] = entry
+	}
+	return out
 }

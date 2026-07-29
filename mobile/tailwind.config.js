@@ -1,12 +1,55 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  // M0: no token theme yet; DESIGN.md lands in M7. NativeWind is wired so M3+
-  // screens can use classNames; this config is the place the token scale mirros
-  // DESIGN.md when it exists.
   content: ["./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
   presets: [require("nativewind/preset")],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        primary: "#1A1F2E",
+        "on-primary": "#FFFFFF",
+        secondary: "#EEF0F6",
+        "on-secondary": "#1A1F2E",
+        background: "#F2F3F7",
+        "on-background": "#1A1F2E",
+        surface: "#FFFFFF",
+        "on-surface": "#1A1F2E",
+        "surface-container": "#F0F1F6",
+        "surface-container-high": "#E8EAF2",
+        outline: "#E2E6F0",
+        "outline-variant": "#F0F1F6",
+        chevron: "#C0C7DA",
+        ink: "#1A1F2E",
+        dim: "#6B738E",
+        faint: "#9EA6BE",
+        success: "#16A34A",
+        warning: "#D97706",
+        error: "#DC2626",
+        info: "#2563EB",
+        "success-soft": "#E8F5EE",
+        "success-border": "#A7D8B8",
+        "warning-soft": "#FFFBEB",
+        "warning-border": "#FDE68A",
+        "error-soft": "#FFF5F5",
+        "error-border": "#FECACA",
+        "info-soft": "#EFF4FF",
+      },
+      fontFamily: {
+        sans: "Outfit",
+        "sans-medium": "Outfit-Medium",
+        "sans-semibold": "Outfit-SemiBold",
+        "sans-bold": "Outfit-Bold",
+        mono: "Mono",
+        "mono-medium": "Mono-Medium",
+        "mono-bold": "Mono-Bold",
+      },
+      borderRadius: {
+        sm: "6px",
+        md: "8px",
+        lg: "12px",
+        xl: "16px",
+        "2xl": "20px",
+      },
+    },
   },
   plugins: [],
 };

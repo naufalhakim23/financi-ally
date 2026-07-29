@@ -20,6 +20,7 @@ export default function RegisterScreen() {
     try {
       // base_currency is optional; omit when blank so the server default (IDR) applies.
       await register(email.trim(), password, baseCurrency.trim() || undefined);
+      router.replace("/(app)");
     } catch (e) {
       setError(messageFor(e, "Registration failed"));
     } finally {

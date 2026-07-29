@@ -4,6 +4,8 @@ import { router } from "expo-router";
 
 import { useAuth } from "../src/lib/auth";
 
+// Auth gate. While tokens hydrate we show a spinner; with no session we go to
+// /login, and signed-in users land in the (app) tab group.
 export default function Home() {
   const { user, loading } = useAuth();
 

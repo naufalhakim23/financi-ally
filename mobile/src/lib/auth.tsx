@@ -10,6 +10,7 @@ import {
 import { makeRedirectUri, useAuthRequest } from "expo-auth-session";
 
 import { api, HTTPError, type AuthResponse, type User } from "./api";
+import { setAuthAccessors } from "./authBridge";
 import { clearTokens, getTokens, setTokens } from "./tokenStore";
 
 // Google OIDC endpoints (stable). The client runs the authorization request
@@ -74,6 +75,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     [clearAll],
   );
+
+  // Register the token accessors with the auth bridge so the authed API fetcher
+  // (api.ts reqAuthed) can read/refresh tokens without prop threading. Runs
+  // after refreshTokens is defined; re-subscribes when it changes.
+  useEffect(() => {
+    setAuthAccessors({
+      getAccessToken: () => accessRef.current,
+      refreshAccessToken: async () => refreshTokens(refreshRef.current ?? ""),
+    });
+    return () => setAuthAccessors(null);
+  }, [refreshTokens]);
 
   // Hydrate: if we have a stored access token, validate via /me; on 401 try a
   // single refresh before giving up and clearing the session.

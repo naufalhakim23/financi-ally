@@ -15,6 +15,8 @@ tags:
     description: Health & operational endpoints
   - name: auth
     description: Registration, login, token refresh, OAuth, session
+  - name: ledger
+    description: Double-entry accounts, entries, and lines
 paths:
   /healthz:
     get:
@@ -205,6 +207,214 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /accounts:
+    post:
+      operationId: createAccount
+      tags: [ledger]
+      summary: Create a pocket or category (chart-of-accounts entry)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewAccountRequest'
+      responses:
+        '201':
+          description: account created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '400':
+          description: malformed body or invalid type/currency/name
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: an account of this type with this name already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    get:
+      operationId: listAccounts
+      tags: [ledger]
+      summary: List the user's accounts (pockets and categories)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: type
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/AccountType'
+      responses:
+        '200':
+          description: accounts, optionally filtered by type
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Account'
+        '401':
+          description: missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /accounts/{id}/balance:
+    get:
+      operationId: getAccountBalance
+      tags: [ledger]
+      summary: Account debit/credit totals and normal-balance-signed amount
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: account balance
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountBalance'
+        '401':
+          description: missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: account not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /entries:
+    post:
+      operationId: postEntry
+      tags: [ledger]
+      summary: Post a balanced double-entry transaction
+      description: |
+        Writes the entry header and its balanced lines in one transaction. The
+        balance invariant (sum of debits = sum of credits, per currency) is
+        enforced both in-application and by a Postgres trigger; an unbalanced
+        entry yields 422. Posted entries are immutable — correct with a
+        reversing entry, never an edit. M2 supports single-currency entries;
+        cross-currency (FX) entries land in M4.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewEntryRequest'
+      responses:
+        '201':
+          description: entry posted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entry'
+        '400':
+          description: malformed body or invalid lines
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: entry is not balanced
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    get:
+      operationId: listEntries
+      tags: [ledger]
+      summary: List posted entries with their lines
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: entries newest-first within the optional date range
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Entry'
+        '401':
+          description: missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /entries/{id}:
+    get:
+      operationId: getEntry
+      tags: [ledger]
+      summary: Fetch one posted entry with its lines
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: the entry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entry'
+        '401':
+          description: missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: entry not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 components:
   securitySchemes:
     bearerAuth:
@@ -307,3 +517,178 @@ components:
         redirect_uri:
           type: string
           description: the redirect URI the app used in the auth request
+    AccountType:
+      type: string
+      enum: [asset, liability, income, expense, equity]
+      description: Chart-of-accounts type. asset/liability are pockets; income/expense/equity are categories.
+    Account:
+      type: object
+      required: [id, type, currency, name, archived, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          description: client-generated id (WatermelonDB) or server uuid
+        type:
+          $ref: '#/components/schemas/AccountType'
+        currency:
+          type: string
+          description: ISO 4217 currency code
+          example: IDR
+        name:
+          type: string
+        parent_id:
+          type: string
+          nullable: true
+          description: optional parent account (tree hook; unused in M2)
+        archived:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    NewAccountRequest:
+      type: object
+      required: [type, currency, name]
+      properties:
+        id:
+          type: string
+          description: optional client id; server generates a uuid when omitted (REST path)
+        type:
+          $ref: '#/components/schemas/AccountType'
+        currency:
+          type: string
+          example: IDR
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        parent_id:
+          type: string
+          nullable: true
+    JournalLine:
+      type: object
+      required: [id, entry_id, account_id, dc, amount_minor, currency]
+      properties:
+        id:
+          type: string
+          description: client-generated id
+        entry_id:
+          type: string
+        account_id:
+          type: string
+        dc:
+          type: string
+          enum: [debit, credit]
+        amount_minor:
+          type: integer
+          format: int64
+          description: unsigned integer minor units (cents) at the currency's scale
+          example: 50000
+        currency:
+          type: string
+          example: IDR
+    LineInput:
+      type: object
+      required: [account_id, dc, amount_minor]
+      properties:
+        id:
+          type: string
+          description: optional client id; server generates a uuid when omitted
+        account_id:
+          type: string
+        dc:
+          type: string
+          enum: [debit, credit]
+        amount_minor:
+          type: integer
+          format: int64
+          minimum: 1
+          description: unsigned minor units
+        currency:
+          type: string
+          description: optional; defaults to the entry currency (M4 multi-currency support)
+          example: IDR
+    Entry:
+      type: object
+      required: [id, txn_date, status, currency, source, memo, lines, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          description: client-generated id or server uuid
+        txn_date:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [draft, posted]
+        currency:
+          type: string
+          example: IDR
+        fx_rate:
+          type: string
+          nullable: true
+          description: cross-currency rate (M4); null for single-currency entries
+        source:
+          type: string
+          enum: [manual, recurring, import]
+        memo:
+          type: string
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/JournalLine'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    NewEntryRequest:
+      type: object
+      required: [currency, lines]
+      properties:
+        id:
+          type: string
+          description: optional client id; server generates a uuid when omitted (REST path)
+        txn_date:
+          type: string
+          format: date
+          description: optional; defaults to today
+        currency:
+          type: string
+          example: IDR
+        fx_rate:
+          type: string
+          description: optional cross-currency rate; when set, the balance invariant is enforced in-app (M4)
+          example: "15000.00"
+        memo:
+          type: string
+        source:
+          type: string
+          enum: [manual, recurring, import]
+        lines:
+          type: array
+          minItems: 2
+          items:
+            $ref: '#/components/schemas/LineInput'
+    AccountBalance:
+      type: object
+      required: [account_id, currency, debit_minor, credit_minor, signed_minor]
+      properties:
+        account_id:
+          type: string
+        currency:
+          type: string
+          example: IDR
+        debit_minor:
+          type: integer
+          format: int64
+        credit_minor:
+          type: integer
+          format: int64
+        signed_minor:
+          type: integer
+          format: int64
+          description: normal-balance-signed amount (asset/expense = debit−credit; others = credit−debit); positive is healthy/normal

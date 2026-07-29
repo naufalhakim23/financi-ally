@@ -13,4 +13,4 @@ generate:
   chi-server: true
   strict-server: true
   client: false
-  embedded-spec: false
+  embedded-spec: true

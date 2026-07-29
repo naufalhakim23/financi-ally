@@ -19,8 +19,10 @@ import (
 	"github.com/naufalhakim23/financi-ally/backend/internal/budget"
 	"github.com/naufalhakim23/financi-ally/backend/internal/config"
 	"github.com/naufalhakim23/financi-ally/backend/internal/db"
+	"github.com/naufalhakim23/financi-ally/backend/internal/fx"
 	"github.com/naufalhakim23/financi-ally/backend/internal/handler"
 	"github.com/naufalhakim23/financi-ally/backend/internal/ledger"
+	"github.com/naufalhakim23/financi-ally/backend/internal/reporting"
 	syncpkg "github.com/naufalhakim23/financi-ally/backend/internal/sync"
 )
 
@@ -51,32 +53,41 @@ func main() {
 	defer pool.Close()
 	slog.Info("database connected")
 
+	// Migrate on boot: fail-closed; a backend that can't reach schema parity
+	// is worse than one that refuses to start.
 	if err := db.Migrate(cfg.Database.URL); err != nil {
 		slog.Error("failed to apply migrations", "err", err)
 		os.Exit(1)
 	}
 	slog.Info("migrations applied")
 
-	// Auth wiring
+	// Auth wiring: repo → password/jwt/google primitives → service → handler.
 	repo := auth.NewRepo(pool.Pool)
 	jwtSvc := auth.NewJWTService(cfg.Auth.JWTSecret, cfg.Auth.AccessTokenTTL)
 	googleSvc := auth.NewGoogle(cfg.Google.ClientID, cfg.Google.ClientSecret)
 	svc := auth.NewService(repo, jwtSvc, googleSvc, cfg.Auth.RefreshTokenTTL, cfg.Auth.BaseCurrencyDefault)
 
-	// Ledger wiring
+	// Ledger wiring: repo → service → handler.
 	ledgerRepo := ledger.NewRepo(pool.Pool)
 	ledgerSvc := ledger.NewService(ledgerRepo)
 
-	// Budget wiring
-	budgetRepo := budget.NewRepo(pool.Pool)
-	budgetSvc := budget.NewService(budgetRepo, ledgerSvc)
+	// Budget + sync wiring. Budget validates against the ledger; sync reuses
+	// ledger.Post and budget.Set so pushed records can't bypass validation.
+	budgetSvc := budget.NewService(budget.NewRepo(pool.Pool), ledgerSvc)
+	syncSvc := syncpkg.NewService(syncpkg.NewRepo(pool.Pool), ledgerSvc, budgetSvc)
 
-	// Sync wiring
-	syncRepo := syncpkg.NewRepo(pool.Pool)
-	syncSvc := syncpkg.NewService(syncRepo, ledgerSvc, budgetSvc)
+	// FX wiring: repo → service.
+	fxRepo := fx.NewRepo(pool.Pool)
+	fxSvc := fx.NewService(fxRepo)
 
-	serverImpl := handler.NewServerImpl(pool, svc, ledgerSvc, budgetSvc, syncSvc)
+	// Reporting wiring: repo → service (depends on FX for normalization).
+	reportRepo := reporting.NewRepo(pool.Pool)
+	reportSvc := reporting.NewService(reportRepo, fxSvc)
 
+	serverImpl := handler.NewServerImpl(pool, svc, ledgerSvc, budgetSvc, syncSvc, fxSvc, reportSvc)
+
+	// Strict-server error handlers emit our JSON Error shape instead of plain
+	// text, and never leak internal error strings to clients.
 	opts := api.StrictHTTPServerOptions{
 		RequestErrorHandlerFunc: func(w http.ResponseWriter, _ *http.Request, _ error) {
 			writeStrictError(w, http.StatusBadRequest, "bad_request", "malformed request body")
@@ -88,25 +99,27 @@ func main() {
 	}
 	strict := api.NewStrictHandlerWithOptions(serverImpl, nil, opts)
 
+	// Spec-derived request validation + bearer security (replaces the M1 path
+	// allowlist once ledger grew the protected surface past a handful).
+	validator, err := handler.SpecValidator()
+	if err != nil {
+		slog.Error("build spec validator", "err", err)
+		os.Exit(1)
+	}
+
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(30 * time.Second))
-
-	specValidator, err := handler.SpecValidator()
-	if err != nil {
-		slog.Error("failed to build spec validator", "err", err)
-		os.Exit(1)
-	}
-	r.Use(handler.AuthInject(jwtSvc))
-	r.Use(specValidator)
+	r.Use(handler.AuthInject(jwtSvc)) // verify + inject principal (best-effort, all routes)
+	r.Use(validator)                  // schema validation + enforce bearerAuth on protected routes
 	r.Mount("/", api.Handler(strict))
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Server.Port,
 		Handler:           r,
-		ReadHeaderTimeout: 5 * time.Second,
+		ReadHeaderTimeout: 5 * time.Second, // cheap Slowloris guard
 	}
 
 	go func() {
@@ -132,6 +145,9 @@ func main() {
 	slog.Info("server exited")
 }
 
+// writeStrictError writes a JSON Error body for the strict-server fallback
+// handlers (bad request body / unhandled 500). Kept in main because it's the
+// only place these top-level fallbacks fire.
 func writeStrictError(w http.ResponseWriter, code int, errCode, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)

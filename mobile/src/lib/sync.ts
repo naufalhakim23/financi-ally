@@ -1,4 +1,5 @@
 import { synchronize } from "@nozbe/watermelondb/sync";
+import type { SyncPullResult } from "@nozbe/watermelondb/sync";
 
 import { authedApi } from "./api";
 import { database } from "./db";
@@ -12,7 +13,9 @@ export async function syncDatabase(): Promise<void> {
     database,
     pullChanges: async ({ lastPulledAt }) => {
       const resp = await authedApi.syncPull(lastPulledAt ?? 0);
-      return { changes: resp.changes, timestamp: resp.timestamp };
+      // The generated OpenAPI type marks created/updated/deleted optional;
+      // the server always sends all three. Cast rather than rebuild the shape.
+      return { changes: resp.changes, timestamp: resp.timestamp } as SyncPullResult;
     },
     pushChanges: async ({ changes }) => {
       const resp = await authedApi.syncPush(changes as Parameters<typeof authedApi.syncPush>[0]);

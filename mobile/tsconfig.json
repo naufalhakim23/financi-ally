@@ -5,7 +5,12 @@
     "experimentalDecorators": true,
     "types": [
       "nativewind/types"
-    ]
+    ],
+    "paths": {
+      "react-native/types/*": [
+        "./node_modules/react-native/types/*"
+      ]
+    }
   },
   "include": [
     "**/*.ts",

@@ -4,7 +4,7 @@ import { Tabs } from "expo-router";
 
 import { syncDatabase } from "../../src/lib/sync";
 
-// Authed app shell: four tabs + a Sync action in every header. Sync runs the
+// Authed app shell: five tabs + a Sync action in every header. Sync runs the
 // WatermelonDB pull/push cycle; offline writes land here, online writes push.
 export default function AppLayout() {
   const [syncing, setSyncing] = useState(false);
@@ -54,6 +54,7 @@ export default function AppLayout() {
       <Tabs.Screen name="index" options={{ title: "Home" }} />
       <Tabs.Screen name="pockets" options={{ title: "Pockets" }} />
       <Tabs.Screen name="budgets" options={{ title: "Budgets" }} />
+      <Tabs.Screen name="recurring" options={{ title: "Recurring" }} />
       <Tabs.Screen name="reports" options={{ title: "Reports" }} />
       <Tabs.Screen name="entry-new" options={{ title: "Add entry", href: null }} />
     </Tabs>

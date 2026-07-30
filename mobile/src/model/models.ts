@@ -40,3 +40,31 @@ export class Budget extends Model {
   @field("target_minor") targetMinor!: number;
   @field("currency") currency!: string;
 }
+
+// The entry skeleton a recurring rule materializes on each occurrence. Stored
+// as a JSON string because WatermelonDB columns are scalars.
+export type RecurringTemplate = {
+  currency: string;
+  memo?: string;
+  source?: string;
+  lines: { account_id: string; dc: "debit" | "credit"; amount_minor: number; currency?: string }[];
+};
+
+export class RecurringRule extends Model {
+  static table = "recurring_rules";
+  @field("rrule") rrule!: string;
+  @field("template") templateJson!: string;
+  @date("next_run") nextRun!: Date | null;
+  @date("last_run") lastRun!: Date | null;
+  @field("active") active!: boolean;
+
+  // The server is the only writer of a valid template, but a rule authored
+  // offline is parsed here too — a malformed one must not crash the list.
+  get template(): RecurringTemplate | null {
+    try {
+      return JSON.parse(this.templateJson) as RecurringTemplate;
+    } catch {
+      return null;
+    }
+  }
+}

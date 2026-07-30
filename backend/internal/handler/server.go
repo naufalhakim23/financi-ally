@@ -16,6 +16,7 @@ import (
 	"github.com/naufalhakim23/financi-ally/backend/internal/db"
 	"github.com/naufalhakim23/financi-ally/backend/internal/fx"
 	"github.com/naufalhakim23/financi-ally/backend/internal/ledger"
+	"github.com/naufalhakim23/financi-ally/backend/internal/recurring"
 	"github.com/naufalhakim23/financi-ally/backend/internal/reporting"
 	syncpkg "github.com/naufalhakim23/financi-ally/backend/internal/sync"
 )
@@ -29,11 +30,12 @@ type ServerImpl struct {
 	syncSvc   *syncpkg.Service
 	fxSvc     *fx.Service
 	reportSvc *reporting.Service
+	recSvc    *recurring.Service
 }
 
 // NewServerImpl wires the handler with its dependencies.
-func NewServerImpl(pool *db.Pool, svc *auth.Service, led *ledger.Service, bud *budget.Service, syn *syncpkg.Service, fxSvc *fx.Service, reportSvc *reporting.Service) *ServerImpl {
-	return &ServerImpl{db: pool, svc: svc, ledger: led, budget: bud, syncSvc: syn, fxSvc: fxSvc, reportSvc: reportSvc}
+func NewServerImpl(pool *db.Pool, svc *auth.Service, led *ledger.Service, bud *budget.Service, syn *syncpkg.Service, fxSvc *fx.Service, reportSvc *reporting.Service, recSvc *recurring.Service) *ServerImpl {
+	return &ServerImpl{db: pool, svc: svc, ledger: led, budget: bud, syncSvc: syn, fxSvc: fxSvc, reportSvc: reportSvc, recSvc: recSvc}
 }
 
 // Compile-time interface satisfaction; breaks at build if the generated
@@ -648,6 +650,129 @@ func (s *ServerImpl) GetCashFlow(ctx context.Context, req api.GetCashFlowRequest
 	}), nil
 }
 
+// --- recurring handlers ----------------------------------------------------
+
+// ListRecurring returns the user's recurring transaction rules.
+func (s *ServerImpl) ListRecurring(ctx context.Context, _ api.ListRecurringRequestObject) (api.ListRecurringResponseObject, error) {
+	p, ok := PrincipalFrom(ctx)
+	if !ok {
+		return api.ListRecurring401JSONResponse(api.Error{Code: "unauthenticated", Message: "missing or invalid token"}), nil
+	}
+	rules, err := s.recSvc.List(ctx, p.UserID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]api.RecurringRule, 0, len(rules))
+	for _, r := range rules {
+		out = append(out, toAPIRecurringRule(r))
+	}
+	return api.ListRecurring200JSONResponse(out), nil
+}
+
+// CreateRecurring creates a new recurring rule.
+func (s *ServerImpl) CreateRecurring(ctx context.Context, req api.CreateRecurringRequestObject) (api.CreateRecurringResponseObject, error) {
+	p, ok := PrincipalFrom(ctx)
+	if !ok {
+		return api.CreateRecurring401JSONResponse(api.Error{Code: "unauthenticated", Message: "missing or invalid token"}), nil
+	}
+	id := ""
+	if req.Body.Id != nil {
+		id = *req.Body.Id
+	}
+	active := true
+	if req.Body.Active != nil {
+		active = *req.Body.Active
+	}
+	rule, err := s.recSvc.Create(ctx, p.UserID, id, req.Body.Rrule, fromAPITemplate(req.Body.Template), active)
+	if code, msg, bad := recurringInputError(err); bad {
+		return api.CreateRecurring400JSONResponse(api.Error{Code: code, Message: msg}), nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return api.CreateRecurring201JSONResponse(toAPIRecurringRule(rule)), nil
+}
+
+// GetRecurring returns one recurring rule.
+func (s *ServerImpl) GetRecurring(ctx context.Context, req api.GetRecurringRequestObject) (api.GetRecurringResponseObject, error) {
+	p, ok := PrincipalFrom(ctx)
+	if !ok {
+		return api.GetRecurring401JSONResponse(api.Error{Code: "unauthenticated", Message: "missing or invalid token"}), nil
+	}
+	rule, err := s.recSvc.Get(ctx, p.UserID, req.Id)
+	if errors.Is(err, recurring.ErrRuleNotFound) {
+		return api.GetRecurring404JSONResponse(api.Error{Code: "not_found", Message: "recurring rule not found"}), nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return api.GetRecurring200JSONResponse(toAPIRecurringRule(rule)), nil
+}
+
+// UpdateRecurring updates a recurring rule.
+func (s *ServerImpl) UpdateRecurring(ctx context.Context, req api.UpdateRecurringRequestObject) (api.UpdateRecurringResponseObject, error) {
+	p, ok := PrincipalFrom(ctx)
+	if !ok {
+		return api.UpdateRecurring401JSONResponse(api.Error{Code: "unauthenticated", Message: "missing or invalid token"}), nil
+	}
+	active := true
+	if req.Body.Active != nil {
+		active = *req.Body.Active
+	}
+	rule, err := s.recSvc.Update(ctx, p.UserID, req.Id, req.Body.Rrule, fromAPITemplate(req.Body.Template), active)
+	if errors.Is(err, recurring.ErrRuleNotFound) {
+		return api.UpdateRecurring404JSONResponse(api.Error{Code: "not_found", Message: "recurring rule not found"}), nil
+	}
+	if code, msg, bad := recurringInputError(err); bad {
+		return api.UpdateRecurring400JSONResponse(api.Error{Code: code, Message: msg}), nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return api.UpdateRecurring200JSONResponse(toAPIRecurringRule(rule)), nil
+}
+
+// DeleteRecurring deletes a recurring rule (idempotent).
+func (s *ServerImpl) DeleteRecurring(ctx context.Context, req api.DeleteRecurringRequestObject) (api.DeleteRecurringResponseObject, error) {
+	p, ok := PrincipalFrom(ctx)
+	if !ok {
+		return api.DeleteRecurring401JSONResponse(api.Error{Code: "unauthenticated", Message: "missing or invalid token"}), nil
+	}
+	if err := s.recSvc.Delete(ctx, p.UserID, req.Id); err != nil {
+		return nil, err
+	}
+	return api.DeleteRecurring204Response{}, nil
+}
+
+// TriggerRecurring triggers materialization of due recurring rules.
+func (s *ServerImpl) TriggerRecurring(ctx context.Context, _ api.TriggerRecurringRequestObject) (api.TriggerRecurringResponseObject, error) {
+	p, ok := PrincipalFrom(ctx)
+	if !ok {
+		return api.TriggerRecurring401JSONResponse(api.Error{Code: "unauthenticated", Message: "missing or invalid token"}), nil
+	}
+	// Scoped to the caller: a manual trigger must never post entries into
+	// another tenant's ledger.
+	count, err := s.recSvc.MaterializeDueForUser(ctx, p.UserID)
+	if err != nil {
+		return nil, err
+	}
+	return api.TriggerRecurring200JSONResponse(api.RecurringTriggerResult{Count: count}), nil
+}
+
+// recurringInputError maps the recurring service's write-time rejections to a
+// 400 code + a message that tells the user what to fix.
+func recurringInputError(err error) (code, msg string, bad bool) {
+	switch {
+	case errors.Is(err, recurring.ErrUnbalancedTemplate):
+		return "unbalanced_template", "debits and credits in the template must be equal", true
+	case errors.Is(err, recurring.ErrAccountNotUsable):
+		return "invalid_account", "a template line references an account that is missing, archived, or in a different currency", true
+	case errors.Is(err, recurring.ErrInvalidInput):
+		return "invalid_input", "invalid rrule or template: check format, currency, and line structure", true
+	}
+	return "", "", false
+}
+
 // --- mappers ---------------------------------------------------------------
 
 func toAPIAccount(a *ledger.Account) api.Account {
@@ -718,6 +843,82 @@ func toAPIChanges(c syncpkg.ChangeSet) api.SyncChanges {
 			entry.Deleted = &tc.Deleted
 		}
 		out[table] = entry
+	}
+	return out
+}
+
+// toAPIRecurringRule maps a domain RecurringRule to the API model.
+func toAPIRecurringRule(r *recurring.RecurringRule) api.RecurringRule {
+	out := api.RecurringRule{
+		Id:        r.ID,
+		UserId:    r.UserID,
+		Rrule:     r.RRule,
+		Template:  toAPITemplate(r.Template),
+		Active:    r.Active,
+		CreatedAt: r.CreatedAt,
+		UpdatedAt: r.UpdatedAt,
+	}
+	if r.NextRun != nil {
+		d := openapi_types.Date{Time: *r.NextRun}
+		out.NextRun = &d
+	}
+	if r.LastRun != nil {
+		d := openapi_types.Date{Time: *r.LastRun}
+		out.LastRun = &d
+	}
+	out.LastError = r.LastError
+	out.LastErrorAt = r.LastErrorAt
+	return out
+}
+
+// toAPITemplate maps a domain Template to the API model.
+func toAPITemplate(t recurring.Template) api.RecurringTemplate {
+	lines := make([]api.RecurringLineTemplate, 0, len(t.Lines))
+	for _, ln := range t.Lines {
+		line := api.RecurringLineTemplate{
+			AccountId:   ln.AccountID,
+			Dc:          api.RecurringLineTemplateDc(ln.DC),
+			AmountMinor: ln.AmountMinor,
+		}
+		if ln.Currency != "" {
+			line.Currency = &ln.Currency
+		}
+		lines = append(lines, line)
+	}
+	out := api.RecurringTemplate{
+		Currency: t.Currency,
+		Lines:    lines,
+	}
+	if t.Memo != "" {
+		out.Memo = &t.Memo
+	}
+	if t.Source != "" {
+		out.Source = &t.Source
+	}
+	return out
+}
+
+// fromAPITemplate maps the API request template to the domain model.
+func fromAPITemplate(t api.RecurringTemplate) recurring.Template {
+	lines := make([]recurring.TemplateLine, 0, len(t.Lines))
+	for _, ln := range t.Lines {
+		line := recurring.TemplateLine{
+			AccountID:   ln.AccountId,
+			DC:          string(ln.Dc),
+			AmountMinor: ln.AmountMinor,
+		}
+		if ln.Currency != nil {
+			line.Currency = *ln.Currency
+		}
+		lines = append(lines, line)
+	}
+	out := recurring.Template{
+		Currency: t.Currency,
+		Lines:    lines,
+		Source:   "recurring",
+	}
+	if t.Memo != nil {
+		out.Memo = *t.Memo
 	}
 	return out
 }

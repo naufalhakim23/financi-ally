@@ -14,11 +14,25 @@ const devJWTSecret = "change-this-jwt-secret-in-production"
 
 // Config holds application configuration.
 type Config struct {
-	Server   ServerConfig
-	Database DatabaseConfig
-	Auth     AuthConfig
-	Google   GoogleOAuthConfig
-	FX       FXConfig
+	Server    ServerConfig
+	Database  DatabaseConfig
+	Auth      AuthConfig
+	Google    GoogleOAuthConfig
+	FX        FXConfig
+	Recurring RecurringConfig
+}
+
+// RecurringConfig holds the M6 scheduler settings. Location is the timezone the
+// scheduler resolves occurrence dates in — "the 1st of the month" is a calendar
+// question, so it must not silently follow the host's zone.
+//
+// ponytail: one server-wide zone, not per-user. Per-user timezones need a
+// users.timezone column and a per-user sweep; add that when the product serves
+// more than one region.
+type RecurringConfig struct {
+	Enabled  bool
+	Interval time.Duration
+	Location *time.Location
 }
 
 // FXConfig holds foreign-exchange settings.
@@ -55,7 +69,7 @@ type AuthConfig struct {
 // the authorization code that the mobile app (expo-auth-session, PKCE) produces.
 // ClientSecret lives on the server only; the app never sees it.
 type GoogleOAuthConfig struct {
-	ClientID    string
+	ClientID     string
 	ClientSecret string
 }
 
@@ -88,6 +102,11 @@ func Load() (*Config, error) {
 			BaseCurrencies:    []string{"EUR", "USD", "IDR", "GBP", "JPY", "SGD", "MYR", "AUD"},
 			FrankfurterAPIURL: getEnv("FX_FRANKFURTER_URL", "https://api.frankfurter.app"),
 		},
+		Recurring: RecurringConfig{
+			Enabled:  getEnvBool("RECURRING_ENABLED", true),
+			Interval: getEnvDuration("RECURRING_INTERVAL", 15*time.Minute),
+			Location: getEnvLocation("RECURRING_TZ", time.UTC),
+		},
 	}
 
 	if cfg.Server.Environment == "production" && cfg.Auth.JWTSecret == devJWTSecret {
@@ -107,6 +126,27 @@ func getEnvInt(key string, defaultVal int) int {
 	if v := os.Getenv(key); v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
 			return n
+		}
+	}
+	return defaultVal
+}
+
+func getEnvBool(key string, defaultVal bool) bool {
+	if v := os.Getenv(key); v != "" {
+		if b, err := strconv.ParseBool(v); err == nil {
+			return b
+		}
+	}
+	return defaultVal
+}
+
+// getEnvLocation resolves an IANA zone name. An unparseable zone falls back to
+// the default rather than failing the boot — a mistyped zone shouldn't take the
+// API down, and the scheduler still runs on a well-defined calendar.
+func getEnvLocation(key string, defaultVal *time.Location) *time.Location {
+	if v := os.Getenv(key); v != "" {
+		if loc, err := time.LoadLocation(v); err == nil {
+			return loc
 		}
 	}
 	return defaultVal

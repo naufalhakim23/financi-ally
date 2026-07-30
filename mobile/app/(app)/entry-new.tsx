@@ -1,15 +1,15 @@
 import { useMemo, useState } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, Text } from "react-native";
+import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from "react-native";
 import { router } from "expo-router";
 
 import { AmountField, Picker, PrimaryButton } from "../../src/components/forms";
-import { Card, SectionLabel } from "../../src/components/ui";
+import { EmptyState } from "../../src/components/ui";
 import { useAuth } from "../../src/lib/auth";
 import { database } from "../../src/lib/db";
 import { toMinor } from "../../src/lib/money";
 import { syncDatabase } from "../../src/lib/sync";
 import { useObservable } from "../../src/lib/useObserve";
-import { Account, AccountType } from "../../src/model/models";
+import { Account } from "../../src/model/models";
 
 export default function EntryNew() {
   const { user } = useAuth();
@@ -26,32 +26,6 @@ export default function EntryNew() {
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-
-  async function seedStarter() {
-    setBusy(true);
-    setErr(null);
-    try {
-      await database.write(async () => {
-        const mk = async (type: AccountType, name: string) =>
-          database.get<Account>("accounts").create((a) => {
-            a.type = type;
-            a.currency = base;
-            a.name = name;
-            a.parentId = null;
-            a.archived = false;
-          });
-        await mk("asset", "Cash");
-        await mk("expense", "Groceries");
-        await mk("expense", "Rent");
-        await mk("expense", "Transport");
-      });
-      await syncDatabase();
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "setup failed");
-    } finally {
-      setBusy(false);
-    }
-  }
 
   async function save() {
     setErr(null);
@@ -124,13 +98,15 @@ export default function EntryNew() {
         keyboardShouldPersistTaps="handled"
       >
         {empty && (
-          <Card className="mb-4">
-            <SectionLabel>Set up</SectionLabel>
-            <Text className="text-dim text-sm mt-2 mb-3">
-              You need a pocket and a category first.
-            </Text>
-            <PrimaryButton label="Set up starter accounts" onPress={seedStarter} busy={busy} />
-          </Card>
+          <View className="mb-4">
+            <EmptyState
+              icon="👛"
+              title="Set up a pocket first"
+              body="An entry moves money from a pocket into a category — you need one of each."
+              actionLabel="Create a pocket"
+              onAction={() => router.push("/(app)/pocket-new?first=1")}
+            />
+          </View>
         )}
 
         <AmountField label="Amount" value={amount} onChange={setAmount} currency={base} />

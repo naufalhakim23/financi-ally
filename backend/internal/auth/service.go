@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/naufalhakim23/financi-ally/backend/internal/pkg/money"
 )
 
 // Service-level sentinels. These wrap or complement repo errors so the handler
@@ -78,7 +80,7 @@ func (s *Service) Register(ctx context.Context, email, password, baseCurrency st
 		// at the trust boundary so a malformed value ("123", "us1") can't reach
 		// the char(3) column and surface as a generic 500.
 		baseCurrency = strings.ToUpper(baseCurrency)
-		if !isAlpha3(baseCurrency) {
+		if !money.IsAlpha3(baseCurrency) {
 			return nil, ErrInvalidInput
 		}
 	}
@@ -210,21 +212,6 @@ func hashToken(raw string) []byte {
 // differently-cased login resolve to the same row (email unique constraint is
 // case-sensitive in Postgres). Applied at every entry to the repo.
 func normalizeEmail(email string) string { return strings.ToLower(email) }
-
-// isAlpha3 reports whether s is exactly 3 ASCII letters (A–Z). Used to validate
-// ISO 4217 currency codes after ToUpper so "123" or "US1" can't slip through a
-// length-only check.
-func isAlpha3(s string) bool {
-	if len(s) != 3 {
-		return false
-	}
-	for i := 0; i < len(s); i++ {
-		if s[i] < 'A' || s[i] > 'Z' {
-			return false
-		}
-	}
-	return true
-}
 
 // validEmail is a deliberately cheap check; "non-empty, has one @, something
 // each side". Authoritative format validation isn't the auth layer's job and

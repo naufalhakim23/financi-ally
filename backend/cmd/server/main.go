@@ -16,10 +16,12 @@ import (
 
 	"github.com/naufalhakim23/financi-ally/backend/api"
 	"github.com/naufalhakim23/financi-ally/backend/internal/auth"
+	"github.com/naufalhakim23/financi-ally/backend/internal/budget"
 	"github.com/naufalhakim23/financi-ally/backend/internal/config"
 	"github.com/naufalhakim23/financi-ally/backend/internal/db"
 	"github.com/naufalhakim23/financi-ally/backend/internal/handler"
 	"github.com/naufalhakim23/financi-ally/backend/internal/ledger"
+	syncpkg "github.com/naufalhakim23/financi-ally/backend/internal/sync"
 )
 
 func main() {
@@ -65,7 +67,15 @@ func main() {
 	ledgerRepo := ledger.NewRepo(pool.Pool)
 	ledgerSvc := ledger.NewService(ledgerRepo)
 
-	serverImpl := handler.NewServerImpl(pool, svc, ledgerSvc)
+	// Budget wiring
+	budgetRepo := budget.NewRepo(pool.Pool)
+	budgetSvc := budget.NewService(budgetRepo, ledgerSvc)
+
+	// Sync wiring
+	syncRepo := syncpkg.NewRepo(pool.Pool)
+	syncSvc := syncpkg.NewService(syncRepo, ledgerSvc, budgetSvc)
+
+	serverImpl := handler.NewServerImpl(pool, svc, ledgerSvc, budgetSvc, syncSvc)
 
 	opts := api.StrictHTTPServerOptions{
 		RequestErrorHandlerFunc: func(w http.ResponseWriter, _ *http.Request, _ error) {

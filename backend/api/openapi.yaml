@@ -17,6 +17,10 @@ tags:
     description: Registration, login, token refresh, OAuth, session
   - name: ledger
     description: Double-entry accounts, entries, and lines
+  - name: budget
+    description: Monthly category budgets
+  - name: sync
+    description: WatermelonDB pull/push offline sync
 paths:
   /healthz:
     get:
@@ -415,6 +419,203 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /budgets:
+    post:
+      operationId: setBudget
+      tags: [budget]
+      summary: Create or update a monthly category budget
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewBudgetRequest'
+      responses:
+        '201':
+          description: budget set
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Budget'
+        '400':
+          description: malformed body or invalid account/currency/month
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    get:
+      operationId: listBudgets
+      tags: [budget]
+      summary: List budgets for a month, with spent amounts
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+            description: first day of the month e.g. 2026-07-01
+      responses:
+        '200':
+          description: budgets for the month with spent rollup
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BudgetWithSpent'
+        '401':
+          description: missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /budgets/{id}:
+    put:
+      operationId: updateBudget
+      tags: [budget]
+      summary: Update a budget's target
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateBudgetRequest'
+      responses:
+        '200':
+          description: budget updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Budget'
+        '401':
+          description: missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: budget not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      operationId: deleteBudget
+      tags: [budget]
+      summary: Delete a budget
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: budget deleted
+        '401':
+          description: missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: budget not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /sync/pull:
+    post:
+      operationId: syncPull
+      tags: [sync]
+      summary: Pull server changes since a watermark (WatermelonDB native protocol)
+      description: |
+        WatermelonDB's native pull/push protocol. The mobile provides
+        last_pulled_at (the timestamp of its last successful pull); the server
+        returns all records created, updated, or soft-deleted after that moment,
+        grouped by table. The mobile merges these into its local WatermelonDB
+        store. Empty-changeset responses are normal (nothing changed since the
+        last pull).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SyncPullRequest'
+      responses:
+        '200':
+          description: changed records grouped by table
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncPullResponse'
+        '401':
+          description: missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /sync/push:
+    post:
+      operationId: syncPush
+      tags: [sync]
+      summary: Push local changes to the server (WatermelonDB native protocol)
+      description: |
+        WatermelonDB sends a batch of created/updated/deleted records; the
+        server processes them and returns a new timestamp. The protocol is
+        idempotent: reapplying the same batch yields no error. Posted entries
+        are immutable and their balance invariant is asserted server-side; an
+        unbalanced entry returns 422 and the mobile flags it for user review.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SyncPushRequest'
+      responses:
+        '200':
+          description: push accepted, new timestamp for next pull
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncPushResponse'
+        '401':
+          description: missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: unbalanced entry rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 components:
   securitySchemes:
     bearerAuth:
@@ -692,3 +893,129 @@ components:
           type: integer
           format: int64
           description: normal-balance-signed amount (asset/expense = debit−credit; others = credit−debit); positive is healthy/normal
+    NewBudgetRequest:
+      type: object
+      required: [account_id, period_month, target_minor]
+      properties:
+        id:
+          type: string
+          description: optional client id; server generates a uuid when omitted
+        account_id:
+          type: string
+        period_month:
+          type: string
+          format: date
+          description: first day of the month e.g. 2026-07-01
+        target_minor:
+          type: integer
+          format: int64
+          description: budgeted amount in minor units
+    Budget:
+      type: object
+      required: [id, account_id, period_month, target_minor, currency, created_at, updated_at]
+      properties:
+        id:
+          type: string
+        account_id:
+          type: string
+        period_month:
+          type: string
+          format: date
+        target_minor:
+          type: integer
+          format: int64
+        currency:
+          type: string
+          example: IDR
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    BudgetWithSpent:
+      type: object
+      required: [id, account_id, period_month, target_minor, spent_minor, currency, created_at, updated_at]
+      properties:
+        id:
+          type: string
+        account_id:
+          type: string
+        period_month:
+          type: string
+          format: date
+        target_minor:
+          type: integer
+          format: int64
+        spent_minor:
+          type: integer
+          format: int64
+          description: actual spending so far this month
+        currency:
+          type: string
+          example: IDR
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    UpdateBudgetRequest:
+      type: object
+      required: [target_minor]
+      properties:
+        target_minor:
+          type: integer
+          format: int64
+    SyncPullRequest:
+      type: object
+      required: [last_pulled_at]
+      properties:
+        last_pulled_at:
+          type: integer
+          format: int64
+          description: server timestamp of the last successful pull; 0 for initial sync
+    SyncChanges:
+      type: object
+      description: map of table name -> changes, conforming to WatermelonDB protocol
+      additionalProperties:
+        $ref: '#/components/schemas/SyncTableChanges'
+    SyncTableChanges:
+      type: object
+      properties:
+        created:
+          type: array
+          items:
+            type: object
+        updated:
+          type: array
+          items:
+            type: object
+        deleted:
+          type: array
+          items:
+            type: string
+    SyncPullResponse:
+      type: object
+      required: [changes, timestamp]
+      properties:
+        changes:
+          $ref: '#/components/schemas/SyncChanges'
+        timestamp:
+          type: integer
+          format: int64
+          description: server timestamp; client sends this as last_pulled_at on the next pull
+    SyncPushRequest:
+      type: object
+      required: [changes]
+      properties:
+        changes:
+          $ref: '#/components/schemas/SyncChanges'
+    SyncPushResponse:
+      type: object
+      properties:
+        errors:
+          type: array
+          items:
+            type: string
+          description: per-record error messages for records that could not be applied (422 etc)

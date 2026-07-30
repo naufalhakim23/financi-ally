@@ -23,6 +23,11 @@ var (
 	// ErrUnbalancedEntry: the entry's debit total ≠ credit total per currency.
 	// Surfaced either by the application assert or by the Postgres balance trigger.
 	ErrUnbalancedEntry = errors.New("entry is not balanced")
+	// ErrDuplicateEntry: the entry id already exists, or this recurring rule has
+	// already posted its occurrence for that date. Callers treat it as "already
+	// done" rather than a failure — it is what makes posting idempotent under
+	// retries, concurrent scheduler ticks, and sync replays.
+	ErrDuplicateEntry = errors.New("entry already exists")
 )
 
 // Repo is the persistence boundary for the ledger. Raw SQL via pgx; goqu lands
@@ -160,12 +165,17 @@ func (r *Repo) PostEntry(ctx context.Context, userID string, in EntryInput) (*En
 
 	e := &Entry{}
 	err = tx.QueryRow(ctx, `
-		INSERT INTO entries (id, user_id, txn_date, status, currency, fx_rate, source, memo)
-		VALUES ($1, $2, $3, 'posted', $4, $5, $6, $7)
+		INSERT INTO entries (id, user_id, txn_date, status, currency, fx_rate, source, memo, recurring_rule_id)
+		VALUES ($1, $2, $3, 'posted', $4, $5, $6, $7, $8)
 		RETURNING `+colEntry,
-		in.ID, userID, in.TxnDate, in.Currency, in.FXRate, defaultSource(in.Source), in.Memo).
+		in.ID, userID, in.TxnDate, in.Currency, in.FXRate, defaultSource(in.Source), in.Memo, in.RecurringRuleID).
 		Scan(&e.ID, &e.UserID, &e.TxnDate, &e.Status, &e.Currency, &e.FXRate, &e.Source, &e.Memo, &e.CreatedAt, &e.UpdatedAt)
 	if err != nil {
+		// Either the entry id collided or the (rule, occurrence) idempotency
+		// index fired — both mean "this entry is already posted".
+		if isUniqueViolation(err) {
+			return nil, ErrDuplicateEntry
+		}
 		return nil, fmt.Errorf("insert entry: %w", err)
 	}
 

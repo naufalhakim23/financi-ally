@@ -14,22 +14,26 @@ import (
 	"github.com/naufalhakim23/financi-ally/backend/internal/auth"
 	"github.com/naufalhakim23/financi-ally/backend/internal/budget"
 	"github.com/naufalhakim23/financi-ally/backend/internal/db"
+	"github.com/naufalhakim23/financi-ally/backend/internal/fx"
 	"github.com/naufalhakim23/financi-ally/backend/internal/ledger"
+	"github.com/naufalhakim23/financi-ally/backend/internal/reporting"
 	syncpkg "github.com/naufalhakim23/financi-ally/backend/internal/sync"
 )
 
 // ServerImpl implements api.StrictServerInterface.
 type ServerImpl struct {
-	db      *db.Pool
-	svc     *auth.Service
-	ledger  *ledger.Service
-	budget  *budget.Service
-	syncSvc *syncpkg.Service
+	db        *db.Pool
+	svc       *auth.Service
+	ledger    *ledger.Service
+	budget    *budget.Service
+	syncSvc   *syncpkg.Service
+	fxSvc     *fx.Service
+	reportSvc *reporting.Service
 }
 
 // NewServerImpl wires the handler with its dependencies.
-func NewServerImpl(pool *db.Pool, svc *auth.Service, led *ledger.Service, bud *budget.Service, syn *syncpkg.Service) *ServerImpl {
-	return &ServerImpl{db: pool, svc: svc, ledger: led, budget: bud, syncSvc: syn}
+func NewServerImpl(pool *db.Pool, svc *auth.Service, led *ledger.Service, bud *budget.Service, syn *syncpkg.Service, fxSvc *fx.Service, reportSvc *reporting.Service) *ServerImpl {
+	return &ServerImpl{db: pool, svc: svc, ledger: led, budget: bud, syncSvc: syn, fxSvc: fxSvc, reportSvc: reportSvc}
 }
 
 // Compile-time interface satisfaction; breaks at build if the generated
@@ -343,47 +347,6 @@ func (s *ServerImpl) GetEntry(ctx context.Context, req api.GetEntryRequestObject
 	return api.GetEntry200JSONResponse(toAPIEntry(e)), nil
 }
 
-// --- mappers ---------------------------------------------------------------
-
-func toAPIAccount(a *ledger.Account) api.Account {
-	return api.Account{
-		Id:        a.ID,
-		Type:      api.AccountType(a.Type),
-		Currency:  a.Currency,
-		Name:      a.Name,
-		ParentId:  a.ParentID,
-		Archived:  a.Archived,
-		CreatedAt: a.CreatedAt,
-		UpdatedAt: a.UpdatedAt,
-	}
-}
-
-func toAPIEntry(e *ledger.Entry) api.Entry {
-	lines := make([]api.JournalLine, 0, len(e.Lines))
-	for _, ln := range e.Lines {
-		lines = append(lines, api.JournalLine{
-			Id:          ln.ID,
-			EntryId:     ln.EntryID,
-			AccountId:   ln.AccountID,
-			Dc:          api.JournalLineDc(ln.DC),
-			AmountMinor: ln.AmountMinor,
-			Currency:    ln.Currency,
-		})
-	}
-	return api.Entry{
-		Id:        e.ID,
-		TxnDate:   openapi_types.Date{Time: e.TxnDate},
-		Status:    api.EntryStatus(e.Status),
-		Currency:  e.Currency,
-		FxRate:    e.FXRate,
-		Source:    api.EntrySource(e.Source),
-		Memo:      e.Memo,
-		Lines:     lines,
-		CreatedAt: e.CreatedAt,
-		UpdatedAt: e.UpdatedAt,
-	}
-}
-
 // --- budget handlers -------------------------------------------------------
 
 // SetBudget creates or updates a monthly category budget.
@@ -403,7 +366,7 @@ func (s *ServerImpl) SetBudget(ctx context.Context, req api.SetBudgetRequestObje
 	if err != nil {
 		return nil, err
 	}
-	return api.SetBudget201JSONResponse(toAPIBudget(b)), nil
+	return api.SetBudget200JSONResponse(toAPIBudget(b)), nil
 }
 
 // ListBudgets returns a month's budgets with live spent totals.
@@ -412,7 +375,13 @@ func (s *ServerImpl) ListBudgets(ctx context.Context, req api.ListBudgetsRequest
 	if !ok {
 		return api.ListBudgets401JSONResponse(api.Error{Code: "unauthenticated", Message: "missing or invalid token"}), nil
 	}
-	bs, err := s.budget.List(ctx, p.UserID, req.Params.Month.Time)
+	if req.Params.Period.Time.IsZero() {
+		return api.ListBudgets400JSONResponse(api.Error{Code: "invalid_input", Message: "period query param is required (YYYY-MM-01)"}), nil
+	}
+	bs, err := s.budget.List(ctx, p.UserID, req.Params.Period.Time)
+	if errors.Is(err, budget.ErrInvalidInput) {
+		return api.ListBudgets400JSONResponse(api.Error{Code: "invalid_input", Message: "period must be a valid month-start date"}), nil
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -468,7 +437,11 @@ func (s *ServerImpl) SyncPull(ctx context.Context, req api.SyncPullRequestObject
 	if !ok {
 		return api.SyncPull401JSONResponse(api.Error{Code: "unauthenticated", Message: "missing or invalid token"}), nil
 	}
-	resp, err := s.syncSvc.Pull(ctx, p.UserID, req.Body.LastPulledAt)
+	var since int64
+	if req.Params.LastPulledAt != nil {
+		since = *req.Params.LastPulledAt
+	}
+	resp, err := s.syncSvc.Pull(ctx, p.UserID, since)
 	if err != nil {
 		return nil, err
 	}
@@ -490,16 +463,231 @@ func (s *ServerImpl) SyncPush(ctx context.Context, req api.SyncPushRequestObject
 	}
 	out := api.SyncPushResponse{}
 	if len(resp.Errors) > 0 {
-		errs := make([]string, 0, len(resp.Errors))
-		for recordID, msg := range resp.Errors {
-			errs = append(errs, recordID+": "+msg)
-		}
+		errs := resp.Errors
 		out.Errors = &errs
 	}
 	return api.SyncPush200JSONResponse(out), nil
 }
 
+// --- FX handlers -----------------------------------------------------------
+
+// ListFxRates returns available FX rates for the latest loaded day.
+func (s *ServerImpl) ListFxRates(ctx context.Context, _ api.ListFxRatesRequestObject) (api.ListFxRatesResponseObject, error) {
+	p, ok := PrincipalFrom(ctx)
+	if !ok {
+		return api.ListFxRates401JSONResponse(api.Error{Code: "unauthenticated", Message: "missing or invalid token"}), nil
+	}
+	_ = p
+	bases, err := s.fxSvc.BaseCurrencies(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rates := make([]api.FxRate, 0)
+	var latestDay time.Time
+	for _, base := range bases {
+		day, err := s.fxSvc.LatestDay(ctx, base)
+		if err != nil {
+			return nil, err
+		}
+		if day.After(latestDay) {
+			latestDay = day
+		}
+	}
+	if !latestDay.IsZero() {
+		for _, base := range bases {
+			dayRates, err := s.fxSvc.DayRates(ctx, base, latestDay)
+			if err != nil {
+				return nil, err
+			}
+			for _, r := range dayRates {
+				rates = append(rates, api.FxRate{
+					Base:   r.Base,
+					Quote:  r.Quote,
+					Day:    openapi_types.Date{Time: r.Day},
+					Rate:   r.Rate,
+					Source: r.Source,
+				})
+			}
+		}
+	}
+	return api.ListFxRates200JSONResponse(api.FxRateList{Rates: rates, AsOf: openapi_types.Date{Time: time.Now()}}), nil
+}
+
+// RefreshFxRates triggers a manual FX rate refresh.
+func (s *ServerImpl) RefreshFxRates(ctx context.Context, _ api.RefreshFxRatesRequestObject) (api.RefreshFxRatesResponseObject, error) {
+	p, ok := PrincipalFrom(ctx)
+	if !ok {
+		return api.RefreshFxRates401JSONResponse(api.Error{Code: "unauthenticated", Message: "missing or invalid token"}), nil
+	}
+	_ = p
+	if err := s.fxSvc.RefreshDaily(ctx, []string{"EUR", "USD", "IDR"}); err != nil {
+		return nil, err
+	}
+	return api.RefreshFxRates200JSONResponse(api.FxRefreshResult{Count: 1}), nil
+}
+
+// GetFxRate returns the most recent rate for a currency pair.
+func (s *ServerImpl) GetFxRate(ctx context.Context, req api.GetFxRateRequestObject) (api.GetFxRateResponseObject, error) {
+	p, ok := PrincipalFrom(ctx)
+	if !ok {
+		return api.GetFxRate401JSONResponse(api.Error{Code: "unauthenticated", Message: "missing or invalid token"}), nil
+	}
+	_ = p
+	asOf := time.Now()
+	if req.Params.AsOf != nil {
+		asOf = req.Params.AsOf.Time
+	}
+	rate, err := s.fxSvc.AtOrBefore(ctx, req.Base, req.Quote, asOf)
+	if err != nil || rate == nil {
+		return api.GetFxRate404JSONResponse(api.Error{Code: "not_found", Message: "no rate available for this pair"}), nil
+	}
+	return api.GetFxRate200JSONResponse(api.FxRate{
+		Base:   rate.Base,
+		Quote:  rate.Quote,
+		Day:    openapi_types.Date{Time: rate.Day},
+		Rate:   rate.Rate,
+		Source: rate.Source,
+	}), nil
+}
+
+// --- reporting handlers ----------------------------------------------------
+
+// GetNetWorth returns assets minus liabilities, normalized to base currency.
+func (s *ServerImpl) GetNetWorth(ctx context.Context, _ api.GetNetWorthRequestObject) (api.GetNetWorthResponseObject, error) {
+	p, ok := PrincipalFrom(ctx)
+	if !ok {
+		return api.GetNetWorth401JSONResponse(api.Error{Code: "unauthenticated", Message: "missing or invalid token"}), nil
+	}
+	user, err := s.svc.Me(ctx, p.UserID)
+	if err != nil {
+		return api.GetNetWorth401JSONResponse(api.Error{Code: "unauthenticated", Message: "user not found"}), nil
+	}
+	nw, err := s.reportSvc.NetWorth(ctx, p.UserID, user.BaseCurrency)
+	if err != nil {
+		return nil, err
+	}
+	return api.GetNetWorth200JSONResponse(api.NetWorth{
+		BaseCurrency: nw.BaseCurrency,
+		AsOfDate:     nw.AsOfDate,
+		TotalAsset: api.NormalizedAmount{
+			RawMinor:  nw.TotalAsset.RawMinor,
+			Currency:  nw.TotalAsset.Currency,
+			BaseMinor: nw.TotalAsset.BaseMinor,
+		},
+		TotalLiability: api.NormalizedAmount{
+			RawMinor:  nw.TotalLiability.RawMinor,
+			Currency:  nw.TotalLiability.Currency,
+			BaseMinor: nw.TotalLiability.BaseMinor,
+		},
+		NetMinor: nw.NetMinor,
+	}), nil
+}
+
+// GetSpending returns spending by category for a period.
+func (s *ServerImpl) GetSpending(ctx context.Context, req api.GetSpendingRequestObject) (api.GetSpendingResponseObject, error) {
+	p, ok := PrincipalFrom(ctx)
+	if !ok {
+		return api.GetSpending401JSONResponse(api.Error{Code: "unauthenticated", Message: "missing or invalid token"}), nil
+	}
+	user, err := s.svc.Me(ctx, p.UserID)
+	if err != nil {
+		return api.GetSpending401JSONResponse(api.Error{Code: "unauthenticated", Message: "user not found"}), nil
+	}
+	if req.Params.From.Time.IsZero() || req.Params.To.Time.IsZero() {
+		return api.GetSpending400JSONResponse(api.Error{Code: "invalid_input", Message: "from and to are required"}), nil
+	}
+	spending, err := s.reportSvc.SpendingByCategory(ctx, p.UserID, user.BaseCurrency, req.Params.From.Time, req.Params.To.Time)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]api.CategorySpend, 0, len(spending))
+	for _, c := range spending {
+		out = append(out, api.CategorySpend{
+			AccountId:   c.AccountID,
+			AccountName: c.AccountName,
+			Currency:    c.Currency,
+			SpentMinor:  c.SpentMinor,
+			BaseMinor:   c.BaseMinor,
+		})
+	}
+	return api.GetSpending200JSONResponse(out), nil
+}
+
+// GetCashFlow returns income vs expense for a period.
+func (s *ServerImpl) GetCashFlow(ctx context.Context, req api.GetCashFlowRequestObject) (api.GetCashFlowResponseObject, error) {
+	p, ok := PrincipalFrom(ctx)
+	if !ok {
+		return api.GetCashFlow401JSONResponse(api.Error{Code: "unauthenticated", Message: "missing or invalid token"}), nil
+	}
+	user, err := s.svc.Me(ctx, p.UserID)
+	if err != nil {
+		return api.GetCashFlow401JSONResponse(api.Error{Code: "unauthenticated", Message: "user not found"}), nil
+	}
+	if req.Params.From.Time.IsZero() || req.Params.To.Time.IsZero() {
+		return api.GetCashFlow400JSONResponse(api.Error{Code: "invalid_input", Message: "from and to are required"}), nil
+	}
+	cf, err := s.reportSvc.CashFlow(ctx, p.UserID, user.BaseCurrency, req.Params.From.Time, req.Params.To.Time)
+	if err != nil {
+		return nil, err
+	}
+	return api.GetCashFlow200JSONResponse(api.CashFlow{
+		BaseCurrency: cf.BaseCurrency,
+		PeriodStart:  openapi_types.Date{Time: cf.PeriodStart},
+		PeriodEnd:    openapi_types.Date{Time: cf.PeriodEnd},
+		IncomeMinor: api.NormalizedAmount{
+			RawMinor:  cf.IncomeMinor.RawMinor,
+			Currency:  cf.IncomeMinor.Currency,
+			BaseMinor: cf.IncomeMinor.BaseMinor,
+		},
+		ExpenseMinor: api.NormalizedAmount{
+			RawMinor:  cf.ExpenseMinor.RawMinor,
+			Currency:  cf.ExpenseMinor.Currency,
+			BaseMinor: cf.ExpenseMinor.BaseMinor,
+		},
+		NetMinor: cf.NetMinor,
+	}), nil
+}
+
 // --- mappers ---------------------------------------------------------------
+
+func toAPIAccount(a *ledger.Account) api.Account {
+	return api.Account{
+		Id:        a.ID,
+		Type:      api.AccountType(a.Type),
+		Currency:  a.Currency,
+		Name:      a.Name,
+		ParentId:  a.ParentID,
+		Archived:  a.Archived,
+		CreatedAt: a.CreatedAt,
+		UpdatedAt: a.UpdatedAt,
+	}
+}
+
+func toAPIEntry(e *ledger.Entry) api.Entry {
+	lines := make([]api.JournalLine, 0, len(e.Lines))
+	for _, ln := range e.Lines {
+		lines = append(lines, api.JournalLine{
+			Id:          ln.ID,
+			EntryId:     ln.EntryID,
+			AccountId:   ln.AccountID,
+			Dc:          api.JournalLineDc(ln.DC),
+			AmountMinor: ln.AmountMinor,
+			Currency:    ln.Currency,
+		})
+	}
+	return api.Entry{
+		Id:        e.ID,
+		TxnDate:   openapi_types.Date{Time: e.TxnDate},
+		Status:    api.EntryStatus(e.Status),
+		Currency:  e.Currency,
+		FxRate:    e.FXRate,
+		Source:    api.EntrySource(e.Source),
+		Memo:      e.Memo,
+		Lines:     lines,
+		CreatedAt: e.CreatedAt,
+		UpdatedAt: e.UpdatedAt,
+	}
+}
 
 func toAPIBudget(b *budget.Budget) api.Budget {
 	return api.Budget{
@@ -513,6 +701,7 @@ func toAPIBudget(b *budget.Budget) api.Budget {
 	}
 }
 
+// toAPIChanges copies the internal ChangeSet into the generated map types.
 func toAPIChanges(c syncpkg.ChangeSet) api.SyncChanges {
 	out := api.SyncChanges{}
 	for table, tc := range c {
@@ -533,6 +722,7 @@ func toAPIChanges(c syncpkg.ChangeSet) api.SyncChanges {
 	return out
 }
 
+// fromAPIChanges copies the generated request ChangeSet into the internal type.
 func fromAPIChanges(c api.SyncChanges) syncpkg.ChangeSet {
 	out := syncpkg.ChangeSet{}
 	for table, tc := range c {

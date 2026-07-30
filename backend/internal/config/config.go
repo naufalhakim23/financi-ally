@@ -18,6 +18,14 @@ type Config struct {
 	Database DatabaseConfig
 	Auth     AuthConfig
 	Google   GoogleOAuthConfig
+	FX       FXConfig
+}
+
+// FXConfig holds foreign-exchange settings.
+type FXConfig struct {
+	BaseCurrencies    []string // which currencies to fetch daily
+	RefreshSchedule   string   // cron expression (unused in M4, manual via API)
+	FrankfurterAPIURL string   // override for testing
 }
 
 // ServerConfig holds HTTP server settings.
@@ -75,6 +83,10 @@ func Load() (*Config, error) {
 		Google: GoogleOAuthConfig{
 			ClientID:     getEnv("GOOGLE_OAUTH_CLIENT_ID", ""),
 			ClientSecret: getEnv("GOOGLE_OAUTH_CLIENT_SECRET", ""),
+		},
+		FX: FXConfig{
+			BaseCurrencies:    []string{"EUR", "USD", "IDR", "GBP", "JPY", "SGD", "MYR", "AUD"},
+			FrankfurterAPIURL: getEnv("FX_FRANKFURTER_URL", "https://api.frankfurter.app"),
 		},
 	}
 

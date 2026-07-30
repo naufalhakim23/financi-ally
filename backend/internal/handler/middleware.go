@@ -30,6 +30,8 @@ func AuthInject(verifier *auth.JWTService) func(http.Handler) http.Handler {
 					p := &auth.Principal{UserID: claims.UserID, Email: claims.Email}
 					r = r.WithContext(context.WithValue(r.Context(), ctxkey.Auth, p))
 				}
+				// An invalid token on a public route is ignored; on a protected
+				// route SpecValidator's auth check finds no principal → 401.
 			}
 			next.ServeHTTP(w, r)
 		})
@@ -47,6 +49,8 @@ func SpecValidator() (func(http.Handler) http.Handler, error) {
 	if err != nil {
 		return nil, fmt.Errorf("load embedded swagger: %w", err)
 	}
+	// Drop the server URL so routing matches request paths directly; the
+	// servers entry is for clients, not in-process route resolution.
 	swagger.Servers = nil
 	return oapimw.OapiRequestValidatorWithOptions(swagger, &oapimw.Options{
 		Options: openapi3filter.Options{
@@ -56,7 +60,9 @@ func SpecValidator() (func(http.Handler) http.Handler, error) {
 	}), nil
 }
 
-// requireBearer is the spec-derived security check.
+// requireBearer is the spec-derived security check. On a bearerAuth operation
+// the principal must already be in context (set by AuthInject); otherwise this
+// returns an error the validator maps to 401 (SecurityRequirementsError).
 func requireBearer(ctx context.Context, ai *openapi3filter.AuthenticationInput) error {
 	if ai.SecuritySchemeName != "bearerAuth" {
 		return fmt.Errorf("unknown security scheme %q", ai.SecuritySchemeName)
@@ -67,12 +73,16 @@ func requireBearer(ctx context.Context, ai *openapi3filter.AuthenticationInput) 
 	return errors.New("missing or invalid token")
 }
 
-// PrincipalFrom extracts the authenticated principal, if present.
+// PrincipalFrom extracts the authenticated principal, if present. Protected
+// handlers can treat its absence as 401, but SpecValidator already guarantees
+// presence on protected paths; the check is defense in depth.
 func PrincipalFrom(ctx context.Context) (*auth.Principal, bool) {
 	p, ok := ctx.Value(ctxkey.Auth).(*auth.Principal)
 	return p, ok && p != nil
 }
 
+// bearerToken pulls the token from an `Authorization: Bearer <token>` header,
+// case-insensitive on the scheme prefix. Empty string means absent/malformed.
 func bearerToken(r *http.Request) string {
 	const prefix = "Bearer "
 	h := r.Header.Get("Authorization")
@@ -82,6 +92,10 @@ func bearerToken(r *http.Request) string {
 	return strings.TrimSpace(h[len(prefix):])
 }
 
+// validationErrorHandler renders spec-validation failures in our JSON Error
+// shape: 401 for a missing/invalid bearer, 400 for malformed bodies/params,
+// 405 for an unsupported method on a known path. The validator's verbose
+// message is discarded to avoid leaking internal parse detail.
 func validationErrorHandler(w http.ResponseWriter, _ string, code int) {
 	errCode, msg := "bad_request", "malformed request"
 	switch code {

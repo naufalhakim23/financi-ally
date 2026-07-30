@@ -11,6 +11,7 @@ help:
 	@echo "  make run            build + run"
 	@echo "  make dev            hot-reload via air"
 	@echo "  make test           go test ./..."
+	@echo "  make fx-refresh     trigger FX rate refresh via the running server"
 	@echo "  make install-tools  install oapi-codegen + air"
 	@echo ""
 	@echo "Go bin: $(GOBIN)"
@@ -39,6 +40,12 @@ fmt:
 
 vet:
 	@go vet ./...
+
+fx-refresh:
+	@curl -s -X POST http://localhost:8080/fx/rates/refresh \
+		-H "Authorization: Bearer $$(echo 'needs valid token — run manually after login')" \
+		-H "Content-Type: application/json" | jq .
+	@echo "(replace the token above with a valid JWT from the running server)"
 
 clean:
 	@rm -rf bin tmp

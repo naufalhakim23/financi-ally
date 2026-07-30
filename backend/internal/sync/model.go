@@ -42,4 +42,4 @@ type PushResponse struct {
 }
 
 // syncedTables is the fixed set this server syncs, in pull order.
-var syncedTables = []string{"accounts", "entries", "journal_lines", "budgets"}
+var syncedTables = []string{"accounts", "entries", "journal_lines", "budgets", "recurring_rules"}

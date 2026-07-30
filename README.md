@@ -4,7 +4,7 @@ Personal expense & budget tracker. Double-entry ledger, multi-currency, offline-
 Go (chi + oapi-codegen) backend + Expo (Router + NativeWind + TanStack Query) mobile.
 
 > Plan: `docs/plans/01-financi-ally/plan.html` (in the atlas workspace).
-> Status: **M3: pockets UI + offline** — ledger core, budgets, WatermelonDB sync.
+> Status: **M5: budgets + M4: multi-currency + reports** — full CRUD budgets, FX rates, reports.
 > See milestones + decision logs (`docs/decision_logs/`).
 
 ## Repo map
@@ -102,8 +102,8 @@ once, run `make generate-contract`, both sides update.
 - **M1** ✅ auth: email+pw JWT (argon2id, rotated refresh tokens), Google OAuth; Apple in M7
 - **M2** ✅ ledger core: accounts (5 types), entries, lines, `Post()` balance invariant (in-tx + trigger)
 - **M3** ✅ pockets UI + offline: WatermelonDB sync (pull/push), add-entry, dashboard, budgets
-- **M4** multi-currency + FX job + reports
-- **M5** budgets — pulled forward into M3 (targets + spent rollup)
+- **M4** ✅ multi-currency + FX job + reports (FX from frankfurter.app, server-normalized reports, mobile Reports tab)
+- **M5** ✅ budgets: monthly category targets + budget screen (create/edit/delete UI + dashboard summary)
 - **M6** recurring (RRULE)
 - **M7** polish: DESIGN.md, charts, onboarding, EAS build
 

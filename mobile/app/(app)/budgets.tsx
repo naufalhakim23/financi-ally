@@ -8,7 +8,7 @@ import { format, toMinor } from "../../src/lib/money";
 import { useObservable } from "../../src/lib/useObserve";
 import { Account } from "../../src/model/models";
 import { AmountField, Picker, PrimaryButton } from "../../src/components/forms";
-import { Card, IconBox, ProgressBar, SectionLabel } from "../../src/components/ui";
+import { Card, EmptyState, IconBox, ProgressBar, SectionLabel } from "../../src/components/ui";
 
 function currentMonth(): string {
   const d = new Date();
@@ -165,9 +165,13 @@ export default function Budgets() {
         )}
 
         {items.length === 0 && !err && (
-          <Card className="mb-4">
-            <Text className="text-faint text-sm">No budgets for this month.</Text>
-          </Card>
+          <View className="mb-4">
+            <EmptyState
+              icon="🎯"
+              title="No budgets this month"
+              body="Set a monthly target on a category to see spent-vs-target here."
+            />
+          </View>
         )}
 
         {items.length > 0 && (

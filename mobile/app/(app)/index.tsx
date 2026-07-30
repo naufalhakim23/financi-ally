@@ -8,7 +8,7 @@ import { format } from "../../src/lib/money";
 import { accountSigned, netWorth } from "../../src/lib/balances";
 import { useObservable } from "../../src/lib/useObserve";
 import { Account, Budget, Entry, JournalLine } from "../../src/model/models";
-import { Amount, Card, IconBox, ProgressBar, SectionLabel } from "../../src/components/ui";
+import { Amount, Card, EmptyState, IconBox, ProgressBar, SectionLabel } from "../../src/components/ui";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -56,6 +56,22 @@ export default function Dashboard() {
   const budgetPct = totalTarget > 0 ? (totalSpent / totalTarget) * 100 : 0;
   const budgetBase = budgetRows.length > 0 ? budgetRows[0].currency : base;
 
+  // First run: a zeroed dashboard tells a new user nothing. Send them to the
+  // one action that makes every other screen work.
+  if (accounts.length === 0) {
+    return (
+      <View className="flex-1 bg-background justify-center px-4">
+        <EmptyState
+          icon="👛"
+          title="Create your first pocket"
+          body="A pocket is a bank account, cash, an e-wallet, or a card. Everything else builds on it."
+          actionLabel="Get started"
+          onAction={() => router.push("/(app)/pocket-new?first=1")}
+        />
+      </View>
+    );
+  }
+
   return (
     <ScrollView
       className="flex-1 bg-background"
@@ -88,7 +104,15 @@ export default function Dashboard() {
           </Pressable>
         </View>
         {active.length === 0 ? (
-          <Text className="text-faint text-sm px-4">No accounts yet.</Text>
+          <View className="px-4">
+            <EmptyState
+              icon="👛"
+              title="No active pockets"
+              body="Every pocket you have is archived."
+              actionLabel="Add a pocket"
+              onAction={() => router.push("/(app)/pocket-new")}
+            />
+          </View>
         ) : (
           <ScrollView
             horizontal
@@ -165,9 +189,13 @@ export default function Dashboard() {
         <SectionLabel>Recent</SectionLabel>
         <View className="mt-2" />
         {recent.length === 0 ? (
-          <Card>
-            <Text className="text-faint text-sm">No entries yet. Add your first expense.</Text>
-          </Card>
+          <EmptyState
+            icon="🧾"
+            title="No entries yet"
+            body="Log your first expense — it takes about ten seconds."
+            actionLabel="Add an entry"
+            onAction={() => router.push("/(app)/entry-new")}
+          />
         ) : (
           <Card padded={false}>
             {recent.map((e, i) => {

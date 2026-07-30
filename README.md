@@ -11,14 +11,16 @@ Go (chi + oapi-codegen) backend + Expo (Router + NativeWind + TanStack Query) mo
 
 ```
 financi-ally/
-├─ docker/compose.yml   local Postgres (postgres:16-alpine)
-├─ backend/             Go service (chi + oapi-codegen + pgx)
-│  ├─ cmd/server/       entrypoint
-│  ├─ api/              openapi.yaml + oapi-codegen cfg + generated.go
-│  └─ internal/         config · db · handler · auth · ledger · budget · sync · pkg/{ctxkey,money}
-└─ mobile/              Expo app (Router + NativeWind + WatermelonDB)
-   ├─ app/              routes (auth screens + (app) tab group)
-   └─ src/              lib · model (WatermelonDB) · components
+├─ docker/compose.yml     local Postgres (postgres:16-alpine)
+├─ shared-context/        single OpenAPI contract + design tokens
+│  └─ contracts/openapi.yaml   source of truth → BE + FE codegen
+├─ backend/               Go service (chi + oapi-codegen + pgx)
+│  ├─ cmd/server/         entrypoint
+│  ├─ api/                oapi-codegen cfg + generated.go (regen from shared contract)
+│  └─ internal/           config · db · handler · auth · ledger · budget · sync · pkg/{ctxkey,money}
+└─ mobile/                Expo app (Router + NativeWind + WatermelonDB)
+   ├─ app/                routes (auth screens + (app) tab group)
+   └─ src/                lib (api-types.ts generated) · model (WatermelonDB) · components
 ```
 
 ## Prerequisites
@@ -38,12 +40,13 @@ docker compose -f docker/compose.yml up -d
 cd backend
 cp .env.example .env
 make install-tools   # one-time: oapi-codegen + air
-make gen             # generate API from openapi.yaml
+make gen             # generate API from ../shared-context/contracts/openapi.yaml
 make run             # http://localhost:8080/healthz
 
 # 3. Mobile
 cd ../mobile
 npm install
+npm run gen          # generate src/lib/api-types.ts from the shared contract
 npx expo start       # needs a dev-client build (WatermelonDB is native, not in Expo Go)
 ```
 
@@ -70,12 +73,28 @@ DATABASE_URL=... go test -p 1 ./internal/...
 
 | target | does |
 |---|---|
-| `make gen` | regenerate `api/generated.go` from `openapi.yaml` |
+| `make gen` | regenerate `api/generated.go` from the shared contract |
 | `make build` | build server binary |
 | `make run` | build + run |
 | `make dev` | hot-reload via `air` |
 | `make test` | `go test ./...` |
 | `make install-tools` | install oapi-codegen + air |
+
+## Contract / codegen
+
+The single OpenAPI source of truth lives at `shared-context/contracts/openapi.yaml`.
+From the repo root, one command regenerates both clients:
+
+| target | does |
+|---|---|
+| `make generate-contract` | regen BOTH `backend/api/generated.go` + `mobile/src/lib/api-types.ts` |
+| `make gen-backend` | regen backend only |
+| `make gen-mobile` | regen mobile only |
+
+Backend uses [oapi-codegen](https://github.com/oapi-codegen/oapi-codegen) (strict-server + chi);
+mobile uses [openapi-typescript](https://github.com/openapi-ts/openapi-typescript) (types) +
+[openapi-fetch](https://openapi-ts.github.io/openapi-fetch/) (typed client). Edit the contract
+once, run `make generate-contract`, both sides update.
 
 ## Roadmap
 

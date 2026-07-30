@@ -1,23 +1,39 @@
-// API client. Pure functions; no token awareness. The auth provider
-// (src/lib/auth.tsx) owns tokens and passes them in; this module only knows
-// shapes and the base URL.
+// API client built on the shared OpenAPI contract. openapi-fetch gives
+// typed paths via createClient<paths>(); this module wraps it to preserve the
+// original surface (api / authedApi / HTTPError + type re-exports) and the
+// behaviors the app relies on (15s default timeout, defensive non-JSON
+// handling, single 401 refresh-retry).
+//
+// Single source of truth: src/lib/api-types.ts is generated from
+// ../shared-context/contracts/openapi.yaml by `npm run gen` (and the root
+// `make generate-contract` regenerates both BE and FE). Re-run it after
+// editing the contract — never hand-edit api-types.ts.
 
-export type HealthStatus = { status: string; db: "up" | "down" };
+import createClient from "openapi-fetch";
 
-export type User = {
-  id: string;
-  email: string;
-  base_currency: string;
-  created_at: string;
-};
+import type { components, paths } from "./api-types";
 
-export type AuthResponse = {
-  access_token: string;
-  refresh_token: string;
-  user: User;
-};
+type S = components["schemas"];
 
-export type ApiError = { code: string; message: string };
+// --- type re-exports: named schema components from the contract ---
+export type { paths };
+export type HealthStatus = S["HealthStatus"];
+export type User = S["User"];
+export type AuthResponse = S["AuthResponse"];
+export type ApiError = S["Error"];
+export type AccountType = S["AccountType"];
+export type Account = S["Account"];
+export type JournalLine = S["JournalLine"];
+export type DC = NonNullable<S["JournalLine"]["dc"]>;
+export type Entry = S["Entry"];
+export type AccountBalance = S["AccountBalance"];
+export type BudgetWithSpent = S["BudgetWithSpent"];
+export type SyncTableChanges = S["SyncTableChanges"];
+export type SyncChanges = S["SyncChanges"];
+export type SyncRecord = NonNullable<SyncTableChanges["created"]>[number];
+export type SyncPullResponse = S["SyncPullResponse"];
+export type SyncPushRequest = S["SyncPushRequest"];
+export type SyncPushResponse = S["SyncPushResponse"];
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8080";
 
@@ -31,193 +47,110 @@ export class HTTPError extends Error {
   }
 }
 
-async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
-  // 15s ceiling so a stalled network can't leave the UI spinning forever. If
-  // the caller already supplied a signal (e.g. health poll), defer to it.
-  const ctrl = new AbortController();
-  const timeout = setTimeout(() => ctrl.abort(), 15000);
-  let res: Response;
-  try {
-    res = await fetch(`${BASE_URL}${path}`, {
-      ...init,
-      signal: init.signal ?? ctrl.signal,
-      headers: { "Content-Type": "application/json", ...(init.headers ?? {}) },
-    });
-  } finally {
-    clearTimeout(timeout);
-  }
-  // 204 has no body; caller treats as void.
-  if (res.status === 204) return undefined as T;
-  const text = await res.text();
-  // A proxy / 5xx can hand back HTML or plain text; JSON.parse would throw a
-  // raw SyntaxError and callers would see that instead of an HTTPError. Parse
-  // defensively: malformed body → null, and on !res.ok that surfaces as a
-  // status-only HTTPError rather than a parse crash.
-  let parsed: unknown = null;
-  if (text) {
-    try {
-      parsed = JSON.parse(text);
-    } catch {
-      parsed = null;
-    }
-  }
-  if (!res.ok) {
-    const body =
-      parsed && typeof parsed === "object" && "code" in (parsed as object)
-        ? (parsed as ApiError)
-        : null;
-    throw new HTTPError(res.status, body);
-  }
-  return parsed as T;
+// openapi-fetch hands non-2xx back as `{ error }` instead of throwing; the rest
+// of the app expects an HTTPError, so unwrap translates. 204 → void. A non-JSON
+// error body (proxy HTML on a 5xx) has no `code`, so it surfaces as a
+// status-only HTTPError rather than crashing on a JSON.parse.
+type FetchResult<T> = { data?: T; error?: unknown; response: Response };
+
+function isApiError(v: unknown): v is ApiError {
+  return !!v && typeof v === "object" && "code" in v && "message" in v;
 }
 
-function authHeader(accessToken: string): Record<string, string> {
+async function unwrap<T>(r: FetchResult<T>): Promise<T> {
+  if (r.response.status === 204) return undefined as T;
+  if (r.error !== undefined) {
+    throw new HTTPError(r.response.status, isApiError(r.error) ? r.error : null);
+  }
+  return r.data as T;
+}
+
+function authHdr(accessToken: string): Record<string, string> {
   return { Authorization: `Bearer ${accessToken}` };
 }
 
+// 15s ceiling so a stalled network can't leave the UI spinning forever. If the
+// caller already supplied a signal (e.g. the health poll), it wins. openapi-fetch
+// hands the built Request here, so read the signal off it.
+const client = createClient<paths>({
+  baseUrl: BASE_URL,
+  fetch: (req: Request) => {
+    if (req.signal) return fetch(req);
+    const ctrl = new AbortController();
+    const timeout = setTimeout(() => ctrl.abort(), 15000);
+    return fetch(new Request(req, { signal: ctrl.signal })).finally(() => clearTimeout(timeout));
+  },
+});
+
+// Unauthed surface used by the auth provider (src/lib/auth.tsx owns tokens and
+// passes them in explicitly here).
 export const api = {
-  health: (signal?: AbortSignal) => req<HealthStatus>("/healthz", { signal }),
+  health: (signal?: AbortSignal) => client.GET("/healthz", { signal }).then(unwrap),
 
   register: (email: string, password: string, baseCurrency?: string) =>
-    req<AuthResponse>("/auth/register", {
-      method: "POST",
-      body: JSON.stringify({ email, password, base_currency: baseCurrency }),
-    }),
+    client.POST("/auth/register", { body: { email, password, base_currency: baseCurrency } }).then(unwrap),
 
   login: (email: string, password: string) =>
-    req<AuthResponse>("/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    }),
+    client.POST("/auth/login", { body: { email, password } }).then(unwrap),
 
   refresh: (refreshToken: string) =>
-    req<AuthResponse>("/auth/refresh", {
-      method: "POST",
-      body: JSON.stringify({ refresh_token: refreshToken }),
-    }),
+    client.POST("/auth/refresh", { body: { refresh_token: refreshToken } }).then(unwrap),
 
   google: (code: string, redirectUri: string) =>
-    req<AuthResponse>("/auth/google", {
-      method: "POST",
-      body: JSON.stringify({ code, redirect_uri: redirectUri }),
-    }),
+    client.POST("/auth/google", { body: { code, redirect_uri: redirectUri } }).then(unwrap),
 
-  me: (accessToken: string) => req<User>("/auth/me", { headers: authHeader(accessToken) }),
+  me: (accessToken: string) => client.GET("/auth/me", { headers: authHdr(accessToken) }).then(unwrap),
 
   logout: (accessToken: string, refreshToken: string) =>
-    req<void>("/auth/logout", {
-      method: "POST",
-      headers: authHeader(accessToken),
-      body: JSON.stringify({ refresh_token: refreshToken }),
-    }),
+    client
+      .POST("/auth/logout", { headers: authHdr(accessToken), body: { refresh_token: refreshToken } })
+      .then(unwrap),
 };
 
 // Kept for the M0 health smoke screen; the gated home screen drops the poll.
 export const getHealth = (signal?: AbortSignal) => api.health(signal);
 
-// --- ledger / budget / sync types (mirror backend openapi.yaml) ---
-
-export type AccountType = "asset" | "liability" | "income" | "expense" | "equity";
-export type DC = "debit" | "credit";
-
-export type Account = {
-  id: string;
-  type: AccountType;
-  currency: string;
-  name: string;
-  parent_id: string | null;
-  archived: boolean;
-  created_at: string;
-  updated_at: string;
-};
-
-export type JournalLine = {
-  id: string;
-  entry_id: string;
-  account_id: string;
-  dc: DC;
-  amount_minor: number;
-  currency: string;
-};
-
-export type Entry = {
-  id: string;
-  txn_date: string; // ISO date
-  status: "draft" | "posted";
-  currency: string;
-  fx_rate: string | null;
-  source: "manual" | "recurring" | "import";
-  memo: string;
-  lines: JournalLine[];
-  created_at: string;
-  updated_at: string;
-};
-
-export type AccountBalance = {
-  account_id: string;
-  currency: string;
-  debit_minor: number;
-  credit_minor: number;
-  signed_minor: number;
-};
-
-export type BudgetWithSpent = {
-  id: string;
-  account_id: string;
-  period_month: string; // ISO date
-  target_minor: number;
-  spent_minor: number;
-  currency: string;
-  created_at: string;
-  updated_at: string;
-};
-
-// WatermelonDB change-set shapes.
-export type SyncRecord = Record<string, unknown>;
-export type SyncTableChanges = {
-  created?: SyncRecord[];
-  updated?: SyncRecord[];
-  deleted?: string[];
-};
-export type SyncChanges = Record<string, SyncTableChanges>;
-export type SyncPullResponse = { changes: SyncChanges; timestamp: number };
-export type SyncPushRequest = { changes: SyncChanges };
-export type SyncPushResponse = { errors?: Record<string, string> };
-
-// reqAuthed is the token-aware fetcher. It injects the bearer from the auth
-// bridge and, on a 401, refreshes once and retries — generalizing the hydration
-// path to every authed call. Returns the parsed JSON (or undefined for 204).
-async function reqAuthed<T>(path: string, init: RequestInit = {}): Promise<T> {
+// Authed wrapper: injects the bearer from the auth bridge and, on a 401,
+// refreshes once and retries — generalizing the hydration path to every authed
+// call. The mobile reads/writes via WatermelonDB locally and reconciles through
+// sync; these REST methods cover direct reads + the sync endpoints.
+async function withAuthRetry<T>(call: (token: string) => Promise<T>): Promise<T> {
   const { getAuthAccessors } = await import("./authBridge");
   const accessors = getAuthAccessors();
-  const token = accessors?.getAccessToken();
-  const headers = token
-    ? { Authorization: `Bearer ${token}`, ...(init.headers ?? {}) }
-    : init.headers ?? {};
+  const token = accessors?.getAccessToken() ?? "";
   try {
-    return await req<T>(path, { ...init, headers });
+    return await call(token);
   } catch (e) {
     if (!(e instanceof HTTPError) || e.status !== 401 || !accessors) throw e;
     const fresh = await accessors.refreshAccessToken();
     if (!fresh) throw e; // refresh failed; surface original 401
-    return await req<T>(path, { ...init, headers: { ...headers, Authorization: `Bearer ${fresh}` } });
+    return await call(fresh);
   }
 }
 
-// Authed API surface for the feature screens. The mobile writes/reads via
-// WatermelonDB locally and reconciles through sync; these REST methods cover
-// direct reads + the sync endpoints.
 export const authedApi = {
   listAccounts: (type?: AccountType) =>
-    reqAuthed<Account[]>(`/accounts${type ? `?type=${type}` : ""}`),
-  accountBalance: (id: string) => reqAuthed<AccountBalance>(`/accounts/${id}/balance`),
-  listBudgets: (period: string) => reqAuthed<BudgetWithSpent[]>(`/budgets?period=${period}`),
-  syncPull: (lastPulledAt: number) =>
-    reqAuthed<SyncPullResponse>(`/sync/pull?last_pulled_at=${lastPulledAt}`),
-  syncPush: (changes: SyncChanges) =>
-    reqAuthed<SyncPushResponse>("/sync/push", {
-      method: "POST",
-      body: JSON.stringify({ changes }),
-    }),
-};
+    withAuthRetry((tok) =>
+      client.GET("/accounts", { headers: authHdr(tok), params: { query: { type } } }).then(unwrap),
+    ),
 
+  accountBalance: (id: string) =>
+    withAuthRetry((tok) =>
+      client.GET("/accounts/{id}/balance", { headers: authHdr(tok), params: { path: { id } } }).then(unwrap),
+    ),
+
+  listBudgets: (period: string) =>
+    withAuthRetry((tok) =>
+      client.GET("/budgets", { headers: authHdr(tok), params: { query: { period } } }).then(unwrap),
+    ),
+
+  syncPull: (lastPulledAt: number) =>
+    withAuthRetry((tok) =>
+      client.GET("/sync/pull", { headers: authHdr(tok), params: { query: { last_pulled_at: lastPulledAt } } }).then(unwrap),
+    ),
+
+  syncPush: (changes: SyncChanges) =>
+    withAuthRetry((tok) =>
+      client.POST("/sync/push", { headers: authHdr(tok), body: { changes } }).then(unwrap),
+    ),
+};

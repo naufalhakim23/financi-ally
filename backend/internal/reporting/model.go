@@ -8,31 +8,31 @@ import "time"
 // NetWorth is the total of all asset accounts minus all liability accounts,
 // normalized to the user's base currency.
 type NetWorth struct {
-	BaseCurrency string          `json:"base_currency"`
-	AsOfDate     time.Time       `json:"as_of_date"`
-	TotalAsset   NormalizedAmount `json:"total_asset"`
+	BaseCurrency   string           `json:"base_currency"`
+	AsOfDate       time.Time        `json:"as_of_date"`
+	TotalAsset     NormalizedAmount `json:"total_asset"`
 	TotalLiability NormalizedAmount `json:"total_liability"`
-	NetMinor     int64           `json:"net_minor"`
+	NetMinor       int64            `json:"net_minor"`
 }
 
 // CategorySpend is a category's spending over a period in the user's base
 // currency.
 type CategorySpend struct {
-	AccountID    string          `json:"account_id"`
-	AccountName  string          `json:"account_name"`
-	Currency     string          `json:"currency"`
-	SpentMinor   int64           `json:"spent_minor"`
-	BaseMinor    int64           `json:"base_minor"`
+	AccountID   string `json:"account_id"`
+	AccountName string `json:"account_name"`
+	Currency    string `json:"currency"`
+	SpentMinor  int64  `json:"spent_minor"`
+	BaseMinor   int64  `json:"base_minor"`
 }
 
 // CashFlow is income and expense totals over a period, normalized to base.
 type CashFlow struct {
-	BaseCurrency   string            `json:"base_currency"`
-	PeriodStart    time.Time         `json:"period_start"`
-	PeriodEnd      time.Time         `json:"period_end"`
-	IncomeMinor    NormalizedAmount   `json:"income_minor"`
-	ExpenseMinor   NormalizedAmount   `json:"expense_minor"`
-	NetMinor       int64             `json:"net_minor"`
+	BaseCurrency string           `json:"base_currency"`
+	PeriodStart  time.Time        `json:"period_start"`
+	PeriodEnd    time.Time        `json:"period_end"`
+	IncomeMinor  NormalizedAmount `json:"income_minor"`
+	ExpenseMinor NormalizedAmount `json:"expense_minor"`
+	NetMinor     int64            `json:"net_minor"`
 }
 
 // NormalizedAmount carries both the raw total and the base-currency equivalent.

@@ -16,8 +16,8 @@ type FxRate struct {
 
 // FrankfurterResponse is the JSON shape returned by frankfurter.app.
 type FrankfurterResponse struct {
-	Amount  float64            `json:"amount"`
-	Base    string             `json:"base"`
-	Date    string             `json:"date"`
-	Rates   map[string]float64 `json:"rates"`
+	Amount float64            `json:"amount"`
+	Base   string             `json:"base"`
+	Date   string             `json:"date"`
+	Rates  map[string]float64 `json:"rates"`
 }

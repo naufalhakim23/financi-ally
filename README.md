@@ -104,7 +104,7 @@ once, run `make generate-contract`, both sides update.
 - **M3** ✅ pockets UI + offline: WatermelonDB sync (pull/push), add-entry, dashboard, budgets
 - **M4** ✅ multi-currency + FX job + reports (FX from frankfurter.app, server-normalized reports, mobile Reports tab)
 - **M5** ✅ budgets: monthly category targets + budget screen (create/edit/delete UI + dashboard summary)
-- **M6** recurring (RRULE)
+- **M6** ✅ recurring (RRULE): rules + server scheduler (idempotent per occurrence, catches up after downtime), offline sync, Recurring tab
 - **M7** polish: DESIGN.md, charts, onboarding, EAS build
 
 > Synced tables use client-generated text IDs (WatermelonDB-native); `users`

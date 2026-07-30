@@ -31,6 +31,8 @@ export type BudgetWithSpent = S["BudgetWithSpent"];
 export type NetWorth = S["NetWorth"];
 export type CategorySpend = S["CategorySpend"];
 export type CashFlow = S["CashFlow"];
+export type RecurringRule = S["RecurringRule"];
+export type RecurringTemplate = S["RecurringTemplate"];
 export type FxRate = S["FxRate"];
 export type FxRateList = S["FxRateList"];
 export type SyncTableChanges = S["SyncTableChanges"];
@@ -187,6 +189,37 @@ export const authedApi = {
   getCashFlow: (from: string, to: string) =>
     withAuthRetry((tok) =>
       client.GET("/reports/cash-flow", { headers: authHdr(tok), params: { query: { from, to } } }).then(unwrap),
+    ),
+
+  listRecurring: () =>
+    withAuthRetry((tok) =>
+      client.GET("/recurring", { headers: authHdr(tok) }).then(unwrap),
+    ),
+
+  createRecurring: (rrule: string, template: RecurringTemplate, active = true) =>
+    withAuthRetry((tok) =>
+      client.POST("/recurring", { headers: authHdr(tok), body: { rrule, template, active } }).then(unwrap),
+    ),
+
+  updateRecurring: (id: string, rrule: string, template: RecurringTemplate, active: boolean) =>
+    withAuthRetry((tok) =>
+      client.PUT("/recurring/{id}", {
+        headers: authHdr(tok),
+        params: { path: { id } },
+        body: { rrule, template, active },
+      }).then(unwrap),
+    ),
+
+  deleteRecurring: (id: string) =>
+    withAuthRetry((tok) =>
+      client.DELETE("/recurring/{id}", { headers: authHdr(tok), params: { path: { id } } }).then(unwrap),
+    ),
+
+  // Materializes the caller's due rules now instead of waiting for the server's
+  // next sweep — what the "Run due now" action calls.
+  triggerRecurring: () =>
+    withAuthRetry((tok) =>
+      client.POST("/recurring/trigger", { headers: authHdr(tok) }).then(unwrap),
     ),
 
   listFxRates: () =>

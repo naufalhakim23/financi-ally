@@ -22,6 +22,7 @@ import (
 	"github.com/naufalhakim23/financi-ally/backend/internal/fx"
 	"github.com/naufalhakim23/financi-ally/backend/internal/handler"
 	"github.com/naufalhakim23/financi-ally/backend/internal/ledger"
+	"github.com/naufalhakim23/financi-ally/backend/internal/recurring"
 	"github.com/naufalhakim23/financi-ally/backend/internal/reporting"
 	syncpkg "github.com/naufalhakim23/financi-ally/backend/internal/sync"
 )
@@ -74,7 +75,6 @@ func main() {
 	// Budget + sync wiring. Budget validates against the ledger; sync reuses
 	// ledger.Post and budget.Set so pushed records can't bypass validation.
 	budgetSvc := budget.NewService(budget.NewRepo(pool.Pool), ledgerSvc)
-	syncSvc := syncpkg.NewService(syncpkg.NewRepo(pool.Pool), ledgerSvc, budgetSvc)
 
 	// FX wiring: repo → service.
 	fxRepo := fx.NewRepo(pool.Pool)
@@ -84,7 +84,15 @@ func main() {
 	reportRepo := reporting.NewRepo(pool.Pool)
 	reportSvc := reporting.NewService(reportRepo, fxSvc)
 
-	serverImpl := handler.NewServerImpl(pool, svc, ledgerSvc, budgetSvc, syncSvc, fxSvc, reportSvc)
+	// Recurring wiring: repo → service (depends on ledger for posting entries).
+	recRepo := recurring.NewRepo(pool.Pool)
+	recSvc := recurring.NewService(recRepo, ledgerSvc, cfg.Recurring.Location)
+
+	// Sync reuses ledger.Post, budget.Set and the recurring service so pushed
+	// records can't bypass the validation the REST path enforces.
+	syncSvc := syncpkg.NewService(syncpkg.NewRepo(pool.Pool), ledgerSvc, budgetSvc, recSvc)
+
+	serverImpl := handler.NewServerImpl(pool, svc, ledgerSvc, budgetSvc, syncSvc, fxSvc, reportSvc, recSvc)
 
 	// Strict-server error handlers emit our JSON Error shape instead of plain
 	// text, and never leak internal error strings to clients.
@@ -131,18 +139,55 @@ func main() {
 		}
 	}()
 
+	// Recurring scheduler: sweep due rules on an interval and materialize their
+	// entries. Runs in a background goroutine so it doesn't block shutdown.
+	// Posting is idempotent per (rule, occurrence date), so an extra sweep — or
+	// a second replica running its own — can't double-post.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if cfg.Recurring.Enabled {
+		go func() {
+			slog.Info("recurring scheduler started",
+				"interval", cfg.Recurring.Interval, "tz", cfg.Recurring.Location.String())
+			ticker := time.NewTicker(cfg.Recurring.Interval)
+			defer ticker.Stop()
+			// Run once on startup to catch rules due during downtime.
+			materializeDue(ctx, recSvc)
+			for {
+				select {
+				case <-ticker.C:
+					materializeDue(ctx, recSvc)
+				case <-ctx.Done():
+					slog.Info("recurring scheduler stopped")
+					return
+				}
+			}
+		}()
+	}
+
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
+	// Cancel the background context first so the scheduler goroutine stops.
+	cancel()
+
 	slog.Info("shutting down server")
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	if err := srv.Shutdown(ctx); err != nil {
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer shutdownCancel()
+	if err := srv.Shutdown(shutdownCtx); err != nil {
 		slog.Error("server forced to shutdown", "err", err)
 		os.Exit(1)
 	}
 	slog.Info("server exited")
+}
+
+// materializeDue wraps the recurring service's MaterializeDue with logging so
+// the scheduler goroutine in main doesn't need to handle errors inline.
+func materializeDue(ctx context.Context, recSvc *recurring.Service) {
+	if _, err := recSvc.MaterializeDue(ctx); err != nil {
+		slog.Error("recurring materialize", "err", err)
+	}
 }
 
 // writeStrictError writes a JSON Error body for the strict-server fallback

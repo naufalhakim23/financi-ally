@@ -28,8 +28,11 @@ var tableColumns = map[string]string{
 	"accounts": "id, type, currency, name, parent_id, archived",
 	"entries":  "id, txn_date, status, currency, fx_rate, source, memo",
 	// journal_lines pulls join entries (which also has id/currency), so qualify.
-	"journal_lines": "jl.id, jl.entry_id, jl.account_id, jl.dc, jl.amount_minor, jl.currency",
-	"budgets":       "id, account_id, period_month, target_minor, currency",
+	"journal_lines":   "jl.id, jl.entry_id, jl.account_id, jl.dc, jl.amount_minor, jl.currency",
+	"budgets":         "id, account_id, period_month, target_minor, currency",
+	// template::text so the JSONB arrives as a string — WatermelonDB columns are
+	// scalars, so the client stores the template as a JSON string and parses it.
+	"recurring_rules": "id, rrule, template::text AS template, next_run, last_run, active",
 }
 
 // PullCreated returns records created since the watermark (created_at > since).
@@ -76,9 +79,9 @@ func (r *Repo) PullUpdated(ctx context.Context, userID, table string, since, asO
 }
 
 // PullDeleted returns ids soft-deleted since the watermark. journal_lines and
-// posted entries are never deleted, so only accounts/budgets are queried.
+// posted entries are never deleted, so only accounts/budgets/recurring_rules are queried.
 func (r *Repo) PullDeleted(ctx context.Context, userID, table string, since, asOf time.Time) ([]string, error) {
-	if table != "accounts" && table != "budgets" {
+	if table != "accounts" && table != "budgets" && table != "recurring_rules" {
 		return nil, nil
 	}
 	rows, err := r.db.Query(ctx,
@@ -121,9 +124,9 @@ func (r *Repo) UpsertAccount(ctx context.Context, id, userID, typeStr, currency,
 }
 
 // SoftDelete marks a record deleted (deleted_at + updated_at = now) for a synced
-// mutable table. Only accounts/budgets are soft-deletable.
+// mutable table. Only accounts/budgets/recurring_rules are soft-deletable.
 func (r *Repo) SoftDelete(ctx context.Context, table, userID, id string) error {
-	if table != "accounts" && table != "budgets" {
+	if table != "accounts" && table != "budgets" && table != "recurring_rules" {
 		return nil
 	}
 	_, err := r.db.Exec(ctx,

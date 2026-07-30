@@ -34,7 +34,7 @@ const googleUserInfoURL = "https://www.googleapis.com/oauth2/v2/userinfo"
 
 // userInfo is the subset of Google's userinfo response we rely on.
 type userInfo struct {
-	ID            string `json:"id"`             // stable subject identifier → provider_uid
+	ID            string `json:"id"` // stable subject identifier → provider_uid
 	Email         string `json:"email"`
 	EmailVerified bool   `json:"verified_email"` // v2 returns a real bool
 }

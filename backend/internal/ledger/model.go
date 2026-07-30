@@ -100,23 +100,28 @@ type LineInput struct {
 // EntryInput is the validated payload Post turns into a posted entry.
 // FXRate is a decimal string representing the cross-currency rate when lines
 // span multiple currencies; nil for single-currency entries (M2 behavior).
+// RecurringRuleID links the entry to the rule that generated it (M6); nil for
+// manually posted entries. It is also the idempotency key: a partial unique
+// index on (recurring_rule_id, txn_date) makes a repeated materialization of
+// the same occurrence fail with ErrDuplicateEntry instead of double-posting.
 type EntryInput struct {
-	ID       string // client id (sync) or empty (REST → server uuid)
-	TxnDate  time.Time
-	Currency string
-	FXRate   *string // cross-currency rate (M4); nil for single-currency
-	Memo     string
-	Source   string
-	Lines    []LineInput
+	ID              string // client id (sync) or empty (REST → server uuid)
+	TxnDate         time.Time
+	Currency        string
+	FXRate          *string // cross-currency rate (M4); nil for single-currency
+	Memo            string
+	Source          string
+	RecurringRuleID *string
+	Lines           []LineInput
 }
 
 // Balance is an account's debit/credit totals and the normal-balance-signed
 // amount (positive = healthy/normal: assets and expenses positive on debit,
 // liabilities/income/equity positive on credit).
 type Balance struct {
-	AccountID    string
-	Currency     string
-	DebitMinor   int64
-	CreditMinor  int64
-	SignedMinor  int64
+	AccountID   string
+	Currency    string
+	DebitMinor  int64
+	CreditMinor int64
+	SignedMinor int64
 }

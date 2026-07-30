@@ -415,6 +415,67 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/recurring": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the user's recurring transaction rules */
+        get: operations["listRecurring"];
+        put?: never;
+        /** Create a recurring transaction rule */
+        post: operations["createRecurring"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/recurring/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get one recurring rule */
+        get: operations["getRecurring"];
+        /** Update a recurring rule */
+        put: operations["updateRecurring"];
+        post?: never;
+        /** Delete a recurring rule (idempotent) */
+        delete: operations["deleteRecurring"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/recurring/trigger": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Manually trigger materialization of due recurring rules
+         * @description Evaluates the authenticated user's active recurring rules and posts
+         *     entries for any that are due (next_run ≤ today), including occurrences
+         *     missed while the scheduler was down. Posting is idempotent per
+         *     (rule, occurrence date), so repeat calls never double-post. Returns the
+         *     count of entries actually created.
+         */
+        post: operations["triggerRecurring"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -751,6 +812,70 @@ export interface components {
             expense_minor: components["schemas"]["NormalizedAmount"];
             /** Format: int64 */
             net_minor: number;
+        };
+        RecurringRule: {
+            id: string;
+            user_id: string;
+            /**
+             * @description iCalendar RRULE string (e.g. "FREQ=MONTHLY;BYMONTHDAY=1")
+             * @example FREQ=MONTHLY;BYMONTHDAY=1
+             */
+            rrule: string;
+            template: components["schemas"]["RecurringTemplate"];
+            /**
+             * Format: date
+             * @description next scheduled occurrence date
+             */
+            next_run?: string | null;
+            /**
+             * Format: date
+             * @description most recent materialized occurrence date
+             */
+            last_run?: string | null;
+            active: boolean;
+            /** @description why the most recent materialization failed (e.g. the template's account was archived); null once the rule posts successfully again */
+            last_error?: string | null;
+            /** Format: date-time */
+            last_error_at?: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        RecurringTemplate: {
+            /** @example IDR */
+            currency: string;
+            memo?: string;
+            /** @default recurring */
+            source: string;
+            lines: components["schemas"]["RecurringLineTemplate"][];
+        };
+        RecurringLineTemplate: {
+            account_id: string;
+            /** @enum {string} */
+            dc: "debit" | "credit";
+            /** Format: int64 */
+            amount_minor: number;
+            /** @description optional; defaults to the template currency */
+            currency?: string;
+        };
+        NewRecurringRuleRequest: {
+            /** @description optional client id; server generates a uuid when omitted */
+            id?: string;
+            /** @example FREQ=MONTHLY;BYMONTHDAY=1 */
+            rrule: string;
+            template: components["schemas"]["RecurringTemplate"];
+            /** @default true */
+            active: boolean;
+        };
+        UpdateRecurringRuleRequest: {
+            rrule: string;
+            template: components["schemas"]["RecurringTemplate"];
+            active?: boolean;
+        };
+        RecurringTriggerResult: {
+            /** @description number of entries materialized */
+            count: number;
         };
         SyncPushResponse: {
             /** @description per-client-id error message for rejected records (never silently dropped) */
@@ -1685,6 +1810,228 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listRecurring: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description recurring rules */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecurringRule"][];
+                };
+            };
+            /** @description missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createRecurring: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewRecurringRuleRequest"];
+            };
+        };
+        responses: {
+            /** @description rule created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecurringRule"];
+                };
+            };
+            /** @description invalid rrule or template */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getRecurring: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the recurring rule */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecurringRule"];
+                };
+            };
+            /** @description missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description rule not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    updateRecurring: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateRecurringRuleRequest"];
+            };
+        };
+        responses: {
+            /** @description rule updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecurringRule"];
+                };
+            };
+            /** @description invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description rule not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    deleteRecurring: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description rule deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    triggerRecurring: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description materialization complete */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecurringTriggerResult"];
                 };
             };
             /** @description missing or invalid token */

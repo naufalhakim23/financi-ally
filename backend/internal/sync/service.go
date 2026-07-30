@@ -2,6 +2,7 @@ package sync
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/naufalhakim23/financi-ally/backend/internal/budget"
 	"github.com/naufalhakim23/financi-ally/backend/internal/ledger"
 	"github.com/naufalhakim23/financi-ally/backend/internal/pkg/money"
+	"github.com/naufalhakim23/financi-ally/backend/internal/recurring"
 )
 
 // Service orchestrates pull/push against the ledger. Pull is read-only query
@@ -19,18 +21,19 @@ type Service struct {
 	repo *Repo
 	led  *ledger.Service
 	bud  *budget.Service
+	rec  *recurring.Service
 }
 
 // NewService wires the sync service.
-func NewService(repo *Repo, led *ledger.Service, bud *budget.Service) *Service {
-	return &Service{repo: repo, led: led, bud: bud}
+func NewService(repo *Repo, led *ledger.Service, bud *budget.Service, rec *recurring.Service) *Service {
+	return &Service{repo: repo, led: led, bud: bud, rec: rec}
 }
 
 // Pull returns all changes since the client's watermark (ms epoch). The
 // watermark 0 means "everything" (first sync).
 func (s *Service) Pull(ctx context.Context, userID string, lastPulledAtMs int64) (PullResponse, error) {
-	asOf := time.Now()                                  // snapshot bound so the next pull isn't racy
-	since := time.UnixMilli(lastPulledAtMs)             // zero-time if 0 → matches all "created > since"
+	asOf := time.Now()                      // snapshot bound so the next pull isn't racy
+	since := time.UnixMilli(lastPulledAtMs) // zero-time if 0 → matches all "created > since"
 	changes := ChangeSet{}
 	for _, table := range syncedTables {
 		created, err := s.repo.PullCreated(ctx, userID, table, since, asOf)
@@ -84,6 +87,22 @@ func (s *Service) Push(ctx context.Context, userID string, req PushRequest) (Pus
 		}
 		for _, id := range tc.Deleted {
 			if err := s.repo.SoftDelete(ctx, "budgets", userID, id); err != nil {
+				errs[id] = err.Error()
+			}
+		}
+	}
+
+	// recurring_rules — the client can define a rule offline; the server owns
+	// scheduling, so pushing a rule only stores the definition.
+	if tc, ok := changes["recurring_rules"]; ok {
+		for _, rec := range append(tc.Created, tc.Updated...) {
+			id := strID(rec, "id")
+			if err := s.pushRecurring(ctx, userID, id, rec); err != nil {
+				errs[id] = err.Error()
+			}
+		}
+		for _, id := range tc.Deleted {
+			if err := s.rec.Delete(ctx, userID, id); err != nil {
 				errs[id] = err.Error()
 			}
 		}
@@ -150,6 +169,32 @@ func (s *Service) pushBudget(ctx context.Context, userID, id string, rec map[str
 		return err
 	}
 	return nil
+}
+
+// pushRecurring stores one offline-authored recurring rule through the
+// recurring service, so the same rrule/template/account validation applies as on
+// the REST path. Create-vs-update is decided by what the server already has:
+// WatermelonDB replays a record as "created" after a failed push, and the client
+// can also edit a rule the server already knows.
+func (s *Service) pushRecurring(ctx context.Context, userID, id string, rec map[string]any) error {
+	if id == "" {
+		return fmt.Errorf("missing id")
+	}
+	tmpl, err := recurring.UnmarshalTemplate([]byte(strOr(rec, "template")))
+	if err != nil {
+		return fmt.Errorf("invalid template: %w", err)
+	}
+	rrule := strOr(rec, "rrule")
+	active := toBoolOr(rec["active"], true)
+
+	if _, err := s.rec.Get(ctx, userID, id); err == nil {
+		_, err = s.rec.Update(ctx, userID, id, rrule, tmpl, active)
+		return err
+	} else if !errors.Is(err, recurring.ErrRuleNotFound) {
+		return err
+	}
+	_, err = s.rec.Create(ctx, userID, id, rrule, tmpl, active)
+	return err
 }
 
 // pushEntry assembles an entry + its lines and Posts through the ledger, so the
@@ -228,6 +273,19 @@ func toInt64(v any) (int64, bool) {
 		return n, true
 	default:
 		return 0, false
+	}
+}
+
+// toBoolOr reads a WMB boolean field, which arrives as a JSON bool but may be
+// 0/1 from a SQLite-backed client.
+func toBoolOr(v any, def bool) bool {
+	switch b := v.(type) {
+	case bool:
+		return b
+	case float64:
+		return b != 0
+	default:
+		return def
 	}
 }
 

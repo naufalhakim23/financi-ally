@@ -42,7 +42,7 @@ func TestToMinor(t *testing.T) {
 		{"USD", "50", 5000},   // implied decimals
 		{"USD", "50.5", 5050}, // pad to 2
 		{"USD", "0.99", 99},
-		{"USD", ".5", 50},     // bare fraction
+		{"USD", ".5", 50}, // bare fraction
 		{"USD", "0", 0},
 		{"KWD", "1.234", 1234}, // scale 3
 		{"JPY", "5000", 5000},
@@ -61,13 +61,13 @@ func TestToMinor(t *testing.T) {
 
 func TestToMinorErrors(t *testing.T) {
 	bad := []struct{ cur, amt string }{
-		{"USD", ""},          // empty
-		{"USD", "-5"},        // negative
-		{"USD", "50.001"},    // too many decimals
-		{"IDR", "50000.00"},  // IDR scale 0, fractional rejected
-		{"USD", "5.0.0"},     // multiple dots
-		{"USD", "abc"},       // non-numeric
-		{"USD", "5a"},        // non-numeric
+		{"USD", ""},         // empty
+		{"USD", "-5"},       // negative
+		{"USD", "50.001"},   // too many decimals
+		{"IDR", "50000.00"}, // IDR scale 0, fractional rejected
+		{"USD", "5.0.0"},    // multiple dots
+		{"USD", "abc"},      // non-numeric
+		{"USD", "5a"},       // non-numeric
 	}
 	for _, c := range bad {
 		if _, err := ToMinor(c.cur, c.amt); err == nil {
@@ -105,12 +105,12 @@ func TestConvert(t *testing.T) {
 		rate     string
 		want     int64
 	}{
-		{50000, "IDR", "IDR", "1", 50000},            // same currency, rate 1
-		{10000, "USD", "IDR", "15000", 150000000},     // 1 USD = 15000 IDR
+		{50000, "IDR", "IDR", "1", 50000},              // same currency, rate 1
+		{10000, "USD", "IDR", "15000", 150000000},      // 1 USD = 15000 IDR
 		{150000000, "IDR", "USD", "0.00006667", 10001}, // ~150jt IDR → $100.01 USD (rounded up)
-		{0, "USD", "IDR", "15000", 0},                 // zero amount
-		{500, "USD", "EUR", "0.92", 460},              // 500 USD cents = 460 EUR cents
-		{3334, "USD", "IDR", "15000", 50010000},       // $33.34 → IDR at 15000
+		{0, "USD", "IDR", "15000", 0},                  // zero amount
+		{500, "USD", "EUR", "0.92", 460},               // 500 USD cents = 460 EUR cents
+		{3334, "USD", "IDR", "15000", 50010000},        // $33.34 → IDR at 15000
 	}
 	for _, c := range cases {
 		got, err := Convert(c.minor, c.from, c.to, c.rate)
@@ -125,7 +125,10 @@ func TestConvert(t *testing.T) {
 }
 
 func TestConvertRejects(t *testing.T) {
-	bad := []struct{ minor int64; from, to, rate string }{
+	bad := []struct {
+		minor          int64
+		from, to, rate string
+	}{
 		{100, "US1", "IDR", "15000"}, // invalid from currency
 		{100, "USD", "INVALID", "1"}, // invalid to currency
 		{100, "USD", "IDR", "0"},     // non-positive rate

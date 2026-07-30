@@ -164,6 +164,24 @@ func (e NewEntryRequestSource) Valid() bool {
 	}
 }
 
+// Defines values for RecurringLineTemplateDc.
+const (
+	RecurringLineTemplateDcCredit RecurringLineTemplateDc = "credit"
+	RecurringLineTemplateDcDebit  RecurringLineTemplateDc = "debit"
+)
+
+// Valid indicates whether the value is a known member of the RecurringLineTemplateDc enum.
+func (e RecurringLineTemplateDc) Valid() bool {
+	switch e {
+	case RecurringLineTemplateDcCredit:
+		return true
+	case RecurringLineTemplateDcDebit:
+		return true
+	default:
+		return false
+	}
+}
+
 // Account defines model for Account.
 type Account struct {
 	Archived  bool      `json:"archived"`
@@ -464,6 +482,18 @@ type NewEntryRequest struct {
 // NewEntryRequestSource defines model for NewEntryRequest.Source.
 type NewEntryRequestSource string
 
+// NewRecurringRuleRequest defines model for NewRecurringRuleRequest.
+type NewRecurringRuleRequest struct {
+	Active *bool `json:"active,omitempty"`
+
+	// Id optional client id; server generates a uuid when omitted
+	Id *string `json:"id,omitempty"`
+
+	// Rrule Example: FREQ=MONTHLY;BYMONTHDAY=1
+	Rrule    string            `json:"rrule"`
+	Template RecurringTemplate `json:"template"`
+}
+
 // NormalizedAmount defines model for NormalizedAmount.
 type NormalizedAmount struct {
 	// BaseMinor total normalized to base currency
@@ -474,6 +504,59 @@ type NormalizedAmount struct {
 
 	// RawMinor total in the original currencies
 	RawMinor int64 `json:"raw_minor"`
+}
+
+// RecurringLineTemplate defines model for RecurringLineTemplate.
+type RecurringLineTemplate struct {
+	AccountId   string `json:"account_id"`
+	AmountMinor int64  `json:"amount_minor"`
+
+	// Currency optional; defaults to the template currency
+	Currency *string                 `json:"currency,omitempty"`
+	Dc       RecurringLineTemplateDc `json:"dc"`
+}
+
+// RecurringLineTemplateDc defines model for RecurringLineTemplate.Dc.
+type RecurringLineTemplateDc string
+
+// RecurringRule defines model for RecurringRule.
+type RecurringRule struct {
+	Active    bool      `json:"active"`
+	CreatedAt time.Time `json:"created_at"`
+	Id        string    `json:"id"`
+
+	// LastError why the most recent materialization failed (e.g. the template's account was archived); null once the rule posts successfully again
+	LastError   *string    `json:"last_error,omitempty"`
+	LastErrorAt *time.Time `json:"last_error_at,omitempty"`
+
+	// LastRun most recent materialized occurrence date
+	LastRun *openapi_types.Date `json:"last_run,omitempty"`
+
+	// NextRun next scheduled occurrence date
+	NextRun *openapi_types.Date `json:"next_run,omitempty"`
+
+	// Rrule iCalendar RRULE string (e.g. "FREQ=MONTHLY;BYMONTHDAY=1")
+	//
+	// Example: FREQ=MONTHLY;BYMONTHDAY=1
+	Rrule     string            `json:"rrule"`
+	Template  RecurringTemplate `json:"template"`
+	UpdatedAt time.Time         `json:"updated_at"`
+	UserId    string            `json:"user_id"`
+}
+
+// RecurringTemplate defines model for RecurringTemplate.
+type RecurringTemplate struct {
+	// Currency Example: IDR
+	Currency string                  `json:"currency"`
+	Lines    []RecurringLineTemplate `json:"lines"`
+	Memo     *string                 `json:"memo,omitempty"`
+	Source   *string                 `json:"source,omitempty"`
+}
+
+// RecurringTriggerResult defines model for RecurringTriggerResult.
+type RecurringTriggerResult struct {
+	// Count number of entries materialized
+	Count int `json:"count"`
 }
 
 // RefreshRequest defines model for RefreshRequest.
@@ -523,6 +606,13 @@ type SyncTableChanges struct {
 	Created *[]map[string]interface{} `json:"created,omitempty"`
 	Deleted *[]string                 `json:"deleted,omitempty"`
 	Updated *[]map[string]interface{} `json:"updated,omitempty"`
+}
+
+// UpdateRecurringRuleRequest defines model for UpdateRecurringRuleRequest.
+type UpdateRecurringRuleRequest struct {
+	Active   *bool             `json:"active,omitempty"`
+	Rrule    string            `json:"rrule"`
+	Template RecurringTemplate `json:"template"`
 }
 
 // User defines model for User.
@@ -608,6 +698,12 @@ type UpdateBudgetJSONRequestBody UpdateBudgetJSONBody
 // PostEntryJSONRequestBody defines body for PostEntry for application/json ContentType.
 type PostEntryJSONRequestBody = NewEntryRequest
 
+// CreateRecurringJSONRequestBody defines body for CreateRecurring for application/json ContentType.
+type CreateRecurringJSONRequestBody = NewRecurringRuleRequest
+
+// UpdateRecurringJSONRequestBody defines body for UpdateRecurring for application/json ContentType.
+type UpdateRecurringJSONRequestBody = UpdateRecurringRuleRequest
+
 // SyncPushJSONRequestBody defines body for SyncPush for application/json ContentType.
 type SyncPushJSONRequestBody = SyncPushRequest
 
@@ -673,6 +769,24 @@ type ServerInterface interface {
 	// GetHealthz Liveness + DB connectivity
 	// (GET /healthz)
 	GetHealthz(w http.ResponseWriter, r *http.Request)
+	// ListRecurring List the user's recurring transaction rules
+	// (GET /recurring)
+	ListRecurring(w http.ResponseWriter, r *http.Request)
+	// CreateRecurring Create a recurring transaction rule
+	// (POST /recurring)
+	CreateRecurring(w http.ResponseWriter, r *http.Request)
+	// TriggerRecurring Manually trigger materialization of due recurring rules
+	// (POST /recurring/trigger)
+	TriggerRecurring(w http.ResponseWriter, r *http.Request)
+	// DeleteRecurring Delete a recurring rule (idempotent)
+	// (DELETE /recurring/{id})
+	DeleteRecurring(w http.ResponseWriter, r *http.Request, id string)
+	// GetRecurring Get one recurring rule
+	// (GET /recurring/{id})
+	GetRecurring(w http.ResponseWriter, r *http.Request, id string)
+	// UpdateRecurring Update a recurring rule
+	// (PUT /recurring/{id})
+	UpdateRecurring(w http.ResponseWriter, r *http.Request, id string)
 	// GetCashFlow Income vs expense for a period, in base currency
 	// (GET /reports/cash-flow)
 	GetCashFlow(w http.ResponseWriter, r *http.Request, params GetCashFlowParams)
@@ -811,6 +925,42 @@ func (_ Unimplemented) GetFxRate(w http.ResponseWriter, r *http.Request, base st
 // GetHealthz Liveness + DB connectivity
 // (GET /healthz)
 func (_ Unimplemented) GetHealthz(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListRecurring List the user's recurring transaction rules
+// (GET /recurring)
+func (_ Unimplemented) ListRecurring(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// CreateRecurring Create a recurring transaction rule
+// (POST /recurring)
+func (_ Unimplemented) CreateRecurring(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// TriggerRecurring Manually trigger materialization of due recurring rules
+// (POST /recurring/trigger)
+func (_ Unimplemented) TriggerRecurring(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// DeleteRecurring Delete a recurring rule (idempotent)
+// (DELETE /recurring/{id})
+func (_ Unimplemented) DeleteRecurring(w http.ResponseWriter, r *http.Request, id string) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetRecurring Get one recurring rule
+// (GET /recurring/{id})
+func (_ Unimplemented) GetRecurring(w http.ResponseWriter, r *http.Request, id string) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// UpdateRecurring Update a recurring rule
+// (PUT /recurring/{id})
+func (_ Unimplemented) UpdateRecurring(w http.ResponseWriter, r *http.Request, id string) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1288,6 +1438,126 @@ func (siw *ServerInterfaceWrapper) GetHealthz(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// ListRecurring operation middleware
+func (siw *ServerInterfaceWrapper) ListRecurring(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListRecurring(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateRecurring operation middleware
+func (siw *ServerInterfaceWrapper) CreateRecurring(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateRecurring(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// TriggerRecurring operation middleware
+func (siw *ServerInterfaceWrapper) TriggerRecurring(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TriggerRecurring(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteRecurring operation middleware
+func (siw *ServerInterfaceWrapper) DeleteRecurring(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteRecurring(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetRecurring operation middleware
+func (siw *ServerInterfaceWrapper) GetRecurring(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetRecurring(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateRecurring operation middleware
+func (siw *ServerInterfaceWrapper) UpdateRecurring(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateRecurring(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetCashFlow operation middleware
 func (siw *ServerInterfaceWrapper) GetCashFlow(w http.ResponseWriter, r *http.Request) {
 
@@ -1628,6 +1898,24 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/reports/cash-flow", wrapper.GetCashFlow)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/recurring", wrapper.ListRecurring)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/recurring", wrapper.CreateRecurring)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/recurring/{id}", wrapper.DeleteRecurring)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/recurring/{id}", wrapper.GetRecurring)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/recurring/{id}", wrapper.UpdateRecurring)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/recurring/trigger", wrapper.TriggerRecurring)
 	})
 
 	return r
@@ -2522,6 +2810,271 @@ func (response GetHealthz503JSONResponse) VisitGetHealthzResponse(w http.Respons
 	return err
 }
 
+type ListRecurringRequestObject struct {
+}
+
+type ListRecurringResponseObject interface {
+	VisitListRecurringResponse(w http.ResponseWriter) error
+}
+
+type ListRecurring200JSONResponse []RecurringRule
+
+func (response ListRecurring200JSONResponse) VisitListRecurringResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListRecurring401JSONResponse Error
+
+func (response ListRecurring401JSONResponse) VisitListRecurringResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateRecurringRequestObject struct {
+	Body *CreateRecurringJSONRequestBody
+}
+
+type CreateRecurringResponseObject interface {
+	VisitCreateRecurringResponse(w http.ResponseWriter) error
+}
+
+type CreateRecurring201JSONResponse RecurringRule
+
+func (response CreateRecurring201JSONResponse) VisitCreateRecurringResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateRecurring400JSONResponse Error
+
+func (response CreateRecurring400JSONResponse) VisitCreateRecurringResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateRecurring401JSONResponse Error
+
+func (response CreateRecurring401JSONResponse) VisitCreateRecurringResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TriggerRecurringRequestObject struct {
+}
+
+type TriggerRecurringResponseObject interface {
+	VisitTriggerRecurringResponse(w http.ResponseWriter) error
+}
+
+type TriggerRecurring200JSONResponse RecurringTriggerResult
+
+func (response TriggerRecurring200JSONResponse) VisitTriggerRecurringResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TriggerRecurring401JSONResponse Error
+
+func (response TriggerRecurring401JSONResponse) VisitTriggerRecurringResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteRecurringRequestObject struct {
+	Id string `json:"id"`
+}
+
+type DeleteRecurringResponseObject interface {
+	VisitDeleteRecurringResponse(w http.ResponseWriter) error
+}
+
+type DeleteRecurring204Response struct {
+}
+
+func (response DeleteRecurring204Response) VisitDeleteRecurringResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteRecurring401JSONResponse Error
+
+func (response DeleteRecurring401JSONResponse) VisitDeleteRecurringResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetRecurringRequestObject struct {
+	Id string `json:"id"`
+}
+
+type GetRecurringResponseObject interface {
+	VisitGetRecurringResponse(w http.ResponseWriter) error
+}
+
+type GetRecurring200JSONResponse RecurringRule
+
+func (response GetRecurring200JSONResponse) VisitGetRecurringResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetRecurring401JSONResponse Error
+
+func (response GetRecurring401JSONResponse) VisitGetRecurringResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetRecurring404JSONResponse Error
+
+func (response GetRecurring404JSONResponse) VisitGetRecurringResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateRecurringRequestObject struct {
+	Id   string `json:"id"`
+	Body *UpdateRecurringJSONRequestBody
+}
+
+type UpdateRecurringResponseObject interface {
+	VisitUpdateRecurringResponse(w http.ResponseWriter) error
+}
+
+type UpdateRecurring200JSONResponse RecurringRule
+
+func (response UpdateRecurring200JSONResponse) VisitUpdateRecurringResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateRecurring400JSONResponse Error
+
+func (response UpdateRecurring400JSONResponse) VisitUpdateRecurringResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateRecurring401JSONResponse Error
+
+func (response UpdateRecurring401JSONResponse) VisitUpdateRecurringResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateRecurring404JSONResponse Error
+
+func (response UpdateRecurring404JSONResponse) VisitUpdateRecurringResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetCashFlowRequestObject struct {
 	Params GetCashFlowParams
 }
@@ -2791,6 +3344,24 @@ type StrictServerInterface interface {
 	// GetHealthz Liveness + DB connectivity
 	// (GET /healthz)
 	GetHealthz(ctx context.Context, request GetHealthzRequestObject) (GetHealthzResponseObject, error)
+	// ListRecurring List the user's recurring transaction rules
+	// (GET /recurring)
+	ListRecurring(ctx context.Context, request ListRecurringRequestObject) (ListRecurringResponseObject, error)
+	// CreateRecurring Create a recurring transaction rule
+	// (POST /recurring)
+	CreateRecurring(ctx context.Context, request CreateRecurringRequestObject) (CreateRecurringResponseObject, error)
+	// TriggerRecurring Manually trigger materialization of due recurring rules
+	// (POST /recurring/trigger)
+	TriggerRecurring(ctx context.Context, request TriggerRecurringRequestObject) (TriggerRecurringResponseObject, error)
+	// DeleteRecurring Delete a recurring rule (idempotent)
+	// (DELETE /recurring/{id})
+	DeleteRecurring(ctx context.Context, request DeleteRecurringRequestObject) (DeleteRecurringResponseObject, error)
+	// GetRecurring Get one recurring rule
+	// (GET /recurring/{id})
+	GetRecurring(ctx context.Context, request GetRecurringRequestObject) (GetRecurringResponseObject, error)
+	// UpdateRecurring Update a recurring rule
+	// (PUT /recurring/{id})
+	UpdateRecurring(ctx context.Context, request UpdateRecurringRequestObject) (UpdateRecurringResponseObject, error)
 	// GetCashFlow Income vs expense for a period, in base currency
 	// (GET /reports/cash-flow)
 	GetCashFlow(ctx context.Context, request GetCashFlowRequestObject) (GetCashFlowResponseObject, error)
@@ -3408,6 +3979,170 @@ func (sh *strictHandler) GetHealthz(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// ListRecurring operation middleware
+func (sh *strictHandler) ListRecurring(w http.ResponseWriter, r *http.Request) {
+	var request ListRecurringRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListRecurring(ctx, request.(ListRecurringRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListRecurring")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListRecurringResponseObject); ok {
+		if err := validResponse.VisitListRecurringResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateRecurring operation middleware
+func (sh *strictHandler) CreateRecurring(w http.ResponseWriter, r *http.Request) {
+	var request CreateRecurringRequestObject
+
+	var body CreateRecurringJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateRecurring(ctx, request.(CreateRecurringRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateRecurring")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateRecurringResponseObject); ok {
+		if err := validResponse.VisitCreateRecurringResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// TriggerRecurring operation middleware
+func (sh *strictHandler) TriggerRecurring(w http.ResponseWriter, r *http.Request) {
+	var request TriggerRecurringRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.TriggerRecurring(ctx, request.(TriggerRecurringRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "TriggerRecurring")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(TriggerRecurringResponseObject); ok {
+		if err := validResponse.VisitTriggerRecurringResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteRecurring operation middleware
+func (sh *strictHandler) DeleteRecurring(w http.ResponseWriter, r *http.Request, id string) {
+	var request DeleteRecurringRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteRecurring(ctx, request.(DeleteRecurringRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteRecurring")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteRecurringResponseObject); ok {
+		if err := validResponse.VisitDeleteRecurringResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetRecurring operation middleware
+func (sh *strictHandler) GetRecurring(w http.ResponseWriter, r *http.Request, id string) {
+	var request GetRecurringRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetRecurring(ctx, request.(GetRecurringRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetRecurring")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetRecurringResponseObject); ok {
+		if err := validResponse.VisitGetRecurringResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateRecurring operation middleware
+func (sh *strictHandler) UpdateRecurring(w http.ResponseWriter, r *http.Request, id string) {
+	var request UpdateRecurringRequestObject
+
+	request.Id = id
+
+	var body UpdateRecurringJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateRecurring(ctx, request.(UpdateRecurringRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateRecurring")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateRecurringResponseObject); ok {
+		if err := validResponse.VisitUpdateRecurringResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetCashFlow operation middleware
 func (sh *strictHandler) GetCashFlow(w http.ResponseWriter, r *http.Request, params GetCashFlowParams) {
 	var request GetCashFlowRequestObject
@@ -3546,97 +4281,109 @@ func (sh *strictHandler) SyncPush(w http.ResponseWriter, r *http.Request) {
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
-	"EHyc8tXwh+v31/8OAAD//w==",
+	"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",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

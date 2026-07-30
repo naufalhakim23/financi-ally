@@ -4,7 +4,7 @@ import { appSchema, tableSchema } from "@nozbe/watermelondb";
 // are WatermelonDB-managed and never declared. Timestamps from the server
 // (txn_date, period_month) arrive as ms epoch and are stored as numbers.
 export default appSchema({
-  version: 1,
+  version: 2,
   tables: [
     tableSchema({
       name: "accounts",
@@ -43,6 +43,20 @@ export default appSchema({
         { name: "period_month", type: "number" },
         { name: "target_minor", type: "number" },
         { name: "currency", type: "string" },
+      ],
+    }),
+    // Recurring rules (M6). `template` holds the entry skeleton as a JSON
+    // string — WatermelonDB columns are scalars, and the server sends it as
+    // text for exactly that reason. next_run/last_run are server-owned:
+    // scheduling happens on the server, the client only defines the rule.
+    tableSchema({
+      name: "recurring_rules",
+      columns: [
+        { name: "rrule", type: "string" },
+        { name: "template", type: "string" },
+        { name: "next_run", type: "number", isOptional: true },
+        { name: "last_run", type: "number", isOptional: true },
+        { name: "active", type: "boolean" },
       ],
     }),
   ],

@@ -28,6 +28,11 @@ export type DC = NonNullable<S["JournalLine"]["dc"]>;
 export type Entry = S["Entry"];
 export type AccountBalance = S["AccountBalance"];
 export type BudgetWithSpent = S["BudgetWithSpent"];
+export type NetWorth = S["NetWorth"];
+export type CategorySpend = S["CategorySpend"];
+export type CashFlow = S["CashFlow"];
+export type FxRate = S["FxRate"];
+export type FxRateList = S["FxRateList"];
 export type SyncTableChanges = S["SyncTableChanges"];
 export type SyncChanges = S["SyncChanges"];
 export type SyncRecord = NonNullable<SyncTableChanges["created"]>[number];
@@ -142,6 +147,51 @@ export const authedApi = {
   listBudgets: (period: string) =>
     withAuthRetry((tok) =>
       client.GET("/budgets", { headers: authHdr(tok), params: { query: { period } } }).then(unwrap),
+    ),
+
+  setBudget: (accountId: string, periodMonth: string, targetMinor: number, id?: string) =>
+    withAuthRetry((tok) =>
+      client.POST("/budgets", {
+        headers: authHdr(tok),
+        body: { account_id: accountId, period_month: periodMonth, target_minor: targetMinor, ...(id ? { id } : {}) },
+      }).then(unwrap),
+    ),
+
+  updateBudget: (id: string, targetMinor: number) =>
+    withAuthRetry((tok) =>
+      client.PUT("/budgets/{id}", {
+        headers: authHdr(tok),
+        params: { path: { id } },
+        body: { target_minor: targetMinor },
+      }).then(unwrap),
+    ),
+
+  deleteBudget: (id: string) =>
+    withAuthRetry((tok) =>
+      client.DELETE("/budgets/{id}", {
+        headers: authHdr(tok),
+        params: { path: { id } },
+      }).then(unwrap),
+    ),
+
+  getNetWorth: () =>
+    withAuthRetry((tok) =>
+      client.GET("/reports/net-worth", { headers: authHdr(tok) }).then(unwrap),
+    ),
+
+  getSpending: (from: string, to: string) =>
+    withAuthRetry((tok) =>
+      client.GET("/reports/spending", { headers: authHdr(tok), params: { query: { from, to } } }).then(unwrap),
+    ),
+
+  getCashFlow: (from: string, to: string) =>
+    withAuthRetry((tok) =>
+      client.GET("/reports/cash-flow", { headers: authHdr(tok), params: { query: { from, to } } }).then(unwrap),
+    ),
+
+  listFxRates: () =>
+    withAuthRetry((tok) =>
+      client.GET("/fx/rates", { headers: authHdr(tok) }).then(unwrap),
     ),
 
   syncPull: (lastPulledAt: number) =>

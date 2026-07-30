@@ -415,6 +415,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/reports/monthly": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Income / expense / net per month for the trailing N months
+         * @description Trailing series ending with the current month, oldest first. Each point
+         *     is normalized to the user's base currency. Drives the monthly trend
+         *     chart on the reports screen.
+         */
+        get: operations["getMonthlySeries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/recurring": {
         parameters: {
             query?: never;
@@ -810,6 +832,23 @@ export interface components {
             period_end: string;
             income_minor: components["schemas"]["NormalizedAmount"];
             expense_minor: components["schemas"]["NormalizedAmount"];
+            /** Format: int64 */
+            net_minor: number;
+        };
+        MonthlySeries: {
+            base_currency: string;
+            points: components["schemas"]["MonthlyPoint"][];
+        };
+        MonthlyPoint: {
+            /**
+             * Format: date
+             * @description first day of the month
+             */
+            month: string;
+            /** Format: int64 */
+            income_minor: number;
+            /** Format: int64 */
+            expense_minor: number;
             /** Format: int64 */
             net_minor: number;
         };
@@ -1804,6 +1843,46 @@ export interface operations {
                 };
             };
             /** @description invalid date range */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getMonthlySeries: {
+        parameters: {
+            query?: {
+                months?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description monthly series */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MonthlySeries"];
+                };
+            };
+            /** @description invalid months value */
             400: {
                 headers: {
                     [name: string]: unknown;

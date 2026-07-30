@@ -816,6 +816,45 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /reports/monthly:
+    get:
+      operationId: getMonthlySeries
+      tags: [reports]
+      summary: Income / expense / net per month for the trailing N months
+      description: |
+        Trailing series ending with the current month, oldest first. Each point
+        is normalized to the user's base currency. Drives the monthly trend
+        chart on the reports screen.
+      parameters:
+        - name: months
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 24
+            default: 6
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: monthly series
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MonthlySeries'
+        '400':
+          description: invalid months value
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /recurring:
     get:
       operationId: listRecurring
@@ -1479,6 +1518,33 @@ components:
           $ref: '#/components/schemas/NormalizedAmount'
         expense_minor:
           $ref: '#/components/schemas/NormalizedAmount'
+        net_minor:
+          type: integer
+          format: int64
+    MonthlySeries:
+      type: object
+      required: [base_currency, points]
+      properties:
+        base_currency:
+          type: string
+        points:
+          type: array
+          items:
+            $ref: '#/components/schemas/MonthlyPoint'
+    MonthlyPoint:
+      type: object
+      required: [month, income_minor, expense_minor, net_minor]
+      properties:
+        month:
+          type: string
+          format: date
+          description: first day of the month
+        income_minor:
+          type: integer
+          format: int64
+        expense_minor:
+          type: integer
+          format: int64
         net_minor:
           type: integer
           format: int64

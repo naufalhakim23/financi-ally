@@ -12,6 +12,7 @@ import (
 	"github.com/naufalhakim23/financi-ally/backend/internal/budget"
 	"github.com/naufalhakim23/financi-ally/backend/internal/db"
 	"github.com/naufalhakim23/financi-ally/backend/internal/ledger"
+	"github.com/naufalhakim23/financi-ally/backend/internal/recurring"
 )
 
 // newTestService builds a sync Service against a real Postgres plus a fresh
@@ -30,7 +31,7 @@ func newTestService(t *testing.T) (*Service, string, func()) {
 		t.Fatalf("open pool: %v", err)
 	}
 	if _, err := pool.Exec(context.Background(),
-		`TRUNCATE TABLE oauth_identities, refresh_tokens, journal_lines, entries, accounts, budgets, users RESTART IDENTITY CASCADE`); err != nil {
+		`TRUNCATE TABLE recurring_rules, oauth_identities, refresh_tokens, journal_lines, entries, accounts, budgets, users RESTART IDENTITY CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
 	}
 	authRepo := auth.NewRepo(pool)
@@ -42,7 +43,8 @@ func newTestService(t *testing.T) (*Service, string, func()) {
 	}
 	ledSvc := ledger.NewService(ledger.NewRepo(pool))
 	budSvc := budget.NewService(budget.NewRepo(pool), ledSvc)
-	svc := NewService(NewRepo(pool), ledSvc, budSvc)
+	recSvc := recurring.NewService(recurring.NewRepo(pool), ledSvc, time.UTC)
+	svc := NewService(NewRepo(pool), ledSvc, budSvc, recSvc)
 	return svc, user.User.ID, func() { pool.Close() }
 }
 
@@ -135,5 +137,73 @@ func TestPushUnbalancedReported(t *testing.T) {
 	}
 	if _, ok := resp.Errors["bad-entry"]; !ok {
 		t.Fatalf("expected bad-entry in errors, got %+v", resp.Errors)
+	}
+}
+
+// TestPushPullRecurringRule covers the offline path for M6 rules: a rule
+// authored on-device must land on the server (validated like the REST path) and
+// come back on the next pull with its template as a JSON string, which is the
+// only shape a WatermelonDB column can hold.
+func TestPushPullRecurringRule(t *testing.T) {
+	svc, userID, cleanup := newTestService(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	bcaID := "wmb-bca-003"
+	rentID := "wmb-rent-003"
+	ruleID := "wmb-rule-003"
+	template := `{"currency":"IDR","memo":"Rent","source":"recurring","lines":[` +
+		`{"account_id":"` + rentID + `","dc":"debit","amount_minor":2000000},` +
+		`{"account_id":"` + bcaID + `","dc":"credit","amount_minor":2000000}]}`
+
+	resp, err := svc.Push(ctx, userID, PushRequest{Changes: ChangeSet{
+		"accounts": {Created: []map[string]any{
+			{"id": bcaID, "type": "asset", "currency": "IDR", "name": "BCA3", "archived": false},
+			{"id": rentID, "type": "expense", "currency": "IDR", "name": "Rent3", "archived": false},
+		}},
+		"recurring_rules": {Created: []map[string]any{
+			{"id": ruleID, "rrule": "FREQ=MONTHLY;BYMONTHDAY=1", "template": template, "active": true},
+		}},
+	}})
+	if err != nil {
+		t.Fatalf("push: %v", err)
+	}
+	if len(resp.Errors) > 0 {
+		t.Fatalf("expected no push errors, got %+v", resp.Errors)
+	}
+
+	pull, err := svc.Pull(ctx, userID, 0)
+	if err != nil {
+		t.Fatalf("pull: %v", err)
+	}
+	rules := pull.Changes["recurring_rules"].Created
+	if len(rules) != 1 {
+		t.Fatalf("expected 1 recurring rule in pull, got %d", len(rules))
+	}
+	got := rules[0]
+	if got["id"] != ruleID {
+		t.Fatalf("expected id %s, got %v", ruleID, got["id"])
+	}
+	if _, ok := got["template"].(string); !ok {
+		t.Fatalf("expected template as a JSON string, got %T", got["template"])
+	}
+	if got["next_run"] == nil {
+		t.Fatal("expected next_run to be scheduled")
+	}
+
+	// An unbalanced rule must be reported per-record, never silently dropped.
+	bad := `{"currency":"IDR","lines":[` +
+		`{"account_id":"` + rentID + `","dc":"debit","amount_minor":100},` +
+		`{"account_id":"` + bcaID + `","dc":"credit","amount_minor":90}]}`
+	resp, err = svc.Push(ctx, userID, PushRequest{Changes: ChangeSet{
+		"recurring_rules": {Created: []map[string]any{
+			{"id": "wmb-rule-bad", "rrule": "FREQ=MONTHLY", "template": bad, "active": true},
+		}},
+	}})
+	if err != nil {
+		t.Fatalf("push bad rule: %v", err)
+	}
+	if _, ok := resp.Errors["wmb-rule-bad"]; !ok {
+		t.Fatalf("expected wmb-rule-bad in errors, got %+v", resp.Errors)
 	}
 }

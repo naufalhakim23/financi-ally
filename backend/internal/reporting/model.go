@@ -35,6 +35,15 @@ type CashFlow struct {
 	NetMinor     int64            `json:"net_minor"`
 }
 
+// MonthlyPoint is one month of the trailing income/expense trend, in base
+// currency.
+type MonthlyPoint struct {
+	Month        time.Time `json:"month"`
+	IncomeMinor  int64     `json:"income_minor"`
+	ExpenseMinor int64     `json:"expense_minor"`
+	NetMinor     int64     `json:"net_minor"`
+}
+
 // NormalizedAmount carries both the raw total and the base-currency equivalent.
 type NormalizedAmount struct {
 	RawMinor  int64  `json:"raw_minor"`

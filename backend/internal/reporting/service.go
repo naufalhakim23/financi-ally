@@ -132,6 +132,47 @@ func (s *Service) CashFlow(ctx context.Context, userID, baseCurrency string, sta
 	}, nil
 }
 
+// MonthlySeries returns the trailing `months` calendar months ending with the
+// current one, oldest first, each normalized to base currency.
+//
+// ponytail: this reuses CashFlow per month (2 queries each) instead of one
+// grouped date_trunc rollup. At the 1–24 month ceiling that is at most 48 small
+// indexed queries on a single user's ledger, and it inherits CashFlow's tested
+// FX normalization. Swap in a single grouped query if the reports screen ever
+// gets hot.
+func (s *Service) MonthlySeries(ctx context.Context, userID, baseCurrency string, months int) ([]MonthlyPoint, error) {
+	windows := monthWindows(time.Now(), months)
+	out := make([]MonthlyPoint, 0, len(windows))
+	for _, w := range windows {
+		cf, err := s.CashFlow(ctx, userID, baseCurrency, w.start, w.end)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, MonthlyPoint{
+			Month:        w.start,
+			IncomeMinor:  cf.IncomeMinor.BaseMinor,
+			ExpenseMinor: cf.ExpenseMinor.BaseMinor,
+			NetMinor:     cf.NetMinor,
+		})
+	}
+	return out, nil
+}
+
+type monthWindow struct{ start, end time.Time }
+
+// monthWindows returns `months` half-open [start, end) calendar windows ending
+// with the month containing `now`, oldest first. Boundaries are UTC so a point's
+// label matches txn_date (a DATE) regardless of the server's zone.
+func monthWindows(now time.Time, months int) []monthWindow {
+	current := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+	out := make([]monthWindow, 0, months)
+	for i := months - 1; i >= 0; i-- {
+		start := current.AddDate(0, -i, 0)
+		out = append(out, monthWindow{start: start, end: start.AddDate(0, 1, 0)})
+	}
+	return out
+}
+
 // normalize converts an amount from its source currency to the target currency
 // as of a given date using the FX service.
 func (s *Service) normalize(ctx context.Context, minor int64, from, to string, asOf time.Time) (int64, error) {

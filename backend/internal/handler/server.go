@@ -650,6 +650,42 @@ func (s *ServerImpl) GetCashFlow(ctx context.Context, req api.GetCashFlowRequest
 	}), nil
 }
 
+// GetMonthlySeries returns the trailing income/expense/net trend by month.
+func (s *ServerImpl) GetMonthlySeries(ctx context.Context, req api.GetMonthlySeriesRequestObject) (api.GetMonthlySeriesResponseObject, error) {
+	p, ok := PrincipalFrom(ctx)
+	if !ok {
+		return api.GetMonthlySeries401JSONResponse(api.Error{Code: "unauthenticated", Message: "missing or invalid token"}), nil
+	}
+	user, err := s.svc.Me(ctx, p.UserID)
+	if err != nil {
+		return api.GetMonthlySeries401JSONResponse(api.Error{Code: "unauthenticated", Message: "user not found"}), nil
+	}
+	months := 6
+	if req.Params.Months != nil {
+		months = *req.Params.Months
+	}
+	if months < 1 || months > 24 {
+		return api.GetMonthlySeries400JSONResponse(api.Error{Code: "invalid_input", Message: "months must be between 1 and 24"}), nil
+	}
+	points, err := s.reportSvc.MonthlySeries(ctx, p.UserID, user.BaseCurrency, months)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]api.MonthlyPoint, 0, len(points))
+	for _, pt := range points {
+		out = append(out, api.MonthlyPoint{
+			Month:        openapi_types.Date{Time: pt.Month},
+			IncomeMinor:  pt.IncomeMinor,
+			ExpenseMinor: pt.ExpenseMinor,
+			NetMinor:     pt.NetMinor,
+		})
+	}
+	return api.GetMonthlySeries200JSONResponse(api.MonthlySeries{
+		BaseCurrency: user.BaseCurrency,
+		Points:       out,
+	}), nil
+}
+
 // --- recurring handlers ----------------------------------------------------
 
 // ListRecurring returns the user's recurring transaction rules.

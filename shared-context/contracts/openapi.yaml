@@ -25,6 +25,8 @@ tags:
     description: Exchange rates and multi-currency
   - name: reports
     description: Aggregated financial reports
+  - name: recurring
+    description: RRULE-based recurring transaction rules
 paths:
   /healthz:
     get:
@@ -814,6 +816,181 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /recurring:
+    get:
+      operationId: listRecurring
+      tags: [recurring]
+      summary: List the user's recurring transaction rules
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: recurring rules
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RecurringRule'
+        '401':
+          description: missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      operationId: createRecurring
+      tags: [recurring]
+      summary: Create a recurring transaction rule
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewRecurringRuleRequest'
+      responses:
+        '201':
+          description: rule created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecurringRule'
+        '400':
+          description: invalid rrule or template
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /recurring/{id}:
+    get:
+      operationId: getRecurring
+      tags: [recurring]
+      summary: Get one recurring rule
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: the recurring rule
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecurringRule'
+        '401':
+          description: missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: rule not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      operationId: updateRecurring
+      tags: [recurring]
+      summary: Update a recurring rule
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRecurringRuleRequest'
+      responses:
+        '200':
+          description: rule updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecurringRule'
+        '400':
+          description: invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: rule not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      operationId: deleteRecurring
+      tags: [recurring]
+      summary: Delete a recurring rule (idempotent)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: rule deleted
+        '401':
+          description: missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /recurring/trigger:
+    post:
+      operationId: triggerRecurring
+      tags: [recurring]
+      summary: Manually trigger materialization of due recurring rules
+      description: |
+        Evaluates the authenticated user's active recurring rules and posts
+        entries for any that are due (next_run ≤ today), including occurrences
+        missed while the scheduler was down. Posting is idempotent per
+        (rule, occurrence date), so repeat calls never double-post. Returns the
+        count of entries actually created.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: materialization complete
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecurringTriggerResult'
+        '401':
+          description: missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 components:
   securitySchemes:
     bearerAuth:
@@ -1305,6 +1482,113 @@ components:
         net_minor:
           type: integer
           format: int64
+    RecurringRule:
+      type: object
+      required: [id, user_id, rrule, template, active, created_at, updated_at]
+      properties:
+        id:
+          type: string
+        user_id:
+          type: string
+        rrule:
+          type: string
+          description: iCalendar RRULE string (e.g. "FREQ=MONTHLY;BYMONTHDAY=1")
+          example: "FREQ=MONTHLY;BYMONTHDAY=1"
+        template:
+          $ref: '#/components/schemas/RecurringTemplate'
+        next_run:
+          type: string
+          format: date
+          nullable: true
+          description: next scheduled occurrence date
+        last_run:
+          type: string
+          format: date
+          nullable: true
+          description: most recent materialized occurrence date
+        active:
+          type: boolean
+        last_error:
+          type: string
+          nullable: true
+          description: >
+            why the most recent materialization failed (e.g. the template's
+            account was archived); null once the rule posts successfully again
+        last_error_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    RecurringTemplate:
+      type: object
+      required: [currency, lines]
+      properties:
+        currency:
+          type: string
+          example: IDR
+        memo:
+          type: string
+        source:
+          type: string
+          default: recurring
+        lines:
+          type: array
+          minItems: 2
+          items:
+            $ref: '#/components/schemas/RecurringLineTemplate'
+    RecurringLineTemplate:
+      type: object
+      required: [account_id, dc, amount_minor]
+      properties:
+        account_id:
+          type: string
+        dc:
+          type: string
+          enum: [debit, credit]
+        amount_minor:
+          type: integer
+          format: int64
+          minimum: 1
+        currency:
+          type: string
+          description: optional; defaults to the template currency
+    NewRecurringRuleRequest:
+      type: object
+      required: [rrule, template]
+      properties:
+        id:
+          type: string
+          description: optional client id; server generates a uuid when omitted
+        rrule:
+          type: string
+          example: "FREQ=MONTHLY;BYMONTHDAY=1"
+        template:
+          $ref: '#/components/schemas/RecurringTemplate'
+        active:
+          type: boolean
+          default: true
+    UpdateRecurringRuleRequest:
+      type: object
+      required: [rrule, template]
+      properties:
+        rrule:
+          type: string
+        template:
+          $ref: '#/components/schemas/RecurringTemplate'
+        active:
+          type: boolean
+    RecurringTriggerResult:
+      type: object
+      required: [count]
+      properties:
+        count:
+          type: integer
+          description: number of entries materialized
     SyncPushResponse:
       type: object
       properties:

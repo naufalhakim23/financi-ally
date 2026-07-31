@@ -11,10 +11,10 @@ import {
   Outfit_700Bold,
 } from "@expo-google-fonts/outfit";
 import {
-  JetBrainsMono_400Regular,
-  JetBrainsMono_500Medium,
-  JetBrainsMono_700Bold,
-} from "@expo-google-fonts/jetbrains-mono";
+  IBMPlexMono_400Regular,
+  IBMPlexMono_500Medium,
+  IBMPlexMono_700Bold,
+} from "@expo-google-fonts/ibm-plex-mono";
 
 import { AuthProvider } from "../src/lib/auth";
 
@@ -22,15 +22,17 @@ import { AuthProvider } from "../src/lib/auth";
 const queryClient = new QueryClient();
 
 // Family keys here are the exact strings tailwind.config fontFamily resolves to.
+// The `Mono` keys are deliberately face-agnostic — DESIGN.md picks the numeral
+// face (IBM Plex Mono as of v1.1) and only this map changes when it moves.
 export default function RootLayout() {
   const [loaded] = useFonts({
     Outfit: Outfit_400Regular,
     "Outfit-Medium": Outfit_500Medium,
     "Outfit-SemiBold": Outfit_600SemiBold,
     "Outfit-Bold": Outfit_700Bold,
-    Mono: JetBrainsMono_400Regular,
-    "Mono-Medium": JetBrainsMono_500Medium,
-    "Mono-Bold": JetBrainsMono_700Bold,
+    Mono: IBMPlexMono_400Regular,
+    "Mono-Medium": IBMPlexMono_500Medium,
+    "Mono-Bold": IBMPlexMono_700Bold,
   });
   if (!loaded) return null;
 

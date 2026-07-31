@@ -12,7 +12,7 @@
     "gen": "openapi-typescript ../shared-context/contracts/openapi.yaml -o src/lib/api-types.ts"
   },
   "dependencies": {
-    "@expo-google-fonts/jetbrains-mono": "^0.4.1",
+    "@expo-google-fonts/ibm-plex-mono": "^0.4.1",
     "@expo-google-fonts/outfit": "^0.4.3",
     "@nozbe/watermelondb": "^0.28.0",
     "@tanstack/react-query": "^5.101.3",

@@ -1,0 +1,19 @@
+// Financi-Ally design system — the atomic standard.
+//
+// Layers, lowest first:
+//   tokens   raw values DESIGN.md defines (colors, elevation, chart ramp, glyphs)
+//   core     Button, Card, Amount, IconBox, Badge, Chip, ProgressBar, Fab…
+//   lists    ListRow, EmptyState, Skeleton
+//   forms    Field, AmountField, Select, ChipGroup, SegmentedControl, SwitchRow
+//   overlays Sheet, Dialog
+//   charts   Donut, TrendBars, ChartLegend
+//
+// Screens import from here, never from a layer file directly, so the surface
+// stays one import and the internal split can move without touching screens.
+
+export * from "./tokens";
+export * from "./core";
+export * from "./lists";
+export * from "./forms";
+export * from "./overlays";
+export * from "./charts";

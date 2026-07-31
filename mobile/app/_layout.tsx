@@ -3,6 +3,7 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outfit_400Regular,
@@ -38,6 +39,8 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      {/* Screens draw their own headers, so they read the insets directly. */}
+      <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <StatusBar style="auto" />
@@ -49,6 +52,7 @@ export default function RootLayout() {
           </Stack>
         </AuthProvider>
       </QueryClientProvider>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }

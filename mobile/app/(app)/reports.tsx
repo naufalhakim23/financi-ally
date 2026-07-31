@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 
 import {
@@ -21,6 +22,7 @@ import {
   Skeleton,
   TrendBars,
   seriesColor,
+  ScreenHeader,
 } from "../../src/components/ui";
 
 function monthStart(d = new Date()): string {
@@ -112,7 +114,9 @@ export default function Reports() {
   });
 
   return (
-    <ScrollView
+    <SafeAreaView edges={["top"]} className="flex-1 bg-background">
+      <ScreenHeader title="Reports" backLabel="More" onBack={() => router.back()} />
+      <ScrollView
       className="flex-1 bg-background"
       contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
     >
@@ -240,6 +244,7 @@ export default function Reports() {
           )}
         </>
       )}
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }

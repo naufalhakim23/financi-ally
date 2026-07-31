@@ -1,9 +1,14 @@
 import { useMemo, useState } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from "react-native";
+import { KeyboardAvoidingView, Platform, ScrollView, View } from "react-native";
 import { router } from "expo-router";
 
-import { AmountField, Picker, PrimaryButton } from "../../src/components/forms";
-import { EmptyState } from "../../src/components/ui";
+import {
+  AmountField,
+  Button,
+  ChipGroup,
+  EmptyState,
+  Wallet,
+} from "../../src/components/ui";
 import { useAuth } from "../../src/lib/auth";
 import { database } from "../../src/lib/db";
 import { toMinor } from "../../src/lib/money";
@@ -100,7 +105,7 @@ export default function EntryNew() {
         {empty && (
           <View className="mb-4">
             <EmptyState
-              icon="👛"
+              glyph={Wallet}
               title="Set up a pocket first"
               body="An entry moves money from a pocket into a category — you need one of each."
               actionLabel="Create a pocket"
@@ -109,24 +114,28 @@ export default function EntryNew() {
           </View>
         )}
 
-        <AmountField label="Amount" value={amount} onChange={setAmount} currency={base} />
+        <AmountField
+          label="Amount"
+          value={amount}
+          onChange={setAmount}
+          currency={base}
+          error={err}
+        />
 
-        <Picker
+        <ChipGroup
           label="From pocket (credit)"
           value={fromId}
           options={assets.map((a) => ({ value: a.id, label: a.name }))}
           onSelect={setFromId}
         />
-        <Picker
+        <ChipGroup
           label="To category (debit)"
           value={categoryId}
           options={expenses.map((a) => ({ value: a.id, label: a.name }))}
           onSelect={setCategoryId}
         />
 
-        {err && <Text className="text-error text-sm mb-3">{err}</Text>}
-
-        <PrimaryButton label="Save" onPress={save} busy={busy} />
+        <Button label="Save transaction" onPress={save} busy={busy} />
       </ScrollView>
     </KeyboardAvoidingView>
   );

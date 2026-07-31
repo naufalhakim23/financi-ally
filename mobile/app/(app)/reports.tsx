@@ -11,8 +11,17 @@ import {
 } from "../../src/lib/api";
 import { useAuth } from "../../src/lib/auth";
 import { format } from "../../src/lib/money";
-import { Card, EmptyState, SectionLabel, Skeleton } from "../../src/components/ui";
-import { Donut, TrendBars, seriesColor } from "../../src/components/charts";
+import {
+  BarChart3,
+  Card,
+  ChartLegend,
+  Donut,
+  EmptyState,
+  SectionLabel,
+  Skeleton,
+  TrendBars,
+  seriesColor,
+} from "../../src/components/ui";
 
 function monthStart(d = new Date()): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
@@ -108,18 +117,18 @@ export default function Reports() {
       contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
     >
       {err && (
-        <Card className="mb-4">
-          <Text className="text-error text-sm">{err}</Text>
+        <Card className="mb-card-gap">
+          <Text className="text-error text-body font-sans-medium">{err}</Text>
         </Card>
       )}
 
       {loading ? (
         <>
-          <Card className="mb-4">
+          <Card className="mb-card-gap">
             <Skeleton className="h-3 w-24 mb-3" />
             <Skeleton className="h-7 w-40" />
           </Card>
-          <Card className="mb-4">
+          <Card className="mb-card-gap">
             <Skeleton className="h-3 w-28 mb-3" />
             <Skeleton className="h-20 w-full" />
           </Card>
@@ -130,33 +139,29 @@ export default function Reports() {
         </>
       ) : (
         <>
-          <Card className="mb-4">
+          <Card className="mb-card-gap">
             <SectionLabel>Net worth · {nw?.base_currency ?? base}</SectionLabel>
-            <Text className="text-ink text-[26px] font-mono-bold mt-1 leading-none">
-              {format(nw?.base_currency ?? base, nw?.net_minor ?? 0)}
+            <Text className="text-ink text-amount-lg font-mono-bold mt-1">
+              {nw?.base_currency ?? base}&nbsp;{format(nw?.base_currency ?? base, nw?.net_minor ?? 0)}
             </Text>
             <View className="flex-row mt-3" style={{ gap: 16 }}>
               <View className="flex-1">
-                <Text className="text-faint text-[9px] font-sans-semibold uppercase tracking-widest">
-                  Assets
-                </Text>
-                <Text className="text-success text-[15px] font-mono-bold mt-0.5">
-                  {format(nw?.total_asset.currency ?? base, nw?.total_asset.base_minor ?? 0)}
+                <SectionLabel>Assets</SectionLabel>
+                <Text className="text-success text-amount font-mono-bold mt-1">
+                  {nw?.total_asset.currency ?? base}&nbsp;{format(nw?.total_asset.currency ?? base, nw?.total_asset.base_minor ?? 0)}
                 </Text>
               </View>
               <View className="flex-1">
-                <Text className="text-faint text-[9px] font-sans-semibold uppercase tracking-widest">
-                  Liabilities
-                </Text>
-                <Text className="text-error text-[15px] font-mono-bold mt-0.5">
-                  {format(nw?.total_liability.currency ?? base, nw?.total_liability.base_minor ?? 0)}
+                <SectionLabel>Liabilities</SectionLabel>
+                <Text className="text-error text-amount font-mono-bold mt-1">
+                  {nw?.total_liability.currency ?? base}&nbsp;{format(nw?.total_liability.currency ?? base, nw?.total_liability.base_minor ?? 0)}
                 </Text>
               </View>
             </View>
           </Card>
 
           {trend.length > 0 && (
-            <Card className="mb-4">
+            <Card className="mb-card-gap">
               <SectionLabel>Monthly spend · {series?.base_currency ?? base}</SectionLabel>
               <View className="mt-3">
                 <TrendBars
@@ -168,35 +173,29 @@ export default function Reports() {
           )}
 
           {cf && (
-            <Card className="mb-4">
+            <Card className="mb-card-gap">
               <SectionLabel>Cash flow · {base}</SectionLabel>
               <View className="flex-row mt-2" style={{ gap: 16 }}>
                 <View className="flex-1">
-                  <Text className="text-faint text-[9px] font-sans-semibold uppercase tracking-widest">
-                    Income
-                  </Text>
-                  <Text className="text-success text-[15px] font-mono-bold mt-0.5">
-                    {format(cf.income_minor.currency, cf.income_minor.base_minor)}
+                  <SectionLabel>Income</SectionLabel>
+                  <Text className="text-success text-amount font-mono-bold mt-1">
+                    {cf.income_minor.currency}&nbsp;{format(cf.income_minor.currency, cf.income_minor.base_minor)}
                   </Text>
                 </View>
                 <View className="flex-1">
-                  <Text className="text-faint text-[9px] font-sans-semibold uppercase tracking-widest">
-                    Expenses
-                  </Text>
-                  <Text className="text-error text-[15px] font-mono-bold mt-0.5">
-                    {format(cf.expense_minor.currency, cf.expense_minor.base_minor)}
+                  <SectionLabel>Expenses</SectionLabel>
+                  <Text className="text-error text-amount font-mono-bold mt-1">
+                    {cf.expense_minor.currency}&nbsp;{format(cf.expense_minor.currency, cf.expense_minor.base_minor)}
                   </Text>
                 </View>
                 <View className="flex-1">
-                  <Text className="text-faint text-[9px] font-sans-semibold uppercase tracking-widest">
-                    Net
-                  </Text>
+                  <SectionLabel>Net</SectionLabel>
                   <Text
-                    className={`text-[15px] font-mono-bold mt-0.5 ${
+                    className={`text-amount font-mono-bold mt-1 ${
                       cf.net_minor >= 0 ? "text-success" : "text-error"
                     }`}
                   >
-                    {format(base, cf.net_minor)}
+                    {base}&nbsp;{format(base, cf.net_minor)}
                   </Text>
                 </View>
               </View>
@@ -211,10 +210,8 @@ export default function Reports() {
                   slices={slices}
                   center={
                     <View className="items-center">
-                      <Text className="text-faint text-[9px] font-sans-semibold uppercase tracking-widest">
-                        Total
-                      </Text>
-                      <Text className="text-ink text-[14px] font-mono-bold">
+                      <SectionLabel>Total</SectionLabel>
+                      <Text className="text-ink text-amount font-mono-bold mt-0.5">
                         {format(base, totalSpent)}
                       </Text>
                     </View>
@@ -224,33 +221,16 @@ export default function Reports() {
               {/* Legend doubles as the value table — the ramp's low-contrast
                   slots are only legal alongside visible labels. */}
               <View className="mt-2">
-                {slices.map((s) => {
-                  const pct = totalSpent > 0 ? Math.round((s.value / totalSpent) * 100) : 0;
-                  return (
-                    <View key={s.id} className="flex-row items-center py-2" style={{ gap: 10 }}>
-                      <View
-                        className="w-2.5 h-2.5 rounded-full shrink-0"
-                        style={{ backgroundColor: s.color }}
-                      />
-                      <Text
-                        className="flex-1 text-ink text-[13px] font-sans-medium"
-                        numberOfLines={1}
-                      >
-                        {s.label}
-                      </Text>
-                      <Text className="text-faint text-[11px] font-mono-medium">{pct}%</Text>
-                      <Text className="text-ink text-[12px] font-mono-bold">
-                        {format(base, s.value)}
-                      </Text>
-                    </View>
-                  );
-                })}
+                <ChartLegend
+                  items={slices}
+                  formatValue={(v) => `${base} ${format(base, v)}`}
+                />
               </View>
             </Card>
           ) : (
             !err && (
               <EmptyState
-                icon="📊"
+                glyph={BarChart3}
                 title="Nothing to report yet"
                 body="Log an expense and this month's breakdown shows up here."
                 actionLabel="Add an entry"

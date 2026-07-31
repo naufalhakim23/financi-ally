@@ -2,8 +2,14 @@ import { useMemo, useState } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 
-import { AmountField, Field, PrimaryButton } from "../../src/components/forms";
-import { Card, SectionLabel, SegmentedControl } from "../../src/components/ui";
+import {
+  AmountField,
+  Button,
+  Card,
+  Field,
+  SectionLabel,
+  SegmentedControl,
+} from "../../src/components/ui";
 import { useAuth } from "../../src/lib/auth";
 import { database } from "../../src/lib/db";
 import { isAlpha3, toMinor } from "../../src/lib/money";
@@ -144,9 +150,9 @@ export default function PocketNew() {
         keyboardShouldPersistTaps="handled"
       >
         {onboarding && (
-          <Card className="mb-4">
+          <Card className="mb-card-gap">
             <SectionLabel>Getting started</SectionLabel>
-            <Text className="text-dim text-sm mt-2">
+            <Text className="text-dim text-body font-sans-medium mt-2">
               A pocket is where money sits — a bank account, cash, an e-wallet, or a
               card you owe on. Add your first one and we&apos;ll set up starter
               categories to spend against.
@@ -155,7 +161,7 @@ export default function PocketNew() {
         )}
 
         <View className="mb-4">
-          <Text className="text-sm font-sans-semibold text-dim mb-1">Kind</Text>
+          <Text className="text-label font-sans-semibold text-ink mb-1.5">Kind</Text>
           <SegmentedControl
             options={[
               { value: "asset", label: "I hold this" },
@@ -185,11 +191,10 @@ export default function PocketNew() {
           value={opening}
           onChange={setOpening}
           currency={currency.trim().toUpperCase() || base}
+          error={err}
         />
 
-        {err && <Text className="text-error text-sm mb-3">{err}</Text>}
-
-        <PrimaryButton label="Create pocket" onPress={save} busy={busy} />
+        <Button label="Create pocket" onPress={save} busy={busy} />
       </ScrollView>
     </KeyboardAvoidingView>
   );

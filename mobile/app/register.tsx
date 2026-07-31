@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text } from "react-native";
+import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from "react-native";
 import { router } from "expo-router";
 
-import { Field, PrimaryButton } from "../src/components/forms";
+import { Button, Field } from "../src/components/ui";
 import { useAuth } from "../src/lib/auth";
 import { messageFor } from "../src/lib/errors";
 
@@ -31,14 +31,14 @@ export default function RegisterScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
-      className="flex-1 bg-white"
+      className="flex-1 bg-background"
     >
       <ScrollView
         contentContainerStyle={{ flexGrow: 1, justifyContent: "center", padding: 24 }}
         keyboardShouldPersistTaps="handled"
       >
-        <Text className="text-3xl font-bold text-center mb-1">FinanciAlly</Text>
-        <Text className="text-center text-gray-500 mb-8">Create your account</Text>
+        <Text className="text-display font-sans-bold text-ink text-center mb-1">Financi-Ally</Text>
+        <Text className="text-body font-sans-medium text-dim text-center mb-8">Create your account</Text>
 
         <Field
           label="Email"
@@ -57,15 +57,19 @@ export default function RegisterScreen() {
           autoCap="characters"
         />
 
-        {error && <Text className="text-red-600 text-sm mb-3">{error}</Text>}
+        {error && (
+          <Text className="text-error text-caption font-sans-medium mb-3">{error}</Text>
+        )}
 
-        <PrimaryButton label="Create account" onPress={submit} busy={busy} />
+        <Button label="Create account" onPress={submit} busy={busy} />
 
-        <Pressable onPress={() => router.replace("/login")} className="mt-6 self-center">
-          <Text className="text-gray-600">
-            Already have an account? <Text className="text-blue-600 font-semibold">Sign in</Text>
-          </Text>
-        </Pressable>
+        <View className="mt-6 self-center">
+          <Button
+            label="Already have an account? Sign in"
+            variant="tertiary"
+            onPress={() => router.replace("/login")}
+          />
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );

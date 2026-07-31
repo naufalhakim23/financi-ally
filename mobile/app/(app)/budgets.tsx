@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 
 import { authedApi, type BudgetWithSpent } from "../../src/lib/api";
 import { useAuth } from "../../src/lib/auth";
@@ -7,8 +7,21 @@ import { database } from "../../src/lib/db";
 import { format, toMinor } from "../../src/lib/money";
 import { useObservable } from "../../src/lib/useObserve";
 import { Account } from "../../src/model/models";
-import { AmountField, Picker, PrimaryButton } from "../../src/components/forms";
-import { Card, EmptyState, IconBox, ProgressBar, SectionLabel } from "../../src/components/ui";
+import {
+  AmountField,
+  Button,
+  Card,
+  ChipGroup,
+  Dialog,
+  EmptyState,
+  IconBox,
+  ProgressBar,
+  SectionLabel,
+  Sheet,
+  Target,
+  accountGlyph,
+  categorySlot,
+} from "../../src/components/ui";
 
 function currentMonth(): string {
   const d = new Date();
@@ -38,6 +51,9 @@ export default function Budgets() {
   const [formTarget, setFormTarget] = useState("");
   const [formBusy, setFormBusy] = useState(false);
   const [formErr, setFormErr] = useState<string | null>(null);
+  // Deleting a budget is irreversible from the UI, so it goes through a dialog.
+  const [pendingDelete, setPendingDelete] = useState<BudgetWithSpent | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
   function fetchBudgets() {
     setErr(null);
@@ -56,7 +72,8 @@ export default function Budgets() {
     return () => { cancelled = true; };
   }, [period, user]);
 
-  const nameFor = (id: string) => accounts.find((a) => a.id === id)?.name ?? "—";
+  const accountFor = (id: string) => accounts.find((a) => a.id === id);
+  const nameFor = (id: string) => accountFor(id)?.name ?? "—";
 
   const spentTotal = items.reduce((s, b) => s + b.spent_minor, 0);
   const targetTotal = items.reduce((s, b) => s + b.target_minor, 0);
@@ -92,7 +109,7 @@ export default function Budgets() {
     if (!formTarget) { setFormErr("Enter a budget amount"); return; }
     let minor: number;
     try {
-      const a = expenseAccounts.find((ac) => ac.id === accountId) ?? accounts.find((ac) => ac.id === accountId);
+      const a = expenseAccounts.find((ac) => ac.id === accountId) ?? accountFor(accountId);
       minor = toMinor(a?.currency ?? base, formTarget);
     } catch { setFormErr("Enter a valid amount"); return; }
     if (minor <= 0) { setFormErr("Amount must be greater than zero"); return; }
@@ -113,12 +130,19 @@ export default function Budgets() {
     }
   }
 
-  async function deleteBudget(id: string) {
+  async function confirmDelete() {
+    const b = pendingDelete;
+    if (!b) return;
+    setDeleteBusy(true);
     try {
-      await authedApi.deleteBudget(id);
+      await authedApi.deleteBudget(b.id);
+      setPendingDelete(null);
       fetchBudgets();
     } catch (e) {
       setErr(e instanceof Error ? e.message : "delete failed");
+      setPendingDelete(null);
+    } finally {
+      setDeleteBusy(false);
     }
   }
 
@@ -130,44 +154,44 @@ export default function Budgets() {
         className="flex-1"
         contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
       >
-        <Card className="mb-4">
+        <Card className="mb-card-gap">
           <View className="flex-row items-end justify-between mb-3">
             <View>
               <SectionLabel>Total spent</SectionLabel>
-              <Text className="text-ink text-[26px] font-mono-bold mt-1 leading-none">
-                {format(base, spentTotal)}
+              <Text className="text-ink text-amount-lg font-mono-bold mt-1">
+                {base}&nbsp;{format(base, spentTotal)}
               </Text>
             </View>
             <View className="items-end">
               <SectionLabel>Budget</SectionLabel>
-              <Text className="text-faint text-[20px] font-mono-bold mt-1 leading-none">
-                {format(base, targetTotal)}
+              <Text className="text-faint text-amount font-mono-bold mt-1">
+                {base}&nbsp;{format(base, targetTotal)}
               </Text>
             </View>
           </View>
           <ProgressBar pct={overallPct} />
           <View className="flex-row justify-between mt-2">
             <Text
-              className={`text-[10px] font-mono-bold ${
+              className={`text-amount-sm font-mono-bold ${
                 overallPct >= 100 ? "text-error" : overallPct >= 75 ? "text-warning" : "text-success"
               }`}
             >
               {Math.round(overallPct)}% used
             </Text>
-            <Text className="text-[10px] font-mono text-faint">{period.slice(0, 7)}</Text>
+            <Text className="text-mono-meta font-mono text-faint">{period.slice(0, 7)}</Text>
           </View>
         </Card>
 
         {err && (
-          <Card className="mb-4">
-            <Text className="text-error text-sm">{err}</Text>
+          <Card className="mb-card-gap">
+            <Text className="text-error text-body font-sans-medium">{err}</Text>
           </Card>
         )}
 
         {items.length === 0 && !err && (
-          <View className="mb-4">
+          <View className="mb-card-gap">
             <EmptyState
-              icon="🎯"
+              glyph={Target}
               title="No budgets this month"
               body="Set a monthly target on a category to see spent-vs-target here."
             />
@@ -175,28 +199,30 @@ export default function Budgets() {
         )}
 
         {items.length > 0 && (
-          <Card padded={false} className="mb-4">
+          <Card padded={false} className="mb-card-gap">
             {items.map((b, i) => {
               const pct = b.target_minor > 0 ? (b.spent_minor / b.target_minor) * 100 : 0;
-              const last = i === items.length - 1;
+              const account = accountFor(b.account_id);
               return (
-                <View
-                  key={b.id}
-                  className={`px-4 py-3.5 ${last ? "" : "border-b border-outline-variant"}`}
-                >
-                  <Pressable onPress={() => openEdit(b)}>
-                    <View className="flex-row items-center mb-2" style={{ gap: 10 }}>
-                      <IconBox bg="bg-secondary">💸</IconBox>
-                      <View className="flex-1">
-                        <Text className="text-ink text-[13px] font-sans-semibold">
+                <View key={b.id}>
+                  {i > 0 && <View className="h-px bg-outline-variant ml-4" />}
+                  <View className="px-4 py-3.5">
+                    <View className="flex-row items-center gap-card-gap mb-2">
+                      <IconBox
+                        glyph={accountGlyph(account?.name ?? "", account?.type)}
+                        slot={categorySlot(b.account_id)}
+                      />
+                      <View className="flex-1 min-w-0">
+                        <Text className="text-ink text-body-strong font-sans-semibold" numberOfLines={1}>
                           {nameFor(b.account_id)}
                         </Text>
-                        <Text className="text-faint text-[10px] font-mono">
-                          {format(b.currency, b.spent_minor)} / {format(b.currency, b.target_minor)}
+                        <Text className="text-faint text-mono-meta font-mono">
+                          {b.currency} {format(b.currency, b.spent_minor)} /{" "}
+                          {format(b.currency, b.target_minor)}
                         </Text>
                       </View>
                       <Text
-                        className={`text-[12px] font-mono-bold ${
+                        className={`text-amount-sm font-mono-bold ${
                           pct >= 100 ? "text-error" : pct >= 75 ? "text-warning" : "text-success"
                         }`}
                       >
@@ -204,63 +230,83 @@ export default function Budgets() {
                       </Text>
                     </View>
                     <ProgressBar pct={pct} />
-                  </Pressable>
-                  <Pressable onPress={() => deleteBudget(b.id)} className="mt-1 self-end">
-                    <Text className="text-error text-[9px] font-sans-semibold">DELETE</Text>
-                  </Pressable>
+                    <View className="flex-row justify-end mt-1" style={{ gap: 4 }}>
+                      <Button
+                        label="Edit"
+                        variant="tertiary"
+                        fullWidth={false}
+                        onPress={() => openEdit(b)}
+                      />
+                      <Button
+                        label="Delete"
+                        variant="tertiary"
+                        fullWidth={false}
+                        onPress={() => setPendingDelete(b)}
+                      />
+                    </View>
+                  </View>
                 </View>
               );
             })}
           </Card>
         )}
 
-        <PrimaryButton
-          label={availableExpenses.length > 0 ? "＋ Set budget" : "Edit targets"}
+        <Button
+          label={availableExpenses.length > 0 ? "Set budget" : "Edit targets"}
           onPress={openNew}
-          busy={false}
         />
       </ScrollView>
 
-      <Modal visible={showForm} transparent animationType="slide">
-        <View className="flex-1 justify-end bg-black/40">
-          <View className="bg-background rounded-t-3xl p-6 pb-10" style={{ maxHeight: "80%" }}>
-            <View className="flex-row justify-between items-center mb-4">
-              <Text className="text-ink text-lg font-sans-bold">
-                {editingId ? "Edit budget" : "Set budget"}
+      <Sheet
+        visible={showForm}
+        onClose={closeForm}
+        title={editingId ? "Edit budget" : "Set budget"}
+      >
+        {!editingId && (
+          <ChipGroup
+            label="Category"
+            value={formAccountId}
+            options={availableExpenses.map((a) => ({ value: a.id, label: a.name }))}
+            emptyText="Every category already has a budget"
+            onSelect={setFormAccountId}
+          />
+        )}
+
+        {editingId && (
+          <View className="mb-4">
+            <Text className="text-label font-sans-semibold text-ink mb-1.5">Category</Text>
+            <View className="bg-surface-container rounded-lg px-4 py-3 min-h-touch justify-center">
+              <Text className="text-body font-sans-medium text-ink">
+                {nameFor(formAccountId ?? "")}
               </Text>
-              <Pressable onPress={closeForm}>
-                <Text className="text-faint font-sans-semibold">Cancel</Text>
-              </Pressable>
             </View>
-
-            {!editingId && (
-              <Picker
-                label="Category"
-                value={formAccountId}
-                options={availableExpenses.map((a) => ({ value: a.id, label: a.name }))}
-                onSelect={setFormAccountId}
-              />
-            )}
-
-            {editingId && (
-              <View className="mb-4">
-                <Text className="text-sm font-sans-semibold text-dim mb-1">Category</Text>
-                <View className="bg-surface-container rounded-lg px-4 py-3">
-                  <Text className="text-ink font-sans-medium">
-                    {nameFor(formAccountId ?? "")}
-                  </Text>
-                </View>
-              </View>
-            )}
-
-            <AmountField label="Monthly target" value={formTarget} onChange={setFormTarget} currency={formCurrency} />
-
-            {formErr && <Text className="text-error text-sm mb-3">{formErr}</Text>}
-
-            <PrimaryButton label="Save" onPress={saveBudget} busy={formBusy} />
           </View>
-        </View>
-      </Modal>
+        )}
+
+        <AmountField
+          label="Monthly target"
+          value={formTarget}
+          onChange={setFormTarget}
+          currency={formCurrency}
+          error={formErr}
+        />
+
+        <Button label="Save" onPress={saveBudget} busy={formBusy} />
+      </Sheet>
+
+      <Dialog
+        visible={pendingDelete != null}
+        title="Delete this budget?"
+        body={
+          pendingDelete
+            ? `${nameFor(pendingDelete.account_id)} loses its monthly target. Spending already logged is not affected.`
+            : undefined
+        }
+        confirmLabel="Delete"
+        busy={deleteBusy}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </View>
   );
 }

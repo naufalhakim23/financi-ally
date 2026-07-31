@@ -191,6 +191,10 @@ const AMOUNT_SIZE: Record<AmountSize, string> = {
 
 // Display-only grouping. The shared format() stays wire-pure (no separators),
 // so the thousands separators are added here rather than at the money layer.
+export function formatGrouped(currency: string, minor: number): string {
+  return grouped(currency, minor);
+}
+
 function grouped(currency: string, minor: number): string {
   const raw = format(currency, Math.abs(minor));
   const [intPart, frac = ""] = raw.split(".");

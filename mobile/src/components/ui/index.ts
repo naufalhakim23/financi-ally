@@ -6,7 +6,8 @@
 //   lists    ListRow, EmptyState, Skeleton
 //   forms    Field, AmountField, Select, ChipGroup, SegmentedControl, SwitchRow
 //   overlays Sheet, Dialog
-//   charts   Donut, TrendBars, ChartLegend
+//   charts   Donut, TrendBars, StackedBar, GroupedBars, ChartLegend
+//   nav      TabBar, ScreenHeader, TitleBar, IconButton
 //
 // Screens import from here, never from a layer file directly, so the surface
 // stays one import and the internal split can move without touching screens.
@@ -17,3 +18,4 @@ export * from "./lists";
 export * from "./forms";
 export * from "./overlays";
 export * from "./charts";
+export * from "./nav";

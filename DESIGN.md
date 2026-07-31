@@ -381,16 +381,18 @@ never a call site.
 
 ## Information architecture
 
-Settled in the cross-platform wireframe round (direction 2a). These are **product** decisions, not tokens —
-and none of them are built yet (see Open gaps). The shipped app is still the pre-2a shape: a flat pockets
-list, a Budgets tab, and no Spaces.
+Settled in the cross-platform wireframe round (direction 2a) and built out from the `Financi-Ally 2a - Hi-fi`
+board. These are **product** decisions, not tokens. Everything below is now implemented except Spaces (see
+Open gaps).
 
 - **Buckets replace a flat accounts list.** Money lives in expandable buckets — *Cash and banks*, *Foreign*,
   *Spending*, *Owed* — each carrying one figure and its own `＋`. Hiding a bucket keeps its money in the
   total: hidden means quiet, not excluded. Budgets live inside Buckets; there is no Budget screen.
 - **Spaces are the sharing boundary.** Personal / shared / freelance never mix into one total.
 - **Five tab slots with the centre FAB breaking the top edge**, but the old Budget slot is now **History**:
-  Home · Buckets · **FAB** · History · Settings.
+  Home · History · **FAB** · Buckets · More. (The hi-fi board fixes this order; it supersedes the
+  Buckets-then-History ordering the wireframe round sketched.) Budgets, repeating entries and reports keep
+  working — they moved under **More** rather than being deleted, since direction 2a gives them no slot.
 - **One "safe to spend" figure** on Home stands in for a budget screen.
 - **Net-worth graph is the Home hero**, above the buckets.
 - **Wording mode** — a single switch renames the whole app between plain and ledger vocabulary
@@ -502,9 +504,9 @@ skeleton blocks at the real element's size and radius — never a full-screen sp
 
 ### Bottom tab bar
 `surface`, 1px top `outline`, Lucide glyph + label per tab. Active = `primary`, inactive = `faint`. Labels
-always visible. Canonical slots are Home · Buckets · **FAB** · History · Settings, with a 56px `primary` FAB
-(`+`) breaking the top edge. The shipped bar is still Home · Pockets · Budgets · Recurring · Reports with no
-FAB — see Open gaps.
+always visible. Slots are Home · History · **FAB** · Buckets · More, with a 56px `primary` FAB (`+`)
+breaking the top edge. Built as `TabBar` in `src/components/ui/nav.tsx` — a hand-laid bar rather than
+expo-router's default, since the FAB is not a route.
 
 ### Bottom sheets & dialogs
 Sheet: `surface`, top corners `2xl`, `elevation.float`, 4×36px `outline-strong` grab handle, `scrim` behind.
@@ -574,22 +576,21 @@ respect reduced-motion.
 
 ## Open gaps
 
-The v1.1 information architecture (buckets, Spaces, History, wording mode) is designed but **not built** —
-the shipped app is still the pre-2a shape. Those rows are product work, not drift.
+The v1.1 information architecture landed on 2026-07-31 from the hi-fi board: buckets, History, the centre
+FAB, the wording switch and the seven 2a screens are built. What remains is below.
 
 | Gap | Canon | Current | Priority |
 |---|---|---|---|
-| Buckets replace the flat pockets list | Expandable buckets, each with one figure and its own `＋`; budgets live inside | `pockets.tsx` is a flat asset/liability list; `budgets.tsx` is its own tab | High |
-| History replaces the Budgets tab slot | Home · Buckets · FAB · History · Settings | Home · Pockets · Budgets · Recurring · Reports, no Settings | High |
-| Spaces (personal / shared / freelance) | Sharing boundary; totals never mix | No concept in the model or UI | High |
-| "Safe to spend" on Home; net-worth graph as the hero | One figure + graph above the buckets | Net-worth figure only, no graph | High |
-| `BucketRow`, `RunningBalance`, net-worth sparkline, collapsible year divider | Primitives in the atomic standard | Not built — no atom exists for any of them | High |
-| Wording mode (plain ↔ ledger vocabulary) | One switch renames the whole app | Ledger vocabulary is hardcoded ("credit"/"debit" in entry-new) | Med |
-| Center FAB in the tab bar | 5-slot bar with a 56px `primary` FAB breaking the top edge | `Fab` atom exists and is unused; Add is the Dashboard's Primary button. Needs a custom `tabBar` to replace expo-router's default | Med |
+| Spaces (personal / shared / freelance) | Sharing boundary; totals never mix | No concept in the model or UI; Home and Buckets show a single inert "Personal" chip | High |
+| Wording mode covers every string | One switch renames the whole app | The switch drives the tab bar, screen titles and the `out of / into` labels; body copy elsewhere is still plain-only | Med |
+| Bucket reorder and hide | Press and hold to reorder; hidden means quiet, not excluded | Buckets are derived from account `type` + `currency`, so their order is fixed and none can be hidden | Med |
+| Receipt photos | A receipt photo attaches to an entry | Entry detail shows the placeholder; there is no upload path | Med |
+| Editing an existing entry | Entry detail offers Edit | Detail offers Duplicate + Delete only; the add screen has no edit mode | Med |
+| Foreign bucket totals | Converted at the ledger's rate | Converted client-side from `/fx/rates` for display; the row says `converted at cached rate`, and an unconvertible child collapses the whole total to `rate unavailable` | Med |
+| Export a month | Month detail offers Export | Not built; the action is absent rather than inert | Low |
 | Dark mode wiring | `colors-dark` applied at runtime | Tokens defined here; `tailwind.config.js` carries the light values only, so the app is light-only | Med |
 | Category slot persistence | A category's slot is assigned once and persisted, so its list tint matches its chart slice | `categorySlot()` derives the slot from the account id — stable across sessions without a migration, but it won't match the rank-ordered slice color in Reports | Med |
-| FX drift stated per bucket | `converted at cached rate` on the bucket that carries it | Global sync strip above the tab bar | Med |
-| Destructive actions in a row of three | Never alone under the thumb | `Dialog` puts Cancel + Destructive in a row of two | Low |
+| Destructive actions in a row of three | Never alone under the thumb | Entry detail pairs Duplicate + Delete; `Dialog` pairs Cancel + Destructive | Low |
 | Chart ramp in dark mode | Ramp re-validated against dark `surface` `#171B23` | Validated on `#FFFFFF` only | Low |
 | Motion | Enter/exit/press durations and easings applied | Only `Modal` defaults animate; press feedback is a tone change | Low |
 | Platform-adaptive chrome | — | Unified, iOS-flavored on both | Low |
@@ -601,7 +602,7 @@ the shipped app is still the pre-2a shape. Those rows are product work, not drif
 
 ---
 
-**Last updated**: 2026-07-31 · **Version**: 1.1
+**Last updated**: 2026-07-31 · **Version**: 1.2
 **How AI agents should read this**: tokens above are normative — use them verbatim. Prose is rationale — it
 answers "why" so judgment calls during implementation match the brand's intent. When prose and tokens
 disagree, tokens win.

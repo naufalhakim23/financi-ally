@@ -1,14 +1,14 @@
-import { useState } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from "react-native";
+import { useRef, useState } from "react";
+import { TextInput, View } from "react-native";
 import { router } from "expo-router";
 
-import { Button, Dialog, Field } from "../src/components/ui";
+import { AuthScreen, FormError, OrDivider } from "../src/components/auth-screen";
+import { useGuestMerge } from "../src/components/guest-merge";
+import { Button, Field } from "../src/components/ui";
 import { useAuth } from "../src/lib/auth";
-import { database } from "../src/lib/db";
 import { messageFor } from "../src/lib/errors";
 import { isGuest } from "../src/lib/guestStore";
-import { markLedgerStale } from "../src/lib/ledgerStore";
-import { syncDatabase } from "../src/lib/sync";
+import { emailError } from "../src/lib/validate";
 
 export default function LoginScreen() {
   const { login, googleSignin, googleEnabled } = useAuth();
@@ -16,48 +16,22 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // >0 means a guest with local entries just signed into an existing account,
-  // and we're holding on the merge question before leaving this screen.
-  const [guestEntries, setGuestEntries] = useState(0);
+  // Field errors appear only after a submit attempt: flagging an address as
+  // malformed while it is still being typed is noise, not help.
+  const [showFieldErrors, setShowFieldErrors] = useState(false);
+  const passwordRef = useRef<TextInput>(null);
+  const { afterSignIn, dialog } = useGuestMerge(email.trim());
 
-  /**
-   * Runs after a session is established. A guest who signed in has entries on
-   * this device that belong to nobody yet; pushing them into an account that
-   * already has its own is a decision only the user can make, so ask before
-   * anything reaches the server.
-   */
-  async function afterSignIn(wasGuest: boolean) {
-    if (wasGuest) {
-      const n = await database.get("entries").query().fetchCount();
-      if (n > 0) {
-        setGuestEntries(n);
-        return; // the dialog finishes the navigation
-      }
-    }
-    await syncDatabase().catch(() => {});
-    router.replace("/(app)");
-  }
-
-  /** Keep the device's entries: they push into the account on this cycle. */
-  async function keepLocal() {
-    setGuestEntries(0);
-    await syncDatabase().catch(() => {});
-    router.replace("/(app)");
-  }
-
-  /**
-   * Discard them. The stale flag is the existing mechanism for "this local
-   * database belongs to a book we can no longer read" — it wipes before the
-   * pull, which is exactly what starting fresh means here.
-   */
-  async function discardLocal() {
-    markLedgerStale();
-    setGuestEntries(0);
-    await syncDatabase().catch(() => {});
-    router.replace("/(app)");
-  }
+  const emailErr = emailError(email);
+  // Length isn't checked here: an existing account may predate the current
+  // minimum, and telling someone their real password is "too short" at the
+  // sign-in door is a dead end.
+  const passwordErr = password ? null : "Enter your password";
+  const invalid = emailErr ?? passwordErr;
 
   async function submit() {
+    setShowFieldErrors(true);
+    if (invalid) return;
     setError(null);
     setBusy(true);
     const wasGuest = isGuest();
@@ -86,63 +60,71 @@ export default function LoginScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      className="flex-1 bg-background"
-    >
-      <ScrollView
-        contentContainerStyle={{ flexGrow: 1, justifyContent: "center", padding: 24 }}
-        keyboardShouldPersistTaps="handled"
-      >
-        <Text className="text-display font-sans-bold text-ink text-center mb-1">Financi-Ally</Text>
-        <Text className="text-body font-sans-medium text-dim text-center mb-8">Sign in to your account</Text>
-
-        <Field
-          label="Email"
-          value={email}
-          onChange={setEmail}
-          placeholder="you@example.com"
-          keyboardType="email-address"
-          autoCap="none"
-        />
-        <Field label="Password" value={password} onChange={setPassword} placeholder="••••••••" secure />
-
-        {error && (
-          <Text className="text-error text-caption font-sans-medium mb-3">{error}</Text>
-        )}
-
-        <Button label="Sign in" onPress={submit} busy={busy} />
-
-        {googleEnabled && (
-          <>
-            <Text className="text-caption font-sans-medium text-faint text-center my-4">or</Text>
-            <Button
-              label="Continue with Google"
-              onPress={google}
-              variant="secondary"
-              busy={busy}
-            />
-          </>
-        )}
-
-        <View className="mt-6 self-center">
-          <Button
-            label="No account? Register"
-            variant="tertiary"
-            onPress={() => router.replace("/register")}
-          />
-        </View>
-      </ScrollView>
-
-      <Dialog
-        visible={guestEntries > 0}
-        title="Entries on this device"
-        body={`You recorded ${guestEntries} ${guestEntries === 1 ? "entry" : "entries"} without an account. Keep them and they move into ${email.trim() || "your account"}.`}
-        cancelLabel="Keep them"
-        confirmLabel="Start fresh"
-        onCancel={keepLocal}
-        onConfirm={discardLocal}
+    <AuthScreen caption="Sign in to your account" onBack={() => router.replace("/welcome")}>
+      <Field
+        label="Email"
+        value={email}
+        onChange={setEmail}
+        placeholder="you@example.com"
+        keyboardType="email-address"
+        autoCap="none"
+        autoComplete="email"
+        textContentType="emailAddress"
+        returnKeyType="next"
+        onSubmit={() => passwordRef.current?.focus()}
+        error={showFieldErrors ? emailErr : null}
       />
-    </KeyboardAvoidingView>
+      <Field
+        ref={passwordRef}
+        label="Password"
+        value={password}
+        onChange={setPassword}
+        placeholder="Your password"
+        secure
+        autoCap="none"
+        autoComplete="current-password"
+        textContentType="password"
+        returnKeyType="go"
+        onSubmit={submit}
+        error={showFieldErrors ? passwordErr : null}
+      />
+
+      <View className="self-end -mt-2 mb-3">
+        <Button
+          label="Forgot password?"
+          variant="tertiary"
+          onPress={() =>
+            // Carry whatever was typed so the next screen doesn't ask again.
+            router.push({ pathname: "/forgot-password", params: { email: email.trim() } })
+          }
+        />
+      </View>
+
+      <FormError message={error} />
+
+      <Button label="Sign in" onPress={submit} busy={busy} />
+
+      {googleEnabled && (
+        <>
+          <OrDivider />
+          <Button
+            label="Continue with Google"
+            onPress={google}
+            variant="secondary"
+            disabled={busy}
+          />
+        </>
+      )}
+
+      <View className="mt-6 self-center">
+        <Button
+          label="No account? Create one"
+          variant="tertiary"
+          onPress={() => router.replace("/register")}
+        />
+      </View>
+
+      {dialog}
+    </AuthScreen>
   );
 }

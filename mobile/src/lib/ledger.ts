@@ -143,3 +143,32 @@ export function monthLabel(key: string): string {
 export function viewsInMonth(views: EntryView[], key: string): EntryView[] {
   return views.filter((v) => monthKey(new Date(v.entry.txnDate)) === key);
 }
+
+/** RFC 4180: quote every field, double any embedded quote. */
+function csvCell(value: string): string {
+  return `"${value.replace(/"/g, '""')}"`;
+}
+
+/**
+ * A set of entries as CSV, newest-first as given.
+ *
+ * Amounts stay signed and in minor units, in the entry's own currency: a
+ * spreadsheet can scale those, whereas a locale-formatted string it cannot
+ * parse back is worse than useless.
+ */
+export function monthCsv(views: EntryView[]): string {
+  const header = ["date", "description", "out of", "into", "amount_minor", "currency"];
+  const rows = views.map((v) =>
+    [
+      new Date(v.entry.txnDate).toISOString().slice(0, 10),
+      v.entry.memo || v.to?.name || "",
+      v.from?.name ?? "",
+      v.to?.name ?? "",
+      String(signedAmount(v)),
+      v.currency,
+    ]
+      .map(csvCell)
+      .join(","),
+  );
+  return [header.map(csvCell).join(","), ...rows].join("\n");
+}

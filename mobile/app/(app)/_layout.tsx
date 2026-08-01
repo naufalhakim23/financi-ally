@@ -62,6 +62,7 @@ export default function AppLayout() {
           <Stack.Screen name="month/[month]" />
           <Stack.Screen name="entry/[id]" />
           <Stack.Screen name="wording" />
+          <Stack.Screen name="appearance" />
           <Stack.Screen name="budgets" />
           <Stack.Screen name="recurring" />
           <Stack.Screen name="ledgers" />

@@ -7,6 +7,7 @@ import {
   BarChart3,
   Lock,
   LogOut,
+  Palette,
   PieChart,
   RefreshCw,
   Repeat,
@@ -17,6 +18,7 @@ import {
 import { useAuth } from "../../../src/lib/auth";
 import { syncDatabase } from "../../../src/lib/sync";
 import { useSyncState } from "../../../src/lib/syncState";
+import { useThemePreference } from "../../../src/lib/theme";
 import { useWording } from "../../../src/lib/wording";
 import { Badge, BookOpen, Button, Card, ListRow, SectionLabel, TitleBar, Users } from "../../../src/components/ui";
 import { useLedgerState } from "../../../src/lib/ledgerStore";
@@ -26,6 +28,7 @@ import { useLedgerState } from "../../../src/lib/ledgerStore";
 export default function MoreScreen() {
   const { user, guest, logout } = useAuth();
   const { mode } = useWording();
+  const themePref = useThemePreference();
   // null means the personal book; only a household name is worth showing.
   const { active: activeLedger } = useLedgerState();
   const sync = useSyncState();
@@ -81,6 +84,16 @@ export default function MoreScreen() {
             subtitle={mode === "finance" ? "Finance" : "Normal"}
             chevron
             onPress={() => router.push("/(app)/wording")}
+          />
+          <ListRow
+            divider
+            glyph={Palette}
+            title="Appearance"
+            subtitle={
+              themePref === "system" ? "Follows your phone" : themePref === "dark" ? "Dark" : "Light"
+            }
+            chevron
+            onPress={() => router.push("/(app)/appearance")}
           />
           <ListRow
             divider

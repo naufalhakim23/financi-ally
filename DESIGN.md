@@ -72,21 +72,28 @@ colors:
   focus-ring: "#2563EB"
 
   # Status — semantic only, never decorative
+  # base = fills and glyphs; strong = the same hue as *text on a surface*,
+  # darkened so a 12–15px figure still clears AA. In dark, base and strong
+  # converge — the dark hues are already tuned for text.
   success: "#16A34A"
   success-wash: "#ECFDF3"
   success-edge: "#BBF7D0"
+  success-strong: "#15803D"
   on-success: "#FFFFFF"
   warning: "#D97706"
   warning-wash: "#FFFBEB"
   warning-edge: "#FDE68A"
+  warning-strong: "#B45309"
   on-warning: "#FFFFFF"
   error: "#DC2626"
   error-wash: "#FEF2F2"
   error-edge: "#FECACA"
+  error-strong: "#B91C1C"
   on-error: "#FFFFFF"
   info: "#2563EB"
   info-wash: "#EFF6FF"
   info-edge: "#BFDBFE"
+  info-strong: "#1D4ED8"
   on-info: "#FFFFFF"
 
 # Dark mode is defined, not deferred. Same semantic names.
@@ -115,15 +122,19 @@ colors-dark:
   success: "#3DBB6E"
   success-wash: "#12271C"
   success-edge: "#1F4530"
+  success-strong: "#3DBB6E"
   warning: "#E8A33D"
   warning-wash: "#2A1F10"
   warning-edge: "#4A3618"
+  warning-strong: "#E8A33D"
   error: "#F0666B"
   error-wash: "#2A1416"
   error-edge: "#4C1F23"
+  error-strong: "#F0666B"
   info: "#5B9CF8"
   info-wash: "#101E33"
   info-edge: "#1E3A5F"
+  info-strong: "#5B9CF8"
 
 typography:
   # Roles carry size + weight + line-height + tracking.
@@ -577,21 +588,20 @@ respect reduced-motion.
 ## Open gaps
 
 The v1.1 information architecture landed on 2026-07-31 from the hi-fi board: buckets, History, the centre
-FAB, the wording switch and the seven 2a screens are built. What remains is below.
+FAB, the wording switch and the seven 2a screens are built. Dark mode was wired on 2026-08-01, closing the
+eighth hi-fi screen. What remains is below.
 
 | Gap | Canon | Current | Priority |
 |---|---|---|---|
 | Spaces (personal / shared / freelance) | Sharing boundary; totals never mix | No concept in the model or UI; Home and Buckets show a single inert "Personal" chip | High |
 | Wording mode covers every string | One switch renames the whole app | The switch drives the tab bar, screen titles and the `out of / into` labels; body copy elsewhere is still plain-only | Med |
-| Bucket reorder and hide | Press and hold to reorder; hidden means quiet, not excluded | Buckets are derived from account `type` + `currency`, so their order is fixed and none can be hidden | Med |
+| Bucket reorder and hide | Press and hold to reorder; hidden means quiet, not excluded | Buckets are derived from account `type` + `currency`, so their order is fixed and none can be hidden — the hi-fi's "press and hold to reorder" hint is deliberately absent rather than inert | Med |
 | Receipt photos | A receipt photo attaches to an entry | Entry detail shows the placeholder; there is no upload path | Med |
-| Editing an existing entry | Entry detail offers Edit | Detail offers Duplicate + Delete only; the add screen has no edit mode | Med |
+| Editing an existing entry | Entry detail offers Edit | Detail offers Duplicate + Move + Delete; Move re-files the category, but amount, date and note still cannot be changed after posting | Med |
 | Foreign bucket totals | Converted at the ledger's rate | Converted client-side from `/fx/rates` for display; the row says `converted at cached rate`, and an unconvertible child collapses the whole total to `rate unavailable` | Med |
-| Export a month | Month detail offers Export | Not built; the action is absent rather than inert | Low |
-| Dark mode wiring | `colors-dark` applied at runtime | Tokens defined here; `tailwind.config.js` carries the light values only, so the app is light-only | Med |
 | Category slot persistence | A category's slot is assigned once and persisted, so its list tint matches its chart slice | `categorySlot()` derives the slot from the account id — stable across sessions without a migration, but it won't match the rank-ordered slice color in Reports | Med |
 | Destructive actions in a row of three | Never alone under the thumb | Entry detail pairs Duplicate + Delete; `Dialog` pairs Cancel + Destructive | Low |
-| Chart ramp in dark mode | Ramp re-validated against dark `surface` `#171B23` | Validated on `#FFFFFF` only | Low |
+| Chart ramp in dark mode | Ramp re-validated against dark `surface` `#171B23` | Validated on `#FFFFFF` only; the ramp and its 12% tints are shared across both themes unchanged | Med |
 | Motion | Enter/exit/press durations and easings applied | Only `Modal` defaults animate; press feedback is a tone change | Low |
 | Platform-adaptive chrome | — | Unified, iOS-flavored on both | Low |
 | Brand mark | — | None exists; the wordmark is set in Outfit Bold wherever a logo would go | Low |
@@ -602,7 +612,7 @@ FAB, the wording switch and the seven 2a screens are built. What remains is belo
 
 ---
 
-**Last updated**: 2026-07-31 · **Version**: 1.2
+**Last updated**: 2026-08-01 · **Version**: 1.3
 **How AI agents should read this**: tokens above are normative — use them verbatim. Prose is rationale — it
 answers "why" so judgment calls during implementation match the brand's intent. When prose and tokens
 disagree, tokens win.

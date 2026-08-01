@@ -45,8 +45,7 @@ const SIDES: Record<Mode, { from: string[]; to: string[] }> = {
 
 export default function EntryNew() {
   const params = useLocalSearchParams<{ mode?: string; from?: string; to?: string; amount?: string }>();
-  const { user } = useAuth();
-  const base = user?.base_currency ?? "IDR";
+  const { guest, baseCurrency: base } = useAuth();
   const { t, showSides } = useWording();
   const { C } = useTheme();
 
@@ -84,6 +83,7 @@ export default function EntryNew() {
     queryKey: ["fx-rates"],
     queryFn: () => authedApi.listFxRates(),
     staleTime: 30 * 60 * 1000,
+    enabled: !guest, // no token in guest mode; the conversion line just drops
   });
   const rates: RateTable = ratesQuery.data
     ? { rates: ratesQuery.data.rates ?? [], asOf: ratesQuery.data.as_of ?? null }

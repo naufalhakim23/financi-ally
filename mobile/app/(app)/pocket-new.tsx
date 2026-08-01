@@ -38,8 +38,7 @@ type PocketType = Extract<AccountType, "asset" | "liability">;
 export default function PocketNew() {
   const { first } = useLocalSearchParams<{ first?: string }>();
   const onboarding = first === "1";
-  const { user } = useAuth();
-  const base = user?.base_currency ?? "IDR";
+  const { baseCurrency: base } = useAuth();
 
   const accountsObs = useMemo(() => database.get<Account>("accounts").query().observe(), []);
   const accounts = useObservable(accountsObs, [] as Account[]);

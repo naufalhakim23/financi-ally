@@ -36,8 +36,7 @@ type Filter = "all" | "out" | "in" | "moves";
 export default function MonthDetail() {
   const { month } = useLocalSearchParams<{ month: string }>();
   const key = month ?? "";
-  const { user } = useAuth();
-  const base = user?.base_currency ?? "IDR";
+  const { baseCurrency: base } = useAuth();
   const { t } = useWording();
   const [filter, setFilter] = useState<Filter>("all");
 

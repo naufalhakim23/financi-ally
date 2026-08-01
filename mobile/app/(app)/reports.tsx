@@ -62,8 +62,7 @@ function toSlices(spending: CategorySpend[]): Slice[] {
 }
 
 export default function Reports() {
-  const { user } = useAuth();
-  const base = user?.base_currency ?? "IDR";
+  const { user, baseCurrency: base } = useAuth();
   const [nw, setNw] = useState<NetWorth | null>(null);
   const [cf, setCf] = useState<CashFlow | null>(null);
   const [spending, setSpending] = useState<CategorySpend[]>([]);

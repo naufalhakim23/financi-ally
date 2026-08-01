@@ -32,8 +32,7 @@ function currentMonth(): string {
 }
 
 export default function Budgets() {
-  const { user } = useAuth();
-  const base = user?.base_currency ?? "IDR";
+  const { user, baseCurrency: base } = useAuth();
   const period = currentMonth();
   const [items, setItems] = useState<BudgetWithSpent[]>([]);
   const [err, setErr] = useState<string | null>(null);

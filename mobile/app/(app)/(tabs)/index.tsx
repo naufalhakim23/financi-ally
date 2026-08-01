@@ -40,8 +40,7 @@ type Range = "6M" | "1Y" | "All";
 const RANGE_MONTHS: Record<Range, number> = { "6M": 6, "1Y": 12, All: 36 };
 
 export default function HomeScreen() {
-  const { user } = useAuth();
-  const base = user?.base_currency ?? "IDR";
+  const { user, guest, baseCurrency: base } = useAuth();
   const { t } = useWording();
   const { C } = useTheme();
   const sync = useSyncState();
@@ -60,11 +59,13 @@ export default function HomeScreen() {
   const budgets = useObservable(budgetsObs, [] as Budget[]);
 
   // FX and the monthly series are server reads. Both are display-only here, so
-  // a failure degrades the card rather than blocking the screen.
+  // a failure degrades the card rather than blocking the screen — and a guest
+  // has no token at all, so they never run.
   const ratesQuery = useQuery({
     queryKey: ["fx-rates"],
     queryFn: () => authedApi.listFxRates(),
     staleTime: 30 * 60 * 1000,
+    enabled: !guest,
   });
   const rates: RateTable = ratesQuery.data
     ? { rates: ratesQuery.data.rates ?? [], asOf: ratesQuery.data.as_of ?? null }
@@ -74,6 +75,7 @@ export default function HomeScreen() {
     queryKey: ["monthly", RANGE_MONTHS[range]],
     queryFn: () => authedApi.getMonthlySeries(RANGE_MONTHS[range]),
     staleTime: 10 * 60 * 1000,
+    enabled: !guest,
   });
 
   const worth = netWorth(accounts, lines);

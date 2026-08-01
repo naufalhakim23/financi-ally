@@ -125,6 +125,42 @@ func (e JournalLineDc) Valid() bool {
 	}
 }
 
+// Defines values for LedgerKind.
+const (
+	Household LedgerKind = "household"
+	Personal  LedgerKind = "personal"
+)
+
+// Valid indicates whether the value is a known member of the LedgerKind enum.
+func (e LedgerKind) Valid() bool {
+	switch e {
+	case Household:
+		return true
+	case Personal:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LedgerRole.
+const (
+	Member LedgerRole = "member"
+	Owner  LedgerRole = "owner"
+)
+
+// Valid indicates whether the value is a known member of the LedgerRole enum.
+func (e LedgerRole) Valid() bool {
+	switch e {
+	case Member:
+		return true
+	case Owner:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for LineInputDc.
 const (
 	LineInputDcCredit LineInputDc = "credit"
@@ -377,6 +413,11 @@ type HealthStatus struct {
 // Example: up
 type HealthStatusDb string
 
+// JoinLedgerRequest defines model for JoinLedgerRequest.
+type JoinLedgerRequest struct {
+	Code string `json:"code"`
+}
+
 // JournalLine defines model for JournalLine.
 type JournalLine struct {
 	AccountId string `json:"account_id"`
@@ -397,6 +438,52 @@ type JournalLine struct {
 
 // JournalLineDc defines model for JournalLine.Dc.
 type JournalLineDc string
+
+// Ledger defines model for Ledger.
+type Ledger struct {
+	// BaseCurrency the book's reporting currency; reports normalize to it
+	//
+	// Example: IDR
+	BaseCurrency string     `json:"base_currency"`
+	CreatedAt    time.Time  `json:"created_at"`
+	Id           string     `json:"id"`
+	Kind         LedgerKind `json:"kind"`
+	Name         string     `json:"name"`
+}
+
+// LedgerKind defines model for Ledger.Kind.
+type LedgerKind string
+
+// LedgerInvite defines model for LedgerInvite.
+type LedgerInvite struct {
+	// Code short human-typeable join code
+	//
+	// Example: K7M2QX9B
+	Code      string    `json:"code"`
+	ExpiresAt time.Time `json:"expires_at"`
+	LedgerId  string    `json:"ledger_id"`
+}
+
+// LedgerMember defines model for LedgerMember.
+type LedgerMember struct {
+	Email    openapi_types.Email `json:"email"`
+	JoinedAt time.Time           `json:"joined_at"`
+
+	// Role owners manage membership and invites; members do everything else
+	Role   LedgerRole `json:"role"`
+	UserId string     `json:"user_id"`
+}
+
+// LedgerMembership defines model for LedgerMembership.
+type LedgerMembership struct {
+	Ledger Ledger `json:"ledger"`
+
+	// Role owners manage membership and invites; members do everything else
+	Role LedgerRole `json:"role"`
+}
+
+// LedgerRole owners manage membership and invites; members do everything else
+type LedgerRole string
 
 // LineInput defines model for LineInput.
 type LineInput struct {
@@ -498,6 +585,15 @@ type NewEntryRequest struct {
 // NewEntryRequestSource defines model for NewEntryRequest.Source.
 type NewEntryRequestSource string
 
+// NewLedgerRequest defines model for NewLedgerRequest.
+type NewLedgerRequest struct {
+	// BaseCurrency defaults to the creator's own base currency
+	//
+	// Example: IDR
+	BaseCurrency *string `json:"base_currency,omitempty"`
+	Name         string  `json:"name"`
+}
+
 // NewRecurringRuleRequest defines model for NewRecurringRuleRequest.
 type NewRecurringRuleRequest struct {
 	Active *bool `json:"active,omitempty"`
@@ -546,7 +642,8 @@ type RecurringRule struct {
 	LastErrorAt *time.Time `json:"last_error_at,omitempty"`
 
 	// LastRun most recent materialized occurrence date
-	LastRun *openapi_types.Date `json:"last_run,omitempty"`
+	LastRun  *openapi_types.Date `json:"last_run,omitempty"`
+	LedgerId string              `json:"ledger_id"`
 
 	// NextRun next scheduled occurrence date
 	NextRun *openapi_types.Date `json:"next_run,omitempty"`
@@ -557,7 +654,6 @@ type RecurringRule struct {
 	Rrule     string            `json:"rrule"`
 	Template  RecurringTemplate `json:"template"`
 	UpdatedAt time.Time         `json:"updated_at"`
-	UserId    string            `json:"user_id"`
 }
 
 // RecurringTemplate defines model for RecurringTemplate.
@@ -642,15 +738,54 @@ type User struct {
 	Id           openapi_types.UUID  `json:"id"`
 }
 
+// LedgerId defines model for LedgerId.
+type LedgerId = string
+
 // ListAccountsParams defines parameters for ListAccounts.
 type ListAccountsParams struct {
 	Type *AccountType `form:"type,omitempty" json:"type,omitempty"`
+
+	// XLedgerId Which book this request reads and writes. Omit for the caller's personal
+	// ledger. A ledger the caller is not a member of is rejected with 403.
+	XLedgerId *LedgerId `json:"X-Ledger-Id,omitempty"`
+}
+
+// CreateAccountParams defines parameters for CreateAccount.
+type CreateAccountParams struct {
+	// XLedgerId Which book this request reads and writes. Omit for the caller's personal
+	// ledger. A ledger the caller is not a member of is rejected with 403.
+	XLedgerId *LedgerId `json:"X-Ledger-Id,omitempty"`
+}
+
+// GetAccountBalanceParams defines parameters for GetAccountBalance.
+type GetAccountBalanceParams struct {
+	// XLedgerId Which book this request reads and writes. Omit for the caller's personal
+	// ledger. A ledger the caller is not a member of is rejected with 403.
+	XLedgerId *LedgerId `json:"X-Ledger-Id,omitempty"`
 }
 
 // ListBudgetsParams defines parameters for ListBudgets.
 type ListBudgetsParams struct {
 	// Period first day of the month (YYYY-MM-01)
 	Period openapi_types.Date `form:"period" json:"period"`
+
+	// XLedgerId Which book this request reads and writes. Omit for the caller's personal
+	// ledger. A ledger the caller is not a member of is rejected with 403.
+	XLedgerId *LedgerId `json:"X-Ledger-Id,omitempty"`
+}
+
+// SetBudgetParams defines parameters for SetBudget.
+type SetBudgetParams struct {
+	// XLedgerId Which book this request reads and writes. Omit for the caller's personal
+	// ledger. A ledger the caller is not a member of is rejected with 403.
+	XLedgerId *LedgerId `json:"X-Ledger-Id,omitempty"`
+}
+
+// DeleteBudgetParams defines parameters for DeleteBudget.
+type DeleteBudgetParams struct {
+	// XLedgerId Which book this request reads and writes. Omit for the caller's personal
+	// ledger. A ledger the caller is not a member of is rejected with 403.
+	XLedgerId *LedgerId `json:"X-Ledger-Id,omitempty"`
 }
 
 // UpdateBudgetJSONBody defines parameters for UpdateBudget.
@@ -658,38 +793,153 @@ type UpdateBudgetJSONBody struct {
 	TargetMinor int64 `json:"target_minor"`
 }
 
+// UpdateBudgetParams defines parameters for UpdateBudget.
+type UpdateBudgetParams struct {
+	// XLedgerId Which book this request reads and writes. Omit for the caller's personal
+	// ledger. A ledger the caller is not a member of is rejected with 403.
+	XLedgerId *LedgerId `json:"X-Ledger-Id,omitempty"`
+}
+
 // ListEntriesParams defines parameters for ListEntries.
 type ListEntriesParams struct {
 	From *openapi_types.Date `form:"from,omitempty" json:"from,omitempty"`
 	To   *openapi_types.Date `form:"to,omitempty" json:"to,omitempty"`
+
+	// XLedgerId Which book this request reads and writes. Omit for the caller's personal
+	// ledger. A ledger the caller is not a member of is rejected with 403.
+	XLedgerId *LedgerId `json:"X-Ledger-Id,omitempty"`
+}
+
+// PostEntryParams defines parameters for PostEntry.
+type PostEntryParams struct {
+	// XLedgerId Which book this request reads and writes. Omit for the caller's personal
+	// ledger. A ledger the caller is not a member of is rejected with 403.
+	XLedgerId *LedgerId `json:"X-Ledger-Id,omitempty"`
+}
+
+// GetEntryParams defines parameters for GetEntry.
+type GetEntryParams struct {
+	// XLedgerId Which book this request reads and writes. Omit for the caller's personal
+	// ledger. A ledger the caller is not a member of is rejected with 403.
+	XLedgerId *LedgerId `json:"X-Ledger-Id,omitempty"`
+}
+
+// ListFxRatesParams defines parameters for ListFxRates.
+type ListFxRatesParams struct {
+	// XLedgerId Which book this request reads and writes. Omit for the caller's personal
+	// ledger. A ledger the caller is not a member of is rejected with 403.
+	XLedgerId *LedgerId `json:"X-Ledger-Id,omitempty"`
+}
+
+// RefreshFxRatesParams defines parameters for RefreshFxRates.
+type RefreshFxRatesParams struct {
+	// XLedgerId Which book this request reads and writes. Omit for the caller's personal
+	// ledger. A ledger the caller is not a member of is rejected with 403.
+	XLedgerId *LedgerId `json:"X-Ledger-Id,omitempty"`
 }
 
 // GetFxRateParams defines parameters for GetFxRate.
 type GetFxRateParams struct {
 	// AsOf optional as-of date (defaults to today)
 	AsOf *openapi_types.Date `form:"as_of,omitempty" json:"as_of,omitempty"`
+
+	// XLedgerId Which book this request reads and writes. Omit for the caller's personal
+	// ledger. A ledger the caller is not a member of is rejected with 403.
+	XLedgerId *LedgerId `json:"X-Ledger-Id,omitempty"`
+}
+
+// ListRecurringParams defines parameters for ListRecurring.
+type ListRecurringParams struct {
+	// XLedgerId Which book this request reads and writes. Omit for the caller's personal
+	// ledger. A ledger the caller is not a member of is rejected with 403.
+	XLedgerId *LedgerId `json:"X-Ledger-Id,omitempty"`
+}
+
+// CreateRecurringParams defines parameters for CreateRecurring.
+type CreateRecurringParams struct {
+	// XLedgerId Which book this request reads and writes. Omit for the caller's personal
+	// ledger. A ledger the caller is not a member of is rejected with 403.
+	XLedgerId *LedgerId `json:"X-Ledger-Id,omitempty"`
+}
+
+// TriggerRecurringParams defines parameters for TriggerRecurring.
+type TriggerRecurringParams struct {
+	// XLedgerId Which book this request reads and writes. Omit for the caller's personal
+	// ledger. A ledger the caller is not a member of is rejected with 403.
+	XLedgerId *LedgerId `json:"X-Ledger-Id,omitempty"`
+}
+
+// DeleteRecurringParams defines parameters for DeleteRecurring.
+type DeleteRecurringParams struct {
+	// XLedgerId Which book this request reads and writes. Omit for the caller's personal
+	// ledger. A ledger the caller is not a member of is rejected with 403.
+	XLedgerId *LedgerId `json:"X-Ledger-Id,omitempty"`
+}
+
+// GetRecurringParams defines parameters for GetRecurring.
+type GetRecurringParams struct {
+	// XLedgerId Which book this request reads and writes. Omit for the caller's personal
+	// ledger. A ledger the caller is not a member of is rejected with 403.
+	XLedgerId *LedgerId `json:"X-Ledger-Id,omitempty"`
+}
+
+// UpdateRecurringParams defines parameters for UpdateRecurring.
+type UpdateRecurringParams struct {
+	// XLedgerId Which book this request reads and writes. Omit for the caller's personal
+	// ledger. A ledger the caller is not a member of is rejected with 403.
+	XLedgerId *LedgerId `json:"X-Ledger-Id,omitempty"`
 }
 
 // GetCashFlowParams defines parameters for GetCashFlow.
 type GetCashFlowParams struct {
 	From openapi_types.Date `form:"from" json:"from"`
 	To   openapi_types.Date `form:"to" json:"to"`
+
+	// XLedgerId Which book this request reads and writes. Omit for the caller's personal
+	// ledger. A ledger the caller is not a member of is rejected with 403.
+	XLedgerId *LedgerId `json:"X-Ledger-Id,omitempty"`
 }
 
 // GetMonthlySeriesParams defines parameters for GetMonthlySeries.
 type GetMonthlySeriesParams struct {
 	Months *int `form:"months,omitempty" json:"months,omitempty"`
+
+	// XLedgerId Which book this request reads and writes. Omit for the caller's personal
+	// ledger. A ledger the caller is not a member of is rejected with 403.
+	XLedgerId *LedgerId `json:"X-Ledger-Id,omitempty"`
+}
+
+// GetNetWorthParams defines parameters for GetNetWorth.
+type GetNetWorthParams struct {
+	// XLedgerId Which book this request reads and writes. Omit for the caller's personal
+	// ledger. A ledger the caller is not a member of is rejected with 403.
+	XLedgerId *LedgerId `json:"X-Ledger-Id,omitempty"`
 }
 
 // GetSpendingParams defines parameters for GetSpending.
 type GetSpendingParams struct {
 	From openapi_types.Date `form:"from" json:"from"`
 	To   openapi_types.Date `form:"to" json:"to"`
+
+	// XLedgerId Which book this request reads and writes. Omit for the caller's personal
+	// ledger. A ledger the caller is not a member of is rejected with 403.
+	XLedgerId *LedgerId `json:"X-Ledger-Id,omitempty"`
 }
 
 // SyncPullParams defines parameters for SyncPull.
 type SyncPullParams struct {
 	LastPulledAt *int64 `form:"last_pulled_at,omitempty" json:"last_pulled_at,omitempty"`
+
+	// XLedgerId Which book this request reads and writes. Omit for the caller's personal
+	// ledger. A ledger the caller is not a member of is rejected with 403.
+	XLedgerId *LedgerId `json:"X-Ledger-Id,omitempty"`
+}
+
+// SyncPushParams defines parameters for SyncPush.
+type SyncPushParams struct {
+	// XLedgerId Which book this request reads and writes. Omit for the caller's personal
+	// ledger. A ledger the caller is not a member of is rejected with 403.
+	XLedgerId *LedgerId `json:"X-Ledger-Id,omitempty"`
 }
 
 // CreateAccountJSONRequestBody defines body for CreateAccount for application/json ContentType.
@@ -719,6 +969,12 @@ type UpdateBudgetJSONRequestBody UpdateBudgetJSONBody
 // PostEntryJSONRequestBody defines body for PostEntry for application/json ContentType.
 type PostEntryJSONRequestBody = NewEntryRequest
 
+// CreateLedgerJSONRequestBody defines body for CreateLedger for application/json ContentType.
+type CreateLedgerJSONRequestBody = NewLedgerRequest
+
+// JoinLedgerJSONRequestBody defines body for JoinLedger for application/json ContentType.
+type JoinLedgerJSONRequestBody = JoinLedgerRequest
+
 // CreateRecurringJSONRequestBody defines body for CreateRecurring for application/json ContentType.
 type CreateRecurringJSONRequestBody = NewRecurringRuleRequest
 
@@ -735,10 +991,10 @@ type ServerInterface interface {
 	ListAccounts(w http.ResponseWriter, r *http.Request, params ListAccountsParams)
 	// CreateAccount Create a pocket or category (chart-of-accounts entry)
 	// (POST /accounts)
-	CreateAccount(w http.ResponseWriter, r *http.Request)
+	CreateAccount(w http.ResponseWriter, r *http.Request, params CreateAccountParams)
 	// GetAccountBalance Account debit/credit totals and normal-balance-signed amount
 	// (GET /accounts/{id}/balance)
-	GetAccountBalance(w http.ResponseWriter, r *http.Request, id string)
+	GetAccountBalance(w http.ResponseWriter, r *http.Request, id string, params GetAccountBalanceParams)
 	// GoogleAuth Exchange a Google authorization code for a session
 	// (POST /auth/google)
 	GoogleAuth(w http.ResponseWriter, r *http.Request)
@@ -762,52 +1018,70 @@ type ServerInterface interface {
 	ListBudgets(w http.ResponseWriter, r *http.Request, params ListBudgetsParams)
 	// SetBudget Create or update a monthly category budget
 	// (POST /budgets)
-	SetBudget(w http.ResponseWriter, r *http.Request)
+	SetBudget(w http.ResponseWriter, r *http.Request, params SetBudgetParams)
 	// DeleteBudget Delete a budget (idempotent)
 	// (DELETE /budgets/{id})
-	DeleteBudget(w http.ResponseWriter, r *http.Request, id string)
+	DeleteBudget(w http.ResponseWriter, r *http.Request, id string, params DeleteBudgetParams)
 	// UpdateBudget Update a budget's target
 	// (PUT /budgets/{id})
-	UpdateBudget(w http.ResponseWriter, r *http.Request, id string)
+	UpdateBudget(w http.ResponseWriter, r *http.Request, id string, params UpdateBudgetParams)
 	// ListEntries List posted entries with their lines
 	// (GET /entries)
 	ListEntries(w http.ResponseWriter, r *http.Request, params ListEntriesParams)
 	// PostEntry Post a balanced double-entry transaction
 	// (POST /entries)
-	PostEntry(w http.ResponseWriter, r *http.Request)
+	PostEntry(w http.ResponseWriter, r *http.Request, params PostEntryParams)
 	// GetEntry Fetch one posted entry with its lines
 	// (GET /entries/{id})
-	GetEntry(w http.ResponseWriter, r *http.Request, id string)
+	GetEntry(w http.ResponseWriter, r *http.Request, id string, params GetEntryParams)
 	// ListFxRates List available FX rates
 	// (GET /fx/rates)
-	ListFxRates(w http.ResponseWriter, r *http.Request)
+	ListFxRates(w http.ResponseWriter, r *http.Request, params ListFxRatesParams)
 	// RefreshFxRates Trigger a manual FX rate refresh from frankfurter.app
 	// (POST /fx/rates/refresh)
-	RefreshFxRates(w http.ResponseWriter, r *http.Request)
+	RefreshFxRates(w http.ResponseWriter, r *http.Request, params RefreshFxRatesParams)
 	// GetFxRate Get the most recent rate for a currency pair
 	// (GET /fx/rates/{base}/{quote})
 	GetFxRate(w http.ResponseWriter, r *http.Request, base string, quote string, params GetFxRateParams)
 	// GetHealthz Liveness + DB connectivity
 	// (GET /healthz)
 	GetHealthz(w http.ResponseWriter, r *http.Request)
+	// ListLedgers List the books this user can open
+	// (GET /ledgers)
+	ListLedgers(w http.ResponseWriter, r *http.Request)
+	// CreateLedger Create a shared household book
+	// (POST /ledgers)
+	CreateLedger(w http.ResponseWriter, r *http.Request)
+	// JoinLedger Join a book with a code
+	// (POST /ledgers/join)
+	JoinLedger(w http.ResponseWriter, r *http.Request)
+	// CreateLedgerInvite Issue a join code for a household book
+	// (POST /ledgers/{id}/invite)
+	CreateLedgerInvite(w http.ResponseWriter, r *http.Request, id string)
+	// ListLedgerMembers List a book's members
+	// (GET /ledgers/{id}/members)
+	ListLedgerMembers(w http.ResponseWriter, r *http.Request, id string)
+	// RemoveLedgerMember Remove a member, or leave the book yourself
+	// (DELETE /ledgers/{id}/members/{userId})
+	RemoveLedgerMember(w http.ResponseWriter, r *http.Request, id string, userId string)
 	// ListRecurring List the user's recurring transaction rules
 	// (GET /recurring)
-	ListRecurring(w http.ResponseWriter, r *http.Request)
+	ListRecurring(w http.ResponseWriter, r *http.Request, params ListRecurringParams)
 	// CreateRecurring Create a recurring transaction rule
 	// (POST /recurring)
-	CreateRecurring(w http.ResponseWriter, r *http.Request)
+	CreateRecurring(w http.ResponseWriter, r *http.Request, params CreateRecurringParams)
 	// TriggerRecurring Manually trigger materialization of due recurring rules
 	// (POST /recurring/trigger)
-	TriggerRecurring(w http.ResponseWriter, r *http.Request)
+	TriggerRecurring(w http.ResponseWriter, r *http.Request, params TriggerRecurringParams)
 	// DeleteRecurring Delete a recurring rule (idempotent)
 	// (DELETE /recurring/{id})
-	DeleteRecurring(w http.ResponseWriter, r *http.Request, id string)
+	DeleteRecurring(w http.ResponseWriter, r *http.Request, id string, params DeleteRecurringParams)
 	// GetRecurring Get one recurring rule
 	// (GET /recurring/{id})
-	GetRecurring(w http.ResponseWriter, r *http.Request, id string)
+	GetRecurring(w http.ResponseWriter, r *http.Request, id string, params GetRecurringParams)
 	// UpdateRecurring Update a recurring rule
 	// (PUT /recurring/{id})
-	UpdateRecurring(w http.ResponseWriter, r *http.Request, id string)
+	UpdateRecurring(w http.ResponseWriter, r *http.Request, id string, params UpdateRecurringParams)
 	// GetCashFlow Income vs expense for a period, in base currency
 	// (GET /reports/cash-flow)
 	GetCashFlow(w http.ResponseWriter, r *http.Request, params GetCashFlowParams)
@@ -816,7 +1090,7 @@ type ServerInterface interface {
 	GetMonthlySeries(w http.ResponseWriter, r *http.Request, params GetMonthlySeriesParams)
 	// GetNetWorth Net worth (assets minus liabilities) in base currency
 	// (GET /reports/net-worth)
-	GetNetWorth(w http.ResponseWriter, r *http.Request)
+	GetNetWorth(w http.ResponseWriter, r *http.Request, params GetNetWorthParams)
 	// GetSpending Spending by category for a period
 	// (GET /reports/spending)
 	GetSpending(w http.ResponseWriter, r *http.Request, params GetSpendingParams)
@@ -825,7 +1099,7 @@ type ServerInterface interface {
 	SyncPull(w http.ResponseWriter, r *http.Request, params SyncPullParams)
 	// SyncPush Push local changes to the server (WatermelonDB)
 	// (POST /sync/push)
-	SyncPush(w http.ResponseWriter, r *http.Request)
+	SyncPush(w http.ResponseWriter, r *http.Request, params SyncPushParams)
 }
 
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
@@ -840,13 +1114,13 @@ func (_ Unimplemented) ListAccounts(w http.ResponseWriter, r *http.Request, para
 
 // CreateAccount Create a pocket or category (chart-of-accounts entry)
 // (POST /accounts)
-func (_ Unimplemented) CreateAccount(w http.ResponseWriter, r *http.Request) {
+func (_ Unimplemented) CreateAccount(w http.ResponseWriter, r *http.Request, params CreateAccountParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // GetAccountBalance Account debit/credit totals and normal-balance-signed amount
 // (GET /accounts/{id}/balance)
-func (_ Unimplemented) GetAccountBalance(w http.ResponseWriter, r *http.Request, id string) {
+func (_ Unimplemented) GetAccountBalance(w http.ResponseWriter, r *http.Request, id string, params GetAccountBalanceParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -894,19 +1168,19 @@ func (_ Unimplemented) ListBudgets(w http.ResponseWriter, r *http.Request, param
 
 // SetBudget Create or update a monthly category budget
 // (POST /budgets)
-func (_ Unimplemented) SetBudget(w http.ResponseWriter, r *http.Request) {
+func (_ Unimplemented) SetBudget(w http.ResponseWriter, r *http.Request, params SetBudgetParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // DeleteBudget Delete a budget (idempotent)
 // (DELETE /budgets/{id})
-func (_ Unimplemented) DeleteBudget(w http.ResponseWriter, r *http.Request, id string) {
+func (_ Unimplemented) DeleteBudget(w http.ResponseWriter, r *http.Request, id string, params DeleteBudgetParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // UpdateBudget Update a budget's target
 // (PUT /budgets/{id})
-func (_ Unimplemented) UpdateBudget(w http.ResponseWriter, r *http.Request, id string) {
+func (_ Unimplemented) UpdateBudget(w http.ResponseWriter, r *http.Request, id string, params UpdateBudgetParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -918,25 +1192,25 @@ func (_ Unimplemented) ListEntries(w http.ResponseWriter, r *http.Request, param
 
 // PostEntry Post a balanced double-entry transaction
 // (POST /entries)
-func (_ Unimplemented) PostEntry(w http.ResponseWriter, r *http.Request) {
+func (_ Unimplemented) PostEntry(w http.ResponseWriter, r *http.Request, params PostEntryParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // GetEntry Fetch one posted entry with its lines
 // (GET /entries/{id})
-func (_ Unimplemented) GetEntry(w http.ResponseWriter, r *http.Request, id string) {
+func (_ Unimplemented) GetEntry(w http.ResponseWriter, r *http.Request, id string, params GetEntryParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // ListFxRates List available FX rates
 // (GET /fx/rates)
-func (_ Unimplemented) ListFxRates(w http.ResponseWriter, r *http.Request) {
+func (_ Unimplemented) ListFxRates(w http.ResponseWriter, r *http.Request, params ListFxRatesParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // RefreshFxRates Trigger a manual FX rate refresh from frankfurter.app
 // (POST /fx/rates/refresh)
-func (_ Unimplemented) RefreshFxRates(w http.ResponseWriter, r *http.Request) {
+func (_ Unimplemented) RefreshFxRates(w http.ResponseWriter, r *http.Request, params RefreshFxRatesParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -952,39 +1226,75 @@ func (_ Unimplemented) GetHealthz(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// ListLedgers List the books this user can open
+// (GET /ledgers)
+func (_ Unimplemented) ListLedgers(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// CreateLedger Create a shared household book
+// (POST /ledgers)
+func (_ Unimplemented) CreateLedger(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// JoinLedger Join a book with a code
+// (POST /ledgers/join)
+func (_ Unimplemented) JoinLedger(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// CreateLedgerInvite Issue a join code for a household book
+// (POST /ledgers/{id}/invite)
+func (_ Unimplemented) CreateLedgerInvite(w http.ResponseWriter, r *http.Request, id string) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListLedgerMembers List a book's members
+// (GET /ledgers/{id}/members)
+func (_ Unimplemented) ListLedgerMembers(w http.ResponseWriter, r *http.Request, id string) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// RemoveLedgerMember Remove a member, or leave the book yourself
+// (DELETE /ledgers/{id}/members/{userId})
+func (_ Unimplemented) RemoveLedgerMember(w http.ResponseWriter, r *http.Request, id string, userId string) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // ListRecurring List the user's recurring transaction rules
 // (GET /recurring)
-func (_ Unimplemented) ListRecurring(w http.ResponseWriter, r *http.Request) {
+func (_ Unimplemented) ListRecurring(w http.ResponseWriter, r *http.Request, params ListRecurringParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // CreateRecurring Create a recurring transaction rule
 // (POST /recurring)
-func (_ Unimplemented) CreateRecurring(w http.ResponseWriter, r *http.Request) {
+func (_ Unimplemented) CreateRecurring(w http.ResponseWriter, r *http.Request, params CreateRecurringParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // TriggerRecurring Manually trigger materialization of due recurring rules
 // (POST /recurring/trigger)
-func (_ Unimplemented) TriggerRecurring(w http.ResponseWriter, r *http.Request) {
+func (_ Unimplemented) TriggerRecurring(w http.ResponseWriter, r *http.Request, params TriggerRecurringParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // DeleteRecurring Delete a recurring rule (idempotent)
 // (DELETE /recurring/{id})
-func (_ Unimplemented) DeleteRecurring(w http.ResponseWriter, r *http.Request, id string) {
+func (_ Unimplemented) DeleteRecurring(w http.ResponseWriter, r *http.Request, id string, params DeleteRecurringParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // GetRecurring Get one recurring rule
 // (GET /recurring/{id})
-func (_ Unimplemented) GetRecurring(w http.ResponseWriter, r *http.Request, id string) {
+func (_ Unimplemented) GetRecurring(w http.ResponseWriter, r *http.Request, id string, params GetRecurringParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // UpdateRecurring Update a recurring rule
 // (PUT /recurring/{id})
-func (_ Unimplemented) UpdateRecurring(w http.ResponseWriter, r *http.Request, id string) {
+func (_ Unimplemented) UpdateRecurring(w http.ResponseWriter, r *http.Request, id string, params UpdateRecurringParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1002,7 +1312,7 @@ func (_ Unimplemented) GetMonthlySeries(w http.ResponseWriter, r *http.Request, 
 
 // GetNetWorth Net worth (assets minus liabilities) in base currency
 // (GET /reports/net-worth)
-func (_ Unimplemented) GetNetWorth(w http.ResponseWriter, r *http.Request) {
+func (_ Unimplemented) GetNetWorth(w http.ResponseWriter, r *http.Request, params GetNetWorthParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1020,7 +1330,7 @@ func (_ Unimplemented) SyncPull(w http.ResponseWriter, r *http.Request, params S
 
 // SyncPush Push local changes to the server (WatermelonDB)
 // (POST /sync/push)
-func (_ Unimplemented) SyncPush(w http.ResponseWriter, r *http.Request) {
+func (_ Unimplemented) SyncPush(w http.ResponseWriter, r *http.Request, params SyncPushParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1055,6 +1365,27 @@ func (siw *ServerInterfaceWrapper) ListAccounts(w http.ResponseWriter, r *http.R
 		return
 	}
 
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Ledger-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Ledger-Id")]; found {
+		var XLedgerId LedgerId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Ledger-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Ledger-Id", valueList[0], &XLedgerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Ledger-Id", Err: err})
+			return
+		}
+
+		params.XLedgerId = &XLedgerId
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListAccounts(w, r, params)
 	}))
@@ -1069,8 +1400,35 @@ func (siw *ServerInterfaceWrapper) ListAccounts(w http.ResponseWriter, r *http.R
 // CreateAccount operation middleware
 func (siw *ServerInterfaceWrapper) CreateAccount(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateAccountParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Ledger-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Ledger-Id")]; found {
+		var XLedgerId LedgerId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Ledger-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Ledger-Id", valueList[0], &XLedgerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Ledger-Id", Err: err})
+			return
+		}
+
+		params.XLedgerId = &XLedgerId
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.CreateAccount(w, r)
+		siw.Handler.CreateAccount(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1095,8 +1453,32 @@ func (siw *ServerInterfaceWrapper) GetAccountBalance(w http.ResponseWriter, r *h
 		return
 	}
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAccountBalanceParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Ledger-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Ledger-Id")]; found {
+		var XLedgerId LedgerId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Ledger-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Ledger-Id", valueList[0], &XLedgerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Ledger-Id", Err: err})
+			return
+		}
+
+		params.XLedgerId = &XLedgerId
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetAccountBalance(w, r, id)
+		siw.Handler.GetAccountBalance(w, r, id, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1212,6 +1594,27 @@ func (siw *ServerInterfaceWrapper) ListBudgets(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Ledger-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Ledger-Id")]; found {
+		var XLedgerId LedgerId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Ledger-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Ledger-Id", valueList[0], &XLedgerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Ledger-Id", Err: err})
+			return
+		}
+
+		params.XLedgerId = &XLedgerId
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListBudgets(w, r, params)
 	}))
@@ -1226,8 +1629,35 @@ func (siw *ServerInterfaceWrapper) ListBudgets(w http.ResponseWriter, r *http.Re
 // SetBudget operation middleware
 func (siw *ServerInterfaceWrapper) SetBudget(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SetBudgetParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Ledger-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Ledger-Id")]; found {
+		var XLedgerId LedgerId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Ledger-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Ledger-Id", valueList[0], &XLedgerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Ledger-Id", Err: err})
+			return
+		}
+
+		params.XLedgerId = &XLedgerId
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.SetBudget(w, r)
+		siw.Handler.SetBudget(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1252,8 +1682,32 @@ func (siw *ServerInterfaceWrapper) DeleteBudget(w http.ResponseWriter, r *http.R
 		return
 	}
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeleteBudgetParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Ledger-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Ledger-Id")]; found {
+		var XLedgerId LedgerId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Ledger-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Ledger-Id", valueList[0], &XLedgerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Ledger-Id", Err: err})
+			return
+		}
+
+		params.XLedgerId = &XLedgerId
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.DeleteBudget(w, r, id)
+		siw.Handler.DeleteBudget(w, r, id, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1278,8 +1732,32 @@ func (siw *ServerInterfaceWrapper) UpdateBudget(w http.ResponseWriter, r *http.R
 		return
 	}
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UpdateBudgetParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Ledger-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Ledger-Id")]; found {
+		var XLedgerId LedgerId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Ledger-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Ledger-Id", valueList[0], &XLedgerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Ledger-Id", Err: err})
+			return
+		}
+
+		params.XLedgerId = &XLedgerId
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.UpdateBudget(w, r, id)
+		siw.Handler.UpdateBudget(w, r, id, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1324,6 +1802,27 @@ func (siw *ServerInterfaceWrapper) ListEntries(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Ledger-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Ledger-Id")]; found {
+		var XLedgerId LedgerId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Ledger-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Ledger-Id", valueList[0], &XLedgerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Ledger-Id", Err: err})
+			return
+		}
+
+		params.XLedgerId = &XLedgerId
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListEntries(w, r, params)
 	}))
@@ -1338,8 +1837,35 @@ func (siw *ServerInterfaceWrapper) ListEntries(w http.ResponseWriter, r *http.Re
 // PostEntry operation middleware
 func (siw *ServerInterfaceWrapper) PostEntry(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostEntryParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Ledger-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Ledger-Id")]; found {
+		var XLedgerId LedgerId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Ledger-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Ledger-Id", valueList[0], &XLedgerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Ledger-Id", Err: err})
+			return
+		}
+
+		params.XLedgerId = &XLedgerId
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.PostEntry(w, r)
+		siw.Handler.PostEntry(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1364,8 +1890,32 @@ func (siw *ServerInterfaceWrapper) GetEntry(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetEntryParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Ledger-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Ledger-Id")]; found {
+		var XLedgerId LedgerId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Ledger-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Ledger-Id", valueList[0], &XLedgerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Ledger-Id", Err: err})
+			return
+		}
+
+		params.XLedgerId = &XLedgerId
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetEntry(w, r, id)
+		siw.Handler.GetEntry(w, r, id, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1378,8 +1928,35 @@ func (siw *ServerInterfaceWrapper) GetEntry(w http.ResponseWriter, r *http.Reque
 // ListFxRates operation middleware
 func (siw *ServerInterfaceWrapper) ListFxRates(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListFxRatesParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Ledger-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Ledger-Id")]; found {
+		var XLedgerId LedgerId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Ledger-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Ledger-Id", valueList[0], &XLedgerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Ledger-Id", Err: err})
+			return
+		}
+
+		params.XLedgerId = &XLedgerId
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListFxRates(w, r)
+		siw.Handler.ListFxRates(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1392,8 +1969,35 @@ func (siw *ServerInterfaceWrapper) ListFxRates(w http.ResponseWriter, r *http.Re
 // RefreshFxRates operation middleware
 func (siw *ServerInterfaceWrapper) RefreshFxRates(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RefreshFxRatesParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Ledger-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Ledger-Id")]; found {
+		var XLedgerId LedgerId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Ledger-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Ledger-Id", valueList[0], &XLedgerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Ledger-Id", Err: err})
+			return
+		}
+
+		params.XLedgerId = &XLedgerId
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.RefreshFxRates(w, r)
+		siw.Handler.RefreshFxRates(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1443,6 +2047,27 @@ func (siw *ServerInterfaceWrapper) GetFxRate(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Ledger-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Ledger-Id")]; found {
+		var XLedgerId LedgerId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Ledger-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Ledger-Id", valueList[0], &XLedgerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Ledger-Id", Err: err})
+			return
+		}
+
+		params.XLedgerId = &XLedgerId
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetFxRate(w, r, base, quote, params)
 	}))
@@ -1468,11 +2093,167 @@ func (siw *ServerInterfaceWrapper) GetHealthz(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// ListLedgers operation middleware
+func (siw *ServerInterfaceWrapper) ListLedgers(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListLedgers(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateLedger operation middleware
+func (siw *ServerInterfaceWrapper) CreateLedger(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateLedger(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// JoinLedger operation middleware
+func (siw *ServerInterfaceWrapper) JoinLedger(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.JoinLedger(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateLedgerInvite operation middleware
+func (siw *ServerInterfaceWrapper) CreateLedgerInvite(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateLedgerInvite(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListLedgerMembers operation middleware
+func (siw *ServerInterfaceWrapper) ListLedgerMembers(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListLedgerMembers(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveLedgerMember operation middleware
+func (siw *ServerInterfaceWrapper) RemoveLedgerMember(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "userId" -------------
+	var userId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "userId", chi.URLParam(r, "userId"), &userId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "userId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveLedgerMember(w, r, id, userId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListRecurring operation middleware
 func (siw *ServerInterfaceWrapper) ListRecurring(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListRecurringParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Ledger-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Ledger-Id")]; found {
+		var XLedgerId LedgerId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Ledger-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Ledger-Id", valueList[0], &XLedgerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Ledger-Id", Err: err})
+			return
+		}
+
+		params.XLedgerId = &XLedgerId
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListRecurring(w, r)
+		siw.Handler.ListRecurring(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1485,8 +2266,35 @@ func (siw *ServerInterfaceWrapper) ListRecurring(w http.ResponseWriter, r *http.
 // CreateRecurring operation middleware
 func (siw *ServerInterfaceWrapper) CreateRecurring(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateRecurringParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Ledger-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Ledger-Id")]; found {
+		var XLedgerId LedgerId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Ledger-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Ledger-Id", valueList[0], &XLedgerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Ledger-Id", Err: err})
+			return
+		}
+
+		params.XLedgerId = &XLedgerId
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.CreateRecurring(w, r)
+		siw.Handler.CreateRecurring(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1499,8 +2307,35 @@ func (siw *ServerInterfaceWrapper) CreateRecurring(w http.ResponseWriter, r *htt
 // TriggerRecurring operation middleware
 func (siw *ServerInterfaceWrapper) TriggerRecurring(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params TriggerRecurringParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Ledger-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Ledger-Id")]; found {
+		var XLedgerId LedgerId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Ledger-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Ledger-Id", valueList[0], &XLedgerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Ledger-Id", Err: err})
+			return
+		}
+
+		params.XLedgerId = &XLedgerId
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.TriggerRecurring(w, r)
+		siw.Handler.TriggerRecurring(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1525,8 +2360,32 @@ func (siw *ServerInterfaceWrapper) DeleteRecurring(w http.ResponseWriter, r *htt
 		return
 	}
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeleteRecurringParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Ledger-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Ledger-Id")]; found {
+		var XLedgerId LedgerId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Ledger-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Ledger-Id", valueList[0], &XLedgerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Ledger-Id", Err: err})
+			return
+		}
+
+		params.XLedgerId = &XLedgerId
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.DeleteRecurring(w, r, id)
+		siw.Handler.DeleteRecurring(w, r, id, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1551,8 +2410,32 @@ func (siw *ServerInterfaceWrapper) GetRecurring(w http.ResponseWriter, r *http.R
 		return
 	}
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetRecurringParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Ledger-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Ledger-Id")]; found {
+		var XLedgerId LedgerId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Ledger-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Ledger-Id", valueList[0], &XLedgerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Ledger-Id", Err: err})
+			return
+		}
+
+		params.XLedgerId = &XLedgerId
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetRecurring(w, r, id)
+		siw.Handler.GetRecurring(w, r, id, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1577,8 +2460,32 @@ func (siw *ServerInterfaceWrapper) UpdateRecurring(w http.ResponseWriter, r *htt
 		return
 	}
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UpdateRecurringParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Ledger-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Ledger-Id")]; found {
+		var XLedgerId LedgerId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Ledger-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Ledger-Id", valueList[0], &XLedgerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Ledger-Id", Err: err})
+			return
+		}
+
+		params.XLedgerId = &XLedgerId
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.UpdateRecurring(w, r, id)
+		siw.Handler.UpdateRecurring(w, r, id, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1623,6 +2530,27 @@ func (siw *ServerInterfaceWrapper) GetCashFlow(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Ledger-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Ledger-Id")]; found {
+		var XLedgerId LedgerId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Ledger-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Ledger-Id", valueList[0], &XLedgerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Ledger-Id", Err: err})
+			return
+		}
+
+		params.XLedgerId = &XLedgerId
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetCashFlow(w, r, params)
 	}))
@@ -1656,6 +2584,27 @@ func (siw *ServerInterfaceWrapper) GetMonthlySeries(w http.ResponseWriter, r *ht
 		return
 	}
 
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Ledger-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Ledger-Id")]; found {
+		var XLedgerId LedgerId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Ledger-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Ledger-Id", valueList[0], &XLedgerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Ledger-Id", Err: err})
+			return
+		}
+
+		params.XLedgerId = &XLedgerId
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetMonthlySeries(w, r, params)
 	}))
@@ -1670,8 +2619,35 @@ func (siw *ServerInterfaceWrapper) GetMonthlySeries(w http.ResponseWriter, r *ht
 // GetNetWorth operation middleware
 func (siw *ServerInterfaceWrapper) GetNetWorth(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetNetWorthParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Ledger-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Ledger-Id")]; found {
+		var XLedgerId LedgerId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Ledger-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Ledger-Id", valueList[0], &XLedgerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Ledger-Id", Err: err})
+			return
+		}
+
+		params.XLedgerId = &XLedgerId
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetNetWorth(w, r)
+		siw.Handler.GetNetWorth(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1716,6 +2692,27 @@ func (siw *ServerInterfaceWrapper) GetSpending(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Ledger-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Ledger-Id")]; found {
+		var XLedgerId LedgerId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Ledger-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Ledger-Id", valueList[0], &XLedgerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Ledger-Id", Err: err})
+			return
+		}
+
+		params.XLedgerId = &XLedgerId
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetSpending(w, r, params)
 	}))
@@ -1749,6 +2746,27 @@ func (siw *ServerInterfaceWrapper) SyncPull(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Ledger-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Ledger-Id")]; found {
+		var XLedgerId LedgerId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Ledger-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Ledger-Id", valueList[0], &XLedgerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Ledger-Id", Err: err})
+			return
+		}
+
+		params.XLedgerId = &XLedgerId
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.SyncPull(w, r, params)
 	}))
@@ -1763,8 +2781,35 @@ func (siw *ServerInterfaceWrapper) SyncPull(w http.ResponseWriter, r *http.Reque
 // SyncPush operation middleware
 func (siw *ServerInterfaceWrapper) SyncPush(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SyncPushParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Ledger-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Ledger-Id")]; found {
+		var XLedgerId LedgerId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Ledger-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Ledger-Id", valueList[0], &XLedgerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Ledger-Id", Err: err})
+			return
+		}
+
+		params.XLedgerId = &XLedgerId
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.SyncPush(w, r)
+		siw.Handler.SyncPush(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1983,6 +3028,24 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/recurring/trigger", wrapper.TriggerRecurring)
 	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/ledgers", wrapper.ListLedgers)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/ledgers", wrapper.CreateLedger)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/ledgers/{id}/members", wrapper.ListLedgerMembers)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/ledgers/{id}/members/{userId}", wrapper.RemoveLedgerMember)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/ledgers/{id}/invite", wrapper.CreateLedgerInvite)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/ledgers/join", wrapper.JoinLedger)
+	})
 
 	return r
 }
@@ -2024,7 +3087,8 @@ func (response ListAccounts401JSONResponse) VisitListAccountsResponse(w http.Res
 }
 
 type CreateAccountRequestObject struct {
-	Body *CreateAccountJSONRequestBody
+	Params CreateAccountParams
+	Body   *CreateAccountJSONRequestBody
 }
 
 type CreateAccountResponseObject interface {
@@ -2088,7 +3152,8 @@ func (response CreateAccount409JSONResponse) VisitCreateAccountResponse(w http.R
 }
 
 type GetAccountBalanceRequestObject struct {
-	Id string `json:"id"`
+	Id     string `json:"id"`
+	Params GetAccountBalanceParams
 }
 
 type GetAccountBalanceResponseObject interface {
@@ -2439,7 +3504,8 @@ func (response ListBudgets401JSONResponse) VisitListBudgetsResponse(w http.Respo
 }
 
 type SetBudgetRequestObject struct {
-	Body *SetBudgetJSONRequestBody
+	Params SetBudgetParams
+	Body   *SetBudgetJSONRequestBody
 }
 
 type SetBudgetResponseObject interface {
@@ -2489,7 +3555,8 @@ func (response SetBudget401JSONResponse) VisitSetBudgetResponse(w http.ResponseW
 }
 
 type DeleteBudgetRequestObject struct {
-	Id string `json:"id"`
+	Id     string `json:"id"`
+	Params DeleteBudgetParams
 }
 
 type DeleteBudgetResponseObject interface {
@@ -2519,8 +3586,9 @@ func (response DeleteBudget401JSONResponse) VisitDeleteBudgetResponse(w http.Res
 }
 
 type UpdateBudgetRequestObject struct {
-	Id   string `json:"id"`
-	Body *UpdateBudgetJSONRequestBody
+	Id     string `json:"id"`
+	Params UpdateBudgetParams
+	Body   *UpdateBudgetJSONRequestBody
 }
 
 type UpdateBudgetResponseObject interface {
@@ -2606,7 +3674,8 @@ func (response ListEntries401JSONResponse) VisitListEntriesResponse(w http.Respo
 }
 
 type PostEntryRequestObject struct {
-	Body *PostEntryJSONRequestBody
+	Params PostEntryParams
+	Body   *PostEntryJSONRequestBody
 }
 
 type PostEntryResponseObject interface {
@@ -2670,7 +3739,8 @@ func (response PostEntry422JSONResponse) VisitPostEntryResponse(w http.ResponseW
 }
 
 type GetEntryRequestObject struct {
-	Id string `json:"id"`
+	Id     string `json:"id"`
+	Params GetEntryParams
 }
 
 type GetEntryResponseObject interface {
@@ -2720,6 +3790,7 @@ func (response GetEntry404JSONResponse) VisitGetEntryResponse(w http.ResponseWri
 }
 
 type ListFxRatesRequestObject struct {
+	Params ListFxRatesParams
 }
 
 type ListFxRatesResponseObject interface {
@@ -2755,6 +3826,7 @@ func (response ListFxRates401JSONResponse) VisitListFxRatesResponse(w http.Respo
 }
 
 type RefreshFxRatesRequestObject struct {
+	Params RefreshFxRatesParams
 }
 
 type RefreshFxRatesResponseObject interface {
@@ -2876,7 +3948,288 @@ func (response GetHealthz503JSONResponse) VisitGetHealthzResponse(w http.Respons
 	return err
 }
 
+type ListLedgersRequestObject struct {
+}
+
+type ListLedgersResponseObject interface {
+	VisitListLedgersResponse(w http.ResponseWriter) error
+}
+
+type ListLedgers200JSONResponse []LedgerMembership
+
+func (response ListLedgers200JSONResponse) VisitListLedgersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListLedgers401JSONResponse Error
+
+func (response ListLedgers401JSONResponse) VisitListLedgersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateLedgerRequestObject struct {
+	Body *CreateLedgerJSONRequestBody
+}
+
+type CreateLedgerResponseObject interface {
+	VisitCreateLedgerResponse(w http.ResponseWriter) error
+}
+
+type CreateLedger201JSONResponse Ledger
+
+func (response CreateLedger201JSONResponse) VisitCreateLedgerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateLedger400JSONResponse Error
+
+func (response CreateLedger400JSONResponse) VisitCreateLedgerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateLedger401JSONResponse Error
+
+func (response CreateLedger401JSONResponse) VisitCreateLedgerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type JoinLedgerRequestObject struct {
+	Body *JoinLedgerJSONRequestBody
+}
+
+type JoinLedgerResponseObject interface {
+	VisitJoinLedgerResponse(w http.ResponseWriter) error
+}
+
+type JoinLedger200JSONResponse Ledger
+
+func (response JoinLedger200JSONResponse) VisitJoinLedgerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type JoinLedger401JSONResponse Error
+
+func (response JoinLedger401JSONResponse) VisitJoinLedgerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type JoinLedger404JSONResponse Error
+
+func (response JoinLedger404JSONResponse) VisitJoinLedgerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateLedgerInviteRequestObject struct {
+	Id string `json:"id"`
+}
+
+type CreateLedgerInviteResponseObject interface {
+	VisitCreateLedgerInviteResponse(w http.ResponseWriter) error
+}
+
+type CreateLedgerInvite201JSONResponse LedgerInvite
+
+func (response CreateLedgerInvite201JSONResponse) VisitCreateLedgerInviteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateLedgerInvite401JSONResponse Error
+
+func (response CreateLedgerInvite401JSONResponse) VisitCreateLedgerInviteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateLedgerInvite403JSONResponse Error
+
+func (response CreateLedgerInvite403JSONResponse) VisitCreateLedgerInviteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListLedgerMembersRequestObject struct {
+	Id string `json:"id"`
+}
+
+type ListLedgerMembersResponseObject interface {
+	VisitListLedgerMembersResponse(w http.ResponseWriter) error
+}
+
+type ListLedgerMembers200JSONResponse []LedgerMember
+
+func (response ListLedgerMembers200JSONResponse) VisitListLedgerMembersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListLedgerMembers401JSONResponse Error
+
+func (response ListLedgerMembers401JSONResponse) VisitListLedgerMembersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListLedgerMembers403JSONResponse Error
+
+func (response ListLedgerMembers403JSONResponse) VisitListLedgerMembersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveLedgerMemberRequestObject struct {
+	Id     string `json:"id"`
+	UserId string `json:"userId"`
+}
+
+type RemoveLedgerMemberResponseObject interface {
+	VisitRemoveLedgerMemberResponse(w http.ResponseWriter) error
+}
+
+type RemoveLedgerMember204Response struct {
+}
+
+func (response RemoveLedgerMember204Response) VisitRemoveLedgerMemberResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type RemoveLedgerMember401JSONResponse Error
+
+func (response RemoveLedgerMember401JSONResponse) VisitRemoveLedgerMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveLedgerMember403JSONResponse Error
+
+func (response RemoveLedgerMember403JSONResponse) VisitRemoveLedgerMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListRecurringRequestObject struct {
+	Params ListRecurringParams
 }
 
 type ListRecurringResponseObject interface {
@@ -2912,7 +4265,8 @@ func (response ListRecurring401JSONResponse) VisitListRecurringResponse(w http.R
 }
 
 type CreateRecurringRequestObject struct {
-	Body *CreateRecurringJSONRequestBody
+	Params CreateRecurringParams
+	Body   *CreateRecurringJSONRequestBody
 }
 
 type CreateRecurringResponseObject interface {
@@ -2962,6 +4316,7 @@ func (response CreateRecurring401JSONResponse) VisitCreateRecurringResponse(w ht
 }
 
 type TriggerRecurringRequestObject struct {
+	Params TriggerRecurringParams
 }
 
 type TriggerRecurringResponseObject interface {
@@ -2997,7 +4352,8 @@ func (response TriggerRecurring401JSONResponse) VisitTriggerRecurringResponse(w 
 }
 
 type DeleteRecurringRequestObject struct {
-	Id string `json:"id"`
+	Id     string `json:"id"`
+	Params DeleteRecurringParams
 }
 
 type DeleteRecurringResponseObject interface {
@@ -3027,7 +4383,8 @@ func (response DeleteRecurring401JSONResponse) VisitDeleteRecurringResponse(w ht
 }
 
 type GetRecurringRequestObject struct {
-	Id string `json:"id"`
+	Id     string `json:"id"`
+	Params GetRecurringParams
 }
 
 type GetRecurringResponseObject interface {
@@ -3077,8 +4434,9 @@ func (response GetRecurring404JSONResponse) VisitGetRecurringResponse(w http.Res
 }
 
 type UpdateRecurringRequestObject struct {
-	Id   string `json:"id"`
-	Body *UpdateRecurringJSONRequestBody
+	Id     string `json:"id"`
+	Params UpdateRecurringParams
+	Body   *UpdateRecurringJSONRequestBody
 }
 
 type UpdateRecurringResponseObject interface {
@@ -3242,6 +4600,7 @@ func (response GetMonthlySeries401JSONResponse) VisitGetMonthlySeriesResponse(w 
 }
 
 type GetNetWorthRequestObject struct {
+	Params GetNetWorthParams
 }
 
 type GetNetWorthResponseObject interface {
@@ -3363,7 +4722,8 @@ func (response SyncPull401JSONResponse) VisitSyncPullResponse(w http.ResponseWri
 }
 
 type SyncPushRequestObject struct {
-	Body *SyncPushJSONRequestBody
+	Params SyncPushParams
+	Body   *SyncPushJSONRequestBody
 }
 
 type SyncPushResponseObject interface {
@@ -3460,6 +4820,24 @@ type StrictServerInterface interface {
 	// GetHealthz Liveness + DB connectivity
 	// (GET /healthz)
 	GetHealthz(ctx context.Context, request GetHealthzRequestObject) (GetHealthzResponseObject, error)
+	// ListLedgers List the books this user can open
+	// (GET /ledgers)
+	ListLedgers(ctx context.Context, request ListLedgersRequestObject) (ListLedgersResponseObject, error)
+	// CreateLedger Create a shared household book
+	// (POST /ledgers)
+	CreateLedger(ctx context.Context, request CreateLedgerRequestObject) (CreateLedgerResponseObject, error)
+	// JoinLedger Join a book with a code
+	// (POST /ledgers/join)
+	JoinLedger(ctx context.Context, request JoinLedgerRequestObject) (JoinLedgerResponseObject, error)
+	// CreateLedgerInvite Issue a join code for a household book
+	// (POST /ledgers/{id}/invite)
+	CreateLedgerInvite(ctx context.Context, request CreateLedgerInviteRequestObject) (CreateLedgerInviteResponseObject, error)
+	// ListLedgerMembers List a book's members
+	// (GET /ledgers/{id}/members)
+	ListLedgerMembers(ctx context.Context, request ListLedgerMembersRequestObject) (ListLedgerMembersResponseObject, error)
+	// RemoveLedgerMember Remove a member, or leave the book yourself
+	// (DELETE /ledgers/{id}/members/{userId})
+	RemoveLedgerMember(ctx context.Context, request RemoveLedgerMemberRequestObject) (RemoveLedgerMemberResponseObject, error)
 	// ListRecurring List the user's recurring transaction rules
 	// (GET /recurring)
 	ListRecurring(ctx context.Context, request ListRecurringRequestObject) (ListRecurringResponseObject, error)
@@ -3564,8 +4942,10 @@ func (sh *strictHandler) ListAccounts(w http.ResponseWriter, r *http.Request, pa
 }
 
 // CreateAccount operation middleware
-func (sh *strictHandler) CreateAccount(w http.ResponseWriter, r *http.Request) {
+func (sh *strictHandler) CreateAccount(w http.ResponseWriter, r *http.Request, params CreateAccountParams) {
 	var request CreateAccountRequestObject
+
+	request.Params = params
 
 	var body CreateAccountJSONRequestBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -3595,10 +4975,11 @@ func (sh *strictHandler) CreateAccount(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetAccountBalance operation middleware
-func (sh *strictHandler) GetAccountBalance(w http.ResponseWriter, r *http.Request, id string) {
+func (sh *strictHandler) GetAccountBalance(w http.ResponseWriter, r *http.Request, id string, params GetAccountBalanceParams) {
 	var request GetAccountBalanceRequestObject
 
 	request.Id = id
+	request.Params = params
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
 		return sh.ssi.GetAccountBalance(ctx, request.(GetAccountBalanceRequestObject))
@@ -3826,8 +5207,10 @@ func (sh *strictHandler) ListBudgets(w http.ResponseWriter, r *http.Request, par
 }
 
 // SetBudget operation middleware
-func (sh *strictHandler) SetBudget(w http.ResponseWriter, r *http.Request) {
+func (sh *strictHandler) SetBudget(w http.ResponseWriter, r *http.Request, params SetBudgetParams) {
 	var request SetBudgetRequestObject
+
+	request.Params = params
 
 	var body SetBudgetJSONRequestBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -3857,10 +5240,11 @@ func (sh *strictHandler) SetBudget(w http.ResponseWriter, r *http.Request) {
 }
 
 // DeleteBudget operation middleware
-func (sh *strictHandler) DeleteBudget(w http.ResponseWriter, r *http.Request, id string) {
+func (sh *strictHandler) DeleteBudget(w http.ResponseWriter, r *http.Request, id string, params DeleteBudgetParams) {
 	var request DeleteBudgetRequestObject
 
 	request.Id = id
+	request.Params = params
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
 		return sh.ssi.DeleteBudget(ctx, request.(DeleteBudgetRequestObject))
@@ -3883,10 +5267,11 @@ func (sh *strictHandler) DeleteBudget(w http.ResponseWriter, r *http.Request, id
 }
 
 // UpdateBudget operation middleware
-func (sh *strictHandler) UpdateBudget(w http.ResponseWriter, r *http.Request, id string) {
+func (sh *strictHandler) UpdateBudget(w http.ResponseWriter, r *http.Request, id string, params UpdateBudgetParams) {
 	var request UpdateBudgetRequestObject
 
 	request.Id = id
+	request.Params = params
 
 	var body UpdateBudgetJSONRequestBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -3942,8 +5327,10 @@ func (sh *strictHandler) ListEntries(w http.ResponseWriter, r *http.Request, par
 }
 
 // PostEntry operation middleware
-func (sh *strictHandler) PostEntry(w http.ResponseWriter, r *http.Request) {
+func (sh *strictHandler) PostEntry(w http.ResponseWriter, r *http.Request, params PostEntryParams) {
 	var request PostEntryRequestObject
+
+	request.Params = params
 
 	var body PostEntryJSONRequestBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -3973,10 +5360,11 @@ func (sh *strictHandler) PostEntry(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetEntry operation middleware
-func (sh *strictHandler) GetEntry(w http.ResponseWriter, r *http.Request, id string) {
+func (sh *strictHandler) GetEntry(w http.ResponseWriter, r *http.Request, id string, params GetEntryParams) {
 	var request GetEntryRequestObject
 
 	request.Id = id
+	request.Params = params
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
 		return sh.ssi.GetEntry(ctx, request.(GetEntryRequestObject))
@@ -3999,8 +5387,10 @@ func (sh *strictHandler) GetEntry(w http.ResponseWriter, r *http.Request, id str
 }
 
 // ListFxRates operation middleware
-func (sh *strictHandler) ListFxRates(w http.ResponseWriter, r *http.Request) {
+func (sh *strictHandler) ListFxRates(w http.ResponseWriter, r *http.Request, params ListFxRatesParams) {
 	var request ListFxRatesRequestObject
+
+	request.Params = params
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
 		return sh.ssi.ListFxRates(ctx, request.(ListFxRatesRequestObject))
@@ -4023,8 +5413,10 @@ func (sh *strictHandler) ListFxRates(w http.ResponseWriter, r *http.Request) {
 }
 
 // RefreshFxRates operation middleware
-func (sh *strictHandler) RefreshFxRates(w http.ResponseWriter, r *http.Request) {
+func (sh *strictHandler) RefreshFxRates(w http.ResponseWriter, r *http.Request, params RefreshFxRatesParams) {
 	var request RefreshFxRatesRequestObject
+
+	request.Params = params
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
 		return sh.ssi.RefreshFxRates(ctx, request.(RefreshFxRatesRequestObject))
@@ -4098,9 +5490,176 @@ func (sh *strictHandler) GetHealthz(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// ListLedgers operation middleware
+func (sh *strictHandler) ListLedgers(w http.ResponseWriter, r *http.Request) {
+	var request ListLedgersRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListLedgers(ctx, request.(ListLedgersRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListLedgers")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListLedgersResponseObject); ok {
+		if err := validResponse.VisitListLedgersResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateLedger operation middleware
+func (sh *strictHandler) CreateLedger(w http.ResponseWriter, r *http.Request) {
+	var request CreateLedgerRequestObject
+
+	var body CreateLedgerJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateLedger(ctx, request.(CreateLedgerRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateLedger")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateLedgerResponseObject); ok {
+		if err := validResponse.VisitCreateLedgerResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// JoinLedger operation middleware
+func (sh *strictHandler) JoinLedger(w http.ResponseWriter, r *http.Request) {
+	var request JoinLedgerRequestObject
+
+	var body JoinLedgerJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.JoinLedger(ctx, request.(JoinLedgerRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "JoinLedger")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(JoinLedgerResponseObject); ok {
+		if err := validResponse.VisitJoinLedgerResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateLedgerInvite operation middleware
+func (sh *strictHandler) CreateLedgerInvite(w http.ResponseWriter, r *http.Request, id string) {
+	var request CreateLedgerInviteRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateLedgerInvite(ctx, request.(CreateLedgerInviteRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateLedgerInvite")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateLedgerInviteResponseObject); ok {
+		if err := validResponse.VisitCreateLedgerInviteResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListLedgerMembers operation middleware
+func (sh *strictHandler) ListLedgerMembers(w http.ResponseWriter, r *http.Request, id string) {
+	var request ListLedgerMembersRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListLedgerMembers(ctx, request.(ListLedgerMembersRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListLedgerMembers")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListLedgerMembersResponseObject); ok {
+		if err := validResponse.VisitListLedgerMembersResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RemoveLedgerMember operation middleware
+func (sh *strictHandler) RemoveLedgerMember(w http.ResponseWriter, r *http.Request, id string, userId string) {
+	var request RemoveLedgerMemberRequestObject
+
+	request.Id = id
+	request.UserId = userId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RemoveLedgerMember(ctx, request.(RemoveLedgerMemberRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RemoveLedgerMember")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RemoveLedgerMemberResponseObject); ok {
+		if err := validResponse.VisitRemoveLedgerMemberResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // ListRecurring operation middleware
-func (sh *strictHandler) ListRecurring(w http.ResponseWriter, r *http.Request) {
+func (sh *strictHandler) ListRecurring(w http.ResponseWriter, r *http.Request, params ListRecurringParams) {
 	var request ListRecurringRequestObject
+
+	request.Params = params
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
 		return sh.ssi.ListRecurring(ctx, request.(ListRecurringRequestObject))
@@ -4123,8 +5682,10 @@ func (sh *strictHandler) ListRecurring(w http.ResponseWriter, r *http.Request) {
 }
 
 // CreateRecurring operation middleware
-func (sh *strictHandler) CreateRecurring(w http.ResponseWriter, r *http.Request) {
+func (sh *strictHandler) CreateRecurring(w http.ResponseWriter, r *http.Request, params CreateRecurringParams) {
 	var request CreateRecurringRequestObject
+
+	request.Params = params
 
 	var body CreateRecurringJSONRequestBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -4154,8 +5715,10 @@ func (sh *strictHandler) CreateRecurring(w http.ResponseWriter, r *http.Request)
 }
 
 // TriggerRecurring operation middleware
-func (sh *strictHandler) TriggerRecurring(w http.ResponseWriter, r *http.Request) {
+func (sh *strictHandler) TriggerRecurring(w http.ResponseWriter, r *http.Request, params TriggerRecurringParams) {
 	var request TriggerRecurringRequestObject
+
+	request.Params = params
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
 		return sh.ssi.TriggerRecurring(ctx, request.(TriggerRecurringRequestObject))
@@ -4178,10 +5741,11 @@ func (sh *strictHandler) TriggerRecurring(w http.ResponseWriter, r *http.Request
 }
 
 // DeleteRecurring operation middleware
-func (sh *strictHandler) DeleteRecurring(w http.ResponseWriter, r *http.Request, id string) {
+func (sh *strictHandler) DeleteRecurring(w http.ResponseWriter, r *http.Request, id string, params DeleteRecurringParams) {
 	var request DeleteRecurringRequestObject
 
 	request.Id = id
+	request.Params = params
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
 		return sh.ssi.DeleteRecurring(ctx, request.(DeleteRecurringRequestObject))
@@ -4204,10 +5768,11 @@ func (sh *strictHandler) DeleteRecurring(w http.ResponseWriter, r *http.Request,
 }
 
 // GetRecurring operation middleware
-func (sh *strictHandler) GetRecurring(w http.ResponseWriter, r *http.Request, id string) {
+func (sh *strictHandler) GetRecurring(w http.ResponseWriter, r *http.Request, id string, params GetRecurringParams) {
 	var request GetRecurringRequestObject
 
 	request.Id = id
+	request.Params = params
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
 		return sh.ssi.GetRecurring(ctx, request.(GetRecurringRequestObject))
@@ -4230,10 +5795,11 @@ func (sh *strictHandler) GetRecurring(w http.ResponseWriter, r *http.Request, id
 }
 
 // UpdateRecurring operation middleware
-func (sh *strictHandler) UpdateRecurring(w http.ResponseWriter, r *http.Request, id string) {
+func (sh *strictHandler) UpdateRecurring(w http.ResponseWriter, r *http.Request, id string, params UpdateRecurringParams) {
 	var request UpdateRecurringRequestObject
 
 	request.Id = id
+	request.Params = params
 
 	var body UpdateRecurringJSONRequestBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -4315,8 +5881,10 @@ func (sh *strictHandler) GetMonthlySeries(w http.ResponseWriter, r *http.Request
 }
 
 // GetNetWorth operation middleware
-func (sh *strictHandler) GetNetWorth(w http.ResponseWriter, r *http.Request) {
+func (sh *strictHandler) GetNetWorth(w http.ResponseWriter, r *http.Request, params GetNetWorthParams) {
 	var request GetNetWorthRequestObject
+
+	request.Params = params
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
 		return sh.ssi.GetNetWorth(ctx, request.(GetNetWorthRequestObject))
@@ -4391,8 +5959,10 @@ func (sh *strictHandler) SyncPull(w http.ResponseWriter, r *http.Request, params
 }
 
 // SyncPush operation middleware
-func (sh *strictHandler) SyncPush(w http.ResponseWriter, r *http.Request) {
+func (sh *strictHandler) SyncPush(w http.ResponseWriter, r *http.Request, params SyncPushParams) {
 	var request SyncPushRequestObject
+
+	request.Params = params
 
 	var body SyncPushJSONRequestBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -4426,113 +5996,130 @@ func (sh *strictHandler) SyncPush(w http.ResponseWriter, r *http.Request) {
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
-	"AQAA//8=",
+	"7H3Zchu3tuivrOK9VZYqpEg7Tk6OVXnwmDjbTnJkuxzXZkqGuhdJRN1AB0CL5nap6j6e+7rrfsL9snzJ",
+	"KSwAPbGbg0QxUiVvHLoxLKx5wudeJNNMChRG9x597mVMsRQNKvr2CuMpqpex/RyjjhTPDJei96j3fsaj",
+	"GZxJeQ5mxjUo/D1HbUAhizUwEcNccYP6CH5KuYGJVGBmCBFLElT3NGSotBQsGYuE5jiCx+A+VZ4DrkFI",
+	"AwxSTM9QgZwAzfUbRgZjmHMzg4ejL4/GotfvcbuuGbIYVa/fEyzF3qPeLwO3h8HLuNfv6WiGKbO7MYvM",
+	"/q2N4mLau7y8DH/Svh9HkcyFIYAomaEyHOkPpqIZv8C4MsSZlAky0bvs9yKFzGB8yujNiVSp/dSLmcGB",
+	"4Sn2+s15+70oVwpFtFgG8cs3P8HDB/f/A8IjEMnYjoGfWJoldpiXz07axuQtBxYlHIUZTFGgsosEHsPB",
+	"e2ZQpZhI8ezJIUgFGtUFKshzHrcN7ID6efmPjCkU5rRtYkkfWALuGWAOtnBgFCLMpDw/hlzk2i5JwOsH",
+	"h/bw8iRhZ3aLRuXYshD3w+fe/1Y46T3q/a9hicVDf45Df4hv7aOX/V6exVsezmW/Z9GaK3ve/+yVIKmc",
+	"modJv8SMGhrUpv21mEGeWQy2q/KLfMISJiJsQTj3v4fsMvYojLk5TbmQqrYtLszXD8stcWFwiqqJcGsx",
+	"KcazLYfXfCowLl+pI4OwAySDM7fdgXsYWOowgmmNZoifMhQa4Vug2f/473+7XR6DNDNUGr4F98Mf//1v",
+	"euLwGDKpueEXaNnDDFliZouhm6vXX7/qxkFXYF476SowGqBv7HvFSb/1mFuHy9MZU2YgJwM/twb7/hE4",
+	"iCScnfGEmwUwhZDJ6ByNPgYuIpligNfQ7sA/EjGDU6k46iPLL0Se0r7sYL1+rxiOmKYdg5gKjWI/0TiV",
+	"PZTo8Dg3sxPUmbRPtuEqan1q5DmK5S3qmVRmkFgage/fPPjqa/jh/dtj0ChiYBo+2rGl4v9i9vlH8ASZ",
+	"QgXjfDT6MqIh6SN+bENThROFetY5NRfTBAe5RpAZ+z1HoAePQUnDDMIFZzBkuZkN/UBtc+Qa1TqW8063",
+	"o1MJluZa/bhtCPMkj6do1rGE+k6t7Az0UzBajw2LQyeqz2hcMExN0ehWmXRNObahgFqWIqi4jE9TKcxs",
+	"eW8TrrSBmC2sGmA3Ss/BwYcPHz4MXr8ejO4fVondrrZtbrfvFTwt5YKnlmJGbfxtN2KkxmJq224ssMaA",
+	"thEsDnveczN7k6EwV5EstwIH1p6nttvrkjeW3YCRhiUWaTKpreZDfBwSLlCDFIRKgVaIQMJBbCDt1iLT",
+	"LUCgKoCujE5PmZ69SOR8GY/OmMbT6skvnZBnSCWUVrHQH0lq839h/Ji0AkIVElJXf19seUQenijijTDQ",
+	"P64NU2aDFxrHWYdfY7TaWhqAaAK2us/2I3RiwPKDeGt+EP7uNAFoH1dVRNdR9bVUuNrSaxRQJ43KDtrg",
+	"91wYtViG240zysmnU2uxtZh0Smo9KKxD+xAcvH54eAzWfiKb22s+xTMojNUKNzGxNjUi11uNxGntYNxg",
+	"qtcR8A8yV4Ilr7jA0tLrMaXYwn5PMZXtGCNz5SyooO+mTORkACi0ALDP9Xs8zaQyrdqtNszkujpCrNiE",
+	"iJAER+tL5pM4jf3xrOUUO7JBw5TFkutI7QDhQRXAvx27f66UI7wGrsu4BQ+1sYgEKYtmXCB5KbzDh2tA",
+	"OxJECdO65rrg4oIlPD61ZhQKw1nSqoqmqDWbtkw6y1MmBgpZTJPHaBhP2maAlTM04Os9LGHWNtC8+HTi",
+	"j3tZDtbp+d2bZ602NVtshCy/59LgRhyinT3EGPGUJZ4v3Ae7QPjWfaWxD2vguv/VaDQ6Go1adayStorn",
+	"J4qJ80muDLnb1su4XtiRg4BfdTF2N6hfcd2mvupTOdkIjnaezdmPP94lztPYkRu075fRsXhn6Z2gzhPT",
+	"RkzexdhwkeTB1UlzABcaleW1UoGn2vXyz43dtqzvpJwmeOLctZtSOKva5p7AlUytqSkH9s+BRq3ts63G",
+	"ecwVRuY0V7zdYg1PwLuTl04dzzIIHkH6nptZcDFvSsO1adsg8T35id4UTL8OiPhsea0/S22mCjVEUgiM",
+	"DL9wTpQgLvLMIrecCztfSSn08wppU58kUzJCrcGaLgIbXFOer91+IRLis9Zt/yC5cD7xtUiwAZzbZygl",
+	"+NZqJintXeZcLrzH0OM90HOQC240HESWkA+BGRdC8BLxngYdsaTmOLesbtTfvbc0qikP1swsHIWtyoNV",
+	"xxZdoNhQAdtMZyhmapiOcdRrAL2y57bDdaizgRm4TOZnUp7f06DQamBcTIsjOva/aRDBegMjgaC3FuhX",
+	"0b87IH7OnWEUTjAEqXr93kzmGmcyaVcCO4yitoPwRkjT6qOpa5vpBv5LccHbNJAO7WwmlQGnLtkBSV36",
+	"TXKxHE76x3+8fvBfv/znkzaQ4aeMK9RbgdkF9Nrxu51pl2/UZuyGxWsKDC7DAlOrDlZX6n5pWaWFxZb4",
+	"o2SyNvzkeax90nuPNwJEeLBfLJgmqy5zHTT0jGfLEEkKwl2/6qvssbEPP50fp3vJJ36aRtBwLlBpSJlg",
+	"U/TRX7stiixzwn99HH6HWAJeoFqYmeUqmLgwhidiGspZQ2c1T3t5nFZSvRRZbm5KXFXEVJtfsfA4318n",
+	"gtpDq8cQ44TlidGWbVIMwLL7MnB88PohpHlieOkJ0HlmWe7hJix2a7m2Mg7sZBjw+Dg4DoI408DIiQDz",
+	"GQqQKTc1ZbeDYtbIs1bUk1MuOtWfLXhHxrSeS1X3ExY/rlt5GLZ4oW2tr6Uws2Txs+RtXvwl3+oGOk3T",
+	"nbrBK1uFZDaJwmznkm3ALcxyLXeoh+sbVB6U27q1M3simxuWtXNcZ14uOYXdXG37+BHNe6nc6bSYyO3O",
+	"qU7Jtn7b2zrTKfpy6mLPV/Ddu9fLkPXWQ6yBbAVI9bUuT70Oo37EuQ/yd1tW20fIdsNF4eDk+Zu3kDEz",
+	"O1yV2ZOyT69QTC06fTMiyRS+3u+vSfvZfdJO4+g6cm86jsIFQDtPYo1gv1kJti7UnebawBkSS63xWLY5",
+	"h71WnHuViF0Vbew4Cwqd7IYoOqMh5eksh0WO3XloNH2Cqc8/spokU5zZs9SAYiJVRM6FAcsyCqVs7CHd",
+	"J61uF08pldtLOvOX7qUHew2tVKMkG+mw0vmItwulVjiDg1EHOq5xf61xZTR1bbLZpbqnQc6F87JXFrIW",
+	"oTs47+qdrmJ8J+FITvIVjl4WGX7hz4P202DblbTWm+aFSuVJI7jw4uT5f337+qcf337/6sPxkw/06dnj",
+	"D9/eb+V0mGaJR65VlFAA5m14YcmrTyupjNgK4qaK0Y5AHTahS0Yp/FyxxaImzmzpl2zxtFUHdJ70iVTF",
+	"rOTGbw+VzFev2/vjpeJTTqfv5nAh5W3V+HK2mlBfE4YvTtEytreVo7+W4b4HmzwgVfWkr2tqX98UrnGL",
+	"VWxiN+nuHceRMG1OMQSd6xCdzxbetqT6gsiym5QZVLzAZZgwnljBiUfToxqw7+kit2vONIQs7ZAjIa0W",
+	"QCGoPEHKD9Ogc0rYnORJsgA2ZVxQecFa9bbcwyqIbDaMylvSWNsBgDHIyKMUgpeTTbm5ftYVrlpr93zq",
+	"WJP9ByyDjfNkNysppEF9Iv6UJShipuDk5N2r5+Be8Cc+7hYY415diduXZNlVskfVI74knvqBPrfL7lhe",
+	"7vV08u0U0nYGvgPltFBkalrpDlTGEl6KT0lzvGJE36df1aj3OsH8IsOgQ8lbyotfDYz64+0TTrk2V9ed",
+	"26WjVxyfPH7z/PTpu5OT5z8+/XD67PmLx+9evd1Ehd6hw7bi8PhmJ+7bNwsRPZ0xMfXyNI65A8HPNbit",
+	"Ihg7xFvLM8M4VJhTS0xANXBJWBE9Amc51YgcwT9woakkxP1t7Qb9KIhE3Q8Y2R+L31zU/pTIoO+rBPQR",
+	"PGfRDEKGV0bn5XnN0LOZYYwJGoxdGV4rBH7Ok6S7cCQq4bMODhUQWB6qDUuzNqk0hznVtjF1fgz2gIBp",
+	"INGa5UlCrDHkfpMIs79eQYUNK6+u5tdOGKyg1KuAoGMtq+fvOgNSXFaiaEtxWC1vBdXApyfw2Kf9+Tw6",
+	"Mj6Kqk2FkVSxhgOBluo1T1CYZAGxklmG8eEyDl127KhGFF2JuTW51L63miZSTtEUQR7NawN2ODnLl0LK",
+	"1o5W0QaKdzTFtmb/sj5faF5/toX9Tl8hw+Tq5bJXsWO2EDm8Lmzas6Rbc3b8iM2QxcokEasR2VPgZvHG",
+	"noqHHVXTPc6ds9l9exFW9MP7t6E2mjCC/i2XODMmcxXSXExkS1acz5KBCRfkVY1lfpbgwMWgQ3n36/vA",
+	"4liX6Xw6VxMW4VgcKK9UDBM55SLU4A2nlKkIX0CmpHGsI0X7jMzN4RE8bpFhddnVh8mnPhS6YL/MPOpT",
+	"HoFeiAgSl1EAFhkVpDxBbaRAfTwWdqnfFdqJFQG0YleCXqZgUSYk5TpPeOKKCT+m7BxhiuKjl4ncOOOD",
+	"IMQfW8vy8c8ve/3eBSrtwDg6enA0svgiMxQs471HvS+PRkdfkoJhZnSMwyC47RdfHGhJhIzgl3HvUe8V",
+	"1yZAht4sy/n/2U675SPDotz/sv/ZldP/nqNalNX0PgJTltFvHsr51SK4Ez60+gejkVOZhfHlaSzLEh7R",
+	"Voa/aUn6ajnTRqZFqNtfZptL4qpUgYJOmizsARpUGMPZggpw7UAPR/e3Wuiq9bm0+pbVpFxra85KBSFt",
+	"3SnhVXqmI6xS8j9/tWDVeZoytfCHTwSWa2qyUBQTH/iaYUL7sjiYRC2b6kq+zq+XrtphGbOeEtcJEL46",
+	"av3qOB1q80TGi52Bdjn4ellnqla8Xi4h4e7OtsC9TlwLerPDqtEesIolVuxYfJbxooZciwyHQaQMibr/",
+	"fFS3C/jPm18AE4VLkLJWuCu2d91E6KuFB7BEIYsXgJ+4Nno7QnS0AszX6tu9hiJsOIiWav1JUrYS42W/",
+	"5PnDzzy+HJ6VnSJaBcB3aBo9Ja4vBaz8KYWAc0XV6GpVZ5XrMv4NaC7sdAXpBbDdDix/uAcs9xsX0sBE",
+	"5iLeDoM9ZF2t9NDFH1whtRMiqxp5dCJyboJWR9q9FzP1db8lT/+Z1aRYloHKRakzFiUoA1eCksg5qVtL",
+	"ZSh2iWOhUXiFU5HDzp5HSyXLF1AtFYEZKjwCuwyn+I2FwhgxdSPRGwecEgbcdzHhvrwsxEJnMontXE5/",
+	"tNsdC/fXqcZIoTnswwUqPuHoBiFF3+mkEy7igVQDJyp0Ic2P4Od/PH0OXI8FJ7QJKos931xj/KhcHteA",
+	"n5w3IPabGGgeFxzO7swuoz8WmkJTCl2nJXr91C9NubiVZYJOiW3wGdoYIc/NCPR6odJGwnyHjKXa6KSF",
+	"ugKe/bkSfW/cjNCqcOBI5TAWcuFxhQDw1ejLm1+JNwolmZAW94kAp7lV2r0/z2G8Y3cFP3vuCQKYJ8k2",
+	"TjCRChhUStk8F7OPVnkY2alVFtawwejvm6GKWubyXSCKPWBnW6Fvx+lXHtnmtKUvDeg6bvv/zZx3I8Kz",
+	"0Yk/bMveOEcBCi/k+R4PZjdW7Qmtmkg7U6hROCcywQVCF6Wuw0tXasqvXaHoDdGL7wa1BJagzlhEjMiF",
+	"RD2g7tapPCXj0bRtpPs0QnutldpfxyE7txshMGlKDNyfrr3WF+HZjHE1FvSsyZXA+Ageg8IsYQuM++CK",
+	"yuK+3f1Eqin6zcOCYxJreDi679uCcSloHGZkyqM+aAkKc02qUozeIVmInEiKOKyc3m3TmU6K7mK3hVXs",
+	"Tzi4VmtxwW/3he0edxyi188/WPhWfW4IjBPXGI41UVAYCQwEzjeQG8Gt3S05QjT9xhCiHqz/W4fu8IrN",
+	"kZ1DEcXflx/K6dABCQO2LKFi4UsqdZfCf0VRDMOUWafI+IjIyrDBE//MtfxFV2nZ1xZpcEUGKx1N63LD",
+	"9xJxaLbZ2yDy4M/CWeM6vLUf1F8W/R7QdzDQ4Wth7oWOlh6i1PKPwOr9VRWKcA+uCHK8QU8GtzLAUS9p",
+	"2jM793DpROjAx6t9av48lh44ZOggLkDOBcbN5qh3Tel2sqCAcKCBZFHGF84C/i4hfUUQUCzBqd8JuryO",
+	"OiE8o9+vTQs3FEFosXA9EoYcnbt1rg7awEJv3gMeY5pJu+7DDvaVt3Avlwh0iw7talywnvazyzrGNbWK",
+	"t4yh1rjoXyFm5fd9xZDVu8AS3TD3tG9x3cUKQy/MVTrx86Jf5o4zaSZKpr1ttNmujBzZu3U6sWuUuoEm",
+	"HNLhBc5Rm4GzFqwSF8rMQpEhHaxiYnonM3J82+mw2xCF4wpCa84VSTiNa1foUpVKixd334lri2N0CHPH",
+	"vrs1FyAFglFMaBaRWwreznAslgugD3SeWiuNAr4avgX/3YV+dd8aCkVq5SEFIouC6TNpZr5qOhwDrehs",
+	"AQyKpnnGFU8cW2UsDyuI7TB2I8H/9uDBEb1SARhTCDxNc5eE/sf/+X8QSUX9AgmUbCwUUh6dmDqo9MGl",
+	"FjMBdvFH8PpB6Heju1riHo9Fo3D84MUvh8UaQprg64dtjj27YIf1t9FsqFXf7zkryvOCdtpfeNK4BQlR",
+	"jhJvhaR98GAPvieCvjeOAilux9oszlthGzhOLeu3wnG6skE8ZRWWSFeM5rp0deuTmDpJpODyfx0N0GHP",
+	"FRXAF2iiGQm8isRdOCFhZVqntLXoOPk0LBoFe1SsL+2E4kka2AXjVMFaq7InOSXiINftSMa1Wra6iz4a",
+	"i0piU8SSRPvMQwnRDKNzmM/QzPztZ4mMQt/miEUzCjlpwxJskz1WxXBNi/V1pc8NIXiljXNboloBzxe/",
+	"uD1buOo76ZFsbqWKbZNPDUxbHw0lhLaak4zZ4p72DaGLu/TKzJcGJh7By8J/cDQWAXOp2G19d+kVkctb",
+	"j2e1jtttUUjatAf8nXMT+fJjYOD67xQUE6KUVIpSacx+xLJsJQp+tphzOfxMndlXimHfF32HwaGiYKvZ",
+	"/qRFXPsG8psL7O7ZaKtrpguN6q8xX2G7Mj2wZhU14V9qcdQV/nJt5fdp2W/SE79dRVG+fP+voaEQvV1R",
+	"QfkOzVInExrPpaIVlmfGuGojW3ez4b/WqigPRiOn9XyMzx6Ne3k27n10XZgKY5wJPUel+/DV6Mvqs7Gc",
+	"i3Hv41jQ49xALJGsBJcSXcnMzjVWdBgri1Tqm6tF52itZW0NcxbNnLKEE6kQmDGYZi4VmwrwWnOL0Xzv",
+	"t3qDWF3r/99y0v4eyV2ntq6bNmaGEUfMS+g1UgJe+asB4At49qR5GUHAGr3QBlOPOU7V7VZuKe8q1HHS",
+	"rb6RTK2uQS458n3oMsAn/O+5RsqLslgwFs7nooKaLMAe9AISqxkRgouWZLEujfaVX/A+/JVLvbM3cF16",
+	"gJYp9cXNxkomCFyAPbu7Wj9oMcATtz0kiJgAmeGyLa/XFgy+KvqA34xzq97Lb8/erdAtvQs/Asn0Kxda",
+	"W0vU9STfl9crYASVtcnSi3s3g98M9IxZo6e4koHQtRU1K6xv+JtclbNf3opyQ6i6fO3KnsON3bjqbhY4",
+	"dq4Hh7fkGZyDxgQj4yTQX0XBy8W5kHNRTxUNicfUUmIrrLXnDszJVBeuCH0pVqMrFXvy8qaPVgfBT5aP",
+	"DKRIFkfwUuvcqVW+Wseu2MrhBWQKL7jMNfnGgvvArshKb+pzoHzVGItMsqDHKI2KRmIGGBietnqfqkze",
+	"30uyZCLehPt11zzcr72DOkJdnc5vTTh+D7VWJKWcPhOOioghYI9FmeKKnK2IwuKq5eQlbJ0FtCVLJxrx",
+	"l4CsDOPXNLz9IOgN66mb6KgeMn3wt6mQ0v7XQV/K+/N3xBSV/kmQgttnm/rrq9ICizZHzuFnq0a/bKbc",
+	"tTBzDSlbgMJUXqDl3VJgec9N5S/L8y0hphqTC9TOOk+YNmPhyDZigmJ76N+IKXBeFURCgn9U5knsQ+Zn",
+	"6C/diceCep9WfcmP3FhOyggpBh64qvA7PGx3HtsF1LD3BkiwPc7n4L77dMNi5wTbv2VCgRjG42Gwcbar",
+	"9HNo7xGeBk6QXWApchYyVxqTSSf5la0/VwmEk0qD0D8rlLFds1Rqz7wB0y/2Ty2N9R3vYFTuppJR4HdW",
+	"YkB55uu8ETs79xvxZbS28NuzS6OBcC0Ilie495qtgFLUPpB00Erf4Lvow+hG7A68rvG2oc+l67YMn1+w",
+	"JC86iCz7Xak7mLE2XoNhkLOXGqG7zDzuI87WjjQzawsqhDhHOAhNweGP//v/fTSrD1xESU7dT8pW4Hos",
+	"LPQwhvmMJ46Zh5bhitqyx3IuXNqffZNrKPPfrYUxFgd2bf1me/FDX5WbITM+qcJpMT4XyW7jCCrh77Eo",
+	"+j4VyYWRyamRikfpNgWmaPv85wuNzbpv1tpUt+bB1dvn28FIKb1b1PSaouBWEfaB8ea+5IRQtSkTN6Gw",
+	"zQpkdoES+6uRIeZ5xytk6mfZVSlT1wi6chpu8emN9ifQXYOsKlT/QtF8i0PXiOZLsQS7TrW0u2LrduHh",
+	"7lXbFQ2q9xwE2Uy73Xf5asB9Hq5p+5v4Ni722oj6nGin+o9hxPRsMEnkfFW221OmZy/sMzdV+HX1tgar",
+	"CsH+vGYJqxCgAGZbZzmmZ66RYzjbfRPdna0te0m3H8OFLoraXRDFdXSwpthSZmVJG0QLDcrwpeTdSUKK",
+	"8cSuW9OdyYCCDL0yBca3hKJx+iCTGLVxUQd/jQhdY0xdleoX4FU8PrUlH8EzxS+8ERsq3Y1CEY8FtdEN",
+	"DZj8FkBHClF05JTVb3zeOWXT+nQtabO4kejrfi9ln1yZ8oOHq2+Xu1FarMOgDTc9lLV/Ys/U6IAIFyzJ",
+	"7yg9DgtyHIJA8l/4tjch8m4CHf0IBc6spkyBZjAPl3y30ubj6VTh1N26mSRAV1iTK6e4vrpy6U8kxQXS",
+	"RQiUpeYpcCzaSBByHdz61bTVpVKHDporbie/nS6TYnlt8UM0QECHM4XsPJZzcccw8sdiBweEEBpSLnJd",
+	"4ARHfbi9mNCZY/yr9Kc34Zm/9acdBoOe+h4vBN1NgkHhqFzxtn/7bw1rU/oJWAxnlf46VSWrk1b0QkRD",
+	"ulNsbTlhkhQ3YklBKfFWJ7KsVcPB8kVtUL+nbSx8R59DmM+kDt2PobwBErgGNjGoGtef9UFnCTfU03As",
+	"Oq50I8ShxfQhS3Ltmx8Wl52Vt6z5xgK+QCCz/Cb0Xnd9OCsvrb+KrU2ahHvkds9T6otp1+BGm1wOd5Oi",
+	"aukavTZrynU5trL/C6hdgnfHKM9u1N9lSB0bImvqF5uBg/f0ERMpnj05rBU9iKhOgqvqKx/b7aP2ffsH",
+	"XTQQyLOghSPwfWFA4UDlwl0VtdRTo9HpwoJEmhmqOddY9t/L9SyUKvu+tZaRIHWb+Ohu5fsI57hwtxIV",
+	"162HHhfN6/OOxuJxFGFWXfgUXYPIBmc4hlfv31vSS9GwmBkGvseG7iY/Pbt9kfPm5Yp79iku3a3YVuSc",
+	"ZcnCX0PhDOYM1cCdD/irF+8aheqZL1QPdOoNeY9na2mUZrOPOixq1E/QyDFe9Pq9XCX+GrpHwyH9MZPa",
+	"PPpm9M2IcMoP3BzCFVrBOB+NHnwNBTKzBFDE5InQpQjw1VLLdZyuia57tQ/U+b8PoZ06Vd324ScLon6l",
+	"A2uo4rSQWx7yWbVTRouEd2ab61UQJJRPW1wa63V7+7/Kq77n1fKr1fMhoUvcEuRkYicnTaQKHxG1jFE0",
+	"1neF1XblaZ4YPqhYE0Fx/9TyfmG2xv72QM6S4MwpXw0/tJzOybtXzwfWfonX5AoVQwWv8PJgT6jqSU4q",
+	"Z5IWRWHuWIqE5aWz0b3LXy//JwAA//8=",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

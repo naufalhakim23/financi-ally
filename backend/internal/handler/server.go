@@ -130,6 +130,38 @@ func (s *ServerImpl) GoogleAuth(ctx context.Context, req api.GoogleAuthRequestOb
 	return api.GoogleAuth200JSONResponse(resp), nil
 }
 
+// ForgotPassword emails a reset code. Always 204: a 404 for an unregistered
+// address would let anyone probe which emails have accounts.
+func (s *ServerImpl) ForgotPassword(ctx context.Context, req api.ForgotPasswordRequestObject) (api.ForgotPasswordResponseObject, error) {
+	err := s.svc.RequestPasswordReset(ctx, string(req.Body.Email))
+	if errors.Is(err, auth.ErrInvalidInput) {
+		return api.ForgotPassword400JSONResponse(api.Error{Code: "invalid_input", Message: "a valid email address is required"}), nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return api.ForgotPassword204Response{}, nil
+}
+
+// ResetPassword sets a new password from an emailed code and signs the caller
+// in. Wrong / expired / exhausted codes are one indistinguishable 401.
+func (s *ServerImpl) ResetPassword(ctx context.Context, req api.ResetPasswordRequestObject) (api.ResetPasswordResponseObject, error) {
+	sess, err := s.svc.ResetPassword(ctx, string(req.Body.Email), req.Body.Code, req.Body.Password)
+	switch {
+	case errors.Is(err, auth.ErrInvalidInput):
+		return api.ResetPassword400JSONResponse(api.Error{Code: "invalid_input", Message: "a password of at least 8 characters is required"}), nil
+	case errors.Is(err, auth.ErrInvalidResetCode):
+		return api.ResetPassword401JSONResponse(api.Error{Code: "invalid_code", Message: "that code is wrong, expired, or already used"}), nil
+	case err != nil:
+		return nil, err
+	}
+	resp, err := toAPIAuth(sess)
+	if err != nil {
+		return nil, err
+	}
+	return api.ResetPassword200JSONResponse(resp), nil
+}
+
 // GetMe returns the authenticated user. The middleware guarantees a principal
 // is present; a missing user row (deleted mid-session) still maps to 401.
 func (s *ServerImpl) GetMe(ctx context.Context, _ api.GetMeRequestObject) (api.GetMeResponseObject, error) {

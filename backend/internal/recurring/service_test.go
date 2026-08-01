@@ -58,7 +58,7 @@ func seedUser(t *testing.T, pool *pgxpool.Pool, email string) (string, *ledger.A
 	t.Helper()
 	ctx := context.Background()
 	authSvc := auth.NewService(auth.NewRepo(pool), auth.NewJWTService("test-secret", time.Minute),
-		auth.NewGoogle("", ""), time.Hour, "IDR")
+		auth.NewGoogle("", ""), nil, time.Hour, "IDR")
 	user, err := authSvc.Register(ctx, email, "password123", "IDR")
 	if err != nil {
 		t.Fatalf("register %s: %v", email, err)

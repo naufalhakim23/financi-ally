@@ -20,6 +20,15 @@ type Config struct {
 	Google    GoogleOAuthConfig
 	FX        FXConfig
 	Recurring RecurringConfig
+	Mail      MailConfig
+}
+
+// MailConfig holds the transactional-email settings. An empty APIKey (or
+// Mock=true) puts the sender in logging mode — see internal/mail.
+type MailConfig struct {
+	APIKey string
+	From   string
+	Mock   bool
 }
 
 // RecurringConfig holds the M6 scheduler settings. Location is the timezone the
@@ -102,6 +111,11 @@ func Load() (*Config, error) {
 			BaseCurrencies:    []string{"EUR", "USD", "IDR", "GBP", "JPY", "SGD", "MYR", "AUD"},
 			FrankfurterAPIURL: getEnv("FX_FRANKFURTER_URL", "https://api.frankfurter.app"),
 		},
+		Mail: MailConfig{
+			APIKey: getEnv("RESEND_API_KEY", ""),
+			From:   getEnv("MAIL_FROM", "Financi-Ally <onboarding@resend.dev>"),
+			Mock:   getEnvBool("MAIL_MOCK", false),
+		},
 		Recurring: RecurringConfig{
 			Enabled:  getEnvBool("RECURRING_ENABLED", true),
 			Interval: getEnvDuration("RECURRING_INTERVAL", 15*time.Minute),
@@ -111,6 +125,11 @@ func Load() (*Config, error) {
 
 	if cfg.Server.Environment == "production" && cfg.Auth.JWTSecret == devJWTSecret {
 		return nil, errors.New("JWT_SECRET must be set to a non-default value in production")
+	}
+	// The mock sender logs the reset code in full; a production fallback would
+	// write credentials to the app log while the user received nothing.
+	if cfg.Server.Environment == "production" && !cfg.Mail.Mock && cfg.Mail.APIKey == "" {
+		return nil, errors.New("RESEND_API_KEY must be set in production (or MAIL_MOCK=true to acknowledge no email is sent)")
 	}
 	return cfg, nil
 }

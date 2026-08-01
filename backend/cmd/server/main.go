@@ -23,6 +23,7 @@ import (
 	"github.com/naufalhakim23/financi-ally/backend/internal/handler"
 	"github.com/naufalhakim23/financi-ally/backend/internal/household"
 	"github.com/naufalhakim23/financi-ally/backend/internal/ledger"
+	"github.com/naufalhakim23/financi-ally/backend/internal/mail"
 	"github.com/naufalhakim23/financi-ally/backend/internal/recurring"
 	"github.com/naufalhakim23/financi-ally/backend/internal/reporting"
 	syncpkg "github.com/naufalhakim23/financi-ally/backend/internal/sync"
@@ -67,7 +68,8 @@ func main() {
 	repo := auth.NewRepo(pool.Pool)
 	jwtSvc := auth.NewJWTService(cfg.Auth.JWTSecret, cfg.Auth.AccessTokenTTL)
 	googleSvc := auth.NewGoogle(cfg.Google.ClientID, cfg.Google.ClientSecret)
-	svc := auth.NewService(repo, jwtSvc, googleSvc, cfg.Auth.RefreshTokenTTL, cfg.Auth.BaseCurrencyDefault)
+	mailSvc := mail.New(mail.Config{APIKey: cfg.Mail.APIKey, From: cfg.Mail.From, Mock: cfg.Mail.Mock})
+	svc := auth.NewService(repo, jwtSvc, googleSvc, mailSvc, cfg.Auth.RefreshTokenTTL, cfg.Auth.BaseCurrencyDefault)
 
 	// Ledger wiring: repo → service → handler.
 	ledgerRepo := ledger.NewRepo(pool.Pool)

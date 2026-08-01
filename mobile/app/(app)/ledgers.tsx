@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { RefreshControl, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 
@@ -18,12 +18,14 @@ import {
   Button,
   Card,
   Dialog,
+  ErrorNotice,
   Field,
   ListRow,
   ScreenHeader,
   SectionLabel,
   Sheet,
   Users,
+  useTheme,
 } from "../../src/components/ui";
 
 // Books: the personal ledger plus any household the user shares. Switching
@@ -42,11 +44,13 @@ function formatExpiry(iso: string): string {
 export default function Ledgers() {
   const { user } = useAuth();
   const { active } = useLedgerState();
+  const { C } = useTheme();
 
   const [books, setBooks] = useState<LedgerMembership[]>([]);
   const [members, setMembers] = useState<LedgerMember[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   // The active book, as the server describes it. Falls back to whichever
   // membership matches the stored id so the header is right before any fetch.
@@ -55,15 +59,28 @@ export default function Ledgers() {
     books.find((b) => b.ledger.kind === "personal");
   const isShared = current?.ledger.kind === "household";
 
-  const load = useCallback(() => {
+  const load = useCallback(async () => {
     setErr(null);
-    authedApi
-      .listLedgers()
-      .then(setBooks)
-      .catch((e) => setErr(e instanceof Error ? e.message : "couldn't load your books"));
+    try {
+      setBooks(await authedApi.listLedgers());
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "couldn't load your books");
+    }
   }, []);
 
-  useEffect(load, [load, user]);
+  useEffect(() => {
+    load();
+  }, [load, user]);
+
+  // Reuses `load` rather than refetching books alone: replacing `books` gives a
+  // new `current`, which re-runs the members effect below, so the member list
+  // under the book can't go stale.
+  async function refresh() {
+    setRefreshing(true);
+    setNotice(null);
+    await load();
+    setRefreshing(false);
+  }
 
   // Members only exist for a shared book, and only after we know which one.
   useEffect(() => {
@@ -206,7 +223,13 @@ export default function Ledgers() {
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-background">
       <ScreenHeader title="Books" backLabel="More" onBack={() => router.back()} />
-      <ScrollView className="flex-1" contentContainerStyle={{ padding: 16, paddingBottom: 24 }}>
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={C.dim} />
+        }
+      >
         <Card className="mb-card-gap">
           <SectionLabel>Currently in</SectionLabel>
           <Text className="text-ink text-amount-lg font-mono-bold mt-1">
@@ -220,9 +243,9 @@ export default function Ledgers() {
         </Card>
 
         {err && (
-          <Card className="mb-card-gap">
-            <Text className="text-error text-body font-sans-medium">{err}</Text>
-          </Card>
+          <View className="mb-card-gap">
+            <ErrorNotice message={err} onRetry={load} />
+          </View>
         )}
         {notice && (
           <Card className="mb-card-gap">
@@ -316,7 +339,13 @@ export default function Ledgers() {
           keeps its own accounts, separate from your personal ones.
         </Text>
         {createErr && (
-          <Text className="text-error text-body font-sans-medium mt-3">{createErr}</Text>
+          <Text
+            className="text-error text-body font-sans-medium mt-3"
+            accessibilityLiveRegion="polite"
+            role="alert"
+          >
+            {createErr}
+          </Text>
         )}
         <View className="mt-4">
           <Button label="Create" busy={createBusy} onPress={createBook} />
@@ -331,7 +360,15 @@ export default function Ledgers() {
           placeholder="K7M2QX9B"
           autoCap="characters"
         />
-        {joinErr && <Text className="text-error text-body font-sans-medium mt-3">{joinErr}</Text>}
+        {joinErr && (
+          <Text
+            className="text-error text-body font-sans-medium mt-3"
+            accessibilityLiveRegion="polite"
+            role="alert"
+          >
+            {joinErr}
+          </Text>
+        )}
         <View className="mt-4">
           <Button label="Join" busy={joinBusy} onPress={joinBook} />
         </View>

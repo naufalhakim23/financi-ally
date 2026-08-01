@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { useCallback, useMemo, useState } from "react";
+import { RefreshControl, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
@@ -18,6 +18,7 @@ import { database } from "../../../src/lib/db";
 import { EMPTY_RATES, convert, rateCaption, type RateTable } from "../../../src/lib/fx";
 import { useSyncState } from "../../../src/lib/syncState";
 import { useObservable } from "../../../src/lib/useObserve";
+import { useSyncRefresh } from "../../../src/lib/useSyncRefresh";
 import { useWording } from "../../../src/lib/wording";
 import { Account, Budget, Entry, JournalLine } from "../../../src/model/models";
 import {
@@ -77,6 +78,14 @@ export default function HomeScreen() {
     staleTime: 10 * 60 * 1000,
     enabled: !guest,
   });
+
+  // The net-worth card mixes local balances with two server reads, so the pull
+  // gesture has to refetch those as well or half the card stays stale.
+  const refetchServerReads = useCallback(
+    () => Promise.all([ratesQuery.refetch(), seriesQuery.refetch()]),
+    [ratesQuery.refetch, seriesQuery.refetch],
+  );
+  const pull = useSyncRefresh(refetchServerReads);
 
   const worth = netWorth(accounts, lines);
 
@@ -182,6 +191,7 @@ export default function HomeScreen() {
         className="flex-1"
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24, gap: 12 }}
         showsVerticalScrollIndicator={false}
+        refreshControl={pull ? <RefreshControl {...pull} tintColor={C.dim} /> : undefined}
       >
         <Card>
           <View className="flex-row items-center justify-between">

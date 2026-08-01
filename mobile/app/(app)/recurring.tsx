@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { RefreshControl, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 
@@ -17,13 +17,17 @@ import {
   ChipGroup,
   Dialog,
   EmptyState,
+  ErrorNotice,
   Field,
   IconBox,
   Repeat,
   SectionLabel,
+  Skeleton,
   Sheet,
   ScreenHeader,
+  useTheme,
 } from "../../src/components/ui";
+import { messageFor } from "../../src/lib/errors";
 
 type Freq = "daily" | "weekly" | "monthly";
 
@@ -108,9 +112,14 @@ function buildTemplate(
 
 export default function Recurring() {
   const { user, baseCurrency: base } = useAuth();
+  const { C } = useTheme();
 
   const [rules, setRules] = useState<RecurringRule[]>([]);
   const [err, setErr] = useState<string | null>(null);
+  // Distinct from `rules.length === 0`: without it the first paint claims
+  // "nothing recurring yet" while the request is still in flight.
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [running, setRunning] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -140,22 +149,40 @@ export default function Recurring() {
   const [pendingDelete, setPendingDelete] = useState<RecurringRule | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
 
-  const fetchRules = useCallback(() => {
+  // One loader for mount, pull-to-refresh and the post-save refetch.
+  // Only the newest fetch may write: a response outliving the account that
+  // asked for it is discarded, not rendered.
+  const gen = useRef(0);
+
+  const fetchRules = useCallback(async () => {
+    const mine = ++gen.current;
     setErr(null);
-    authedApi.listRecurring().then(setRules).catch((e) => {
-      setErr(e instanceof Error ? e.message : "failed to load recurring rules");
-    });
+    try {
+      const rows = await authedApi.listRecurring();
+      if (mine === gen.current) setRules(rows);
+    } catch (e) {
+      if (mine === gen.current) setErr(messageFor(e, "Couldn't load your repeating entries"));
+    }
   }, []);
 
   useEffect(() => {
     let cancelled = false;
-    authedApi.listRecurring().then((rs) => {
-      if (!cancelled) setRules(rs);
-    }).catch((e) => {
-      if (!cancelled) setErr(e instanceof Error ? e.message : "failed to load recurring rules");
-    });
-    return () => { cancelled = true; };
-  }, [user]);
+    (async () => {
+      setLoading(true);
+      await fetchRules();
+      if (!cancelled) setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+      gen.current++; // retire whatever is still in flight
+    };
+  }, [fetchRules, user]);
+
+  async function refresh() {
+    setRefreshing(true);
+    await fetchRules();
+    setRefreshing(false);
+  }
 
   const nameFor = (id: string) => accounts.find((a) => a.id === id)?.name ?? "—";
 
@@ -216,7 +243,7 @@ export default function Recurring() {
         await authedApi.createRecurring(rrule, template);
       }
       setShowForm(false);
-      fetchRules();
+      void fetchRules();
     } catch (e) {
       setFormErr(e instanceof Error ? e.message : "save failed");
     } finally {
@@ -231,7 +258,7 @@ export default function Recurring() {
     try {
       await authedApi.deleteRecurring(rule.id);
       setPendingDelete(null);
-      fetchRules();
+      void fetchRules();
     } catch (e) {
       setErr(e instanceof Error ? e.message : "delete failed");
       setPendingDelete(null);
@@ -249,7 +276,7 @@ export default function Recurring() {
     try {
       const res = await authedApi.triggerRecurring();
       setNotice(res.count > 0 ? `Posted ${res.count} entr${res.count === 1 ? "y" : "ies"}` : "Nothing due right now");
-      fetchRules();
+      void fetchRules();
     } catch (e) {
       setErr(e instanceof Error ? e.message : "run failed");
     } finally {
@@ -263,7 +290,13 @@ export default function Recurring() {
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-background">
       <ScreenHeader title="Repeating entries" backLabel="More" onBack={() => router.back()} />
-      <ScrollView className="flex-1" contentContainerStyle={{ padding: 16, paddingBottom: 24 }}>
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={C.dim} />
+        }
+      >
         <Card className="mb-card-gap">
           <SectionLabel>Scheduled</SectionLabel>
           <Text className="text-ink text-amount-lg font-mono-bold mt-1">
@@ -287,12 +320,19 @@ export default function Recurring() {
         </Card>
 
         {err && (
+          <View className="mb-card-gap">
+            <ErrorNotice message={err} onRetry={() => void fetchRules()} />
+          </View>
+        )}
+
+        {loading && (
           <Card className="mb-card-gap">
-            <Text className="text-error text-body font-sans-medium">{err}</Text>
+            <Skeleton className="h-4 w-40 mb-3" />
+            <Skeleton className="h-4 w-28" />
           </Card>
         )}
 
-        {rules.length === 0 && !err && (
+        {!loading && rules.length === 0 && !err && (
           <View className="mb-card-gap">
             <EmptyState
               glyph={Repeat}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -12,6 +13,7 @@ import (
 
 	"github.com/naufalhakim23/financi-ally/backend/api"
 	"github.com/naufalhakim23/financi-ally/backend/internal/auth"
+	"github.com/naufalhakim23/financi-ally/backend/internal/household"
 	"github.com/naufalhakim23/financi-ally/backend/internal/pkg/ctxkey"
 )
 
@@ -38,11 +40,52 @@ func AuthInject(verifier *auth.JWTService) func(http.Handler) http.Handler {
 	}
 }
 
+// LedgerHeader names the request header that selects the active book. Absent
+// means "my personal ledger", so pre-M8 clients keep working untouched.
+const LedgerHeader = "X-Ledger-Id"
+
+// LedgerScope resolves the active ledger for an authenticated request and folds
+// it into the principal. It runs after AuthInject and before SpecValidator, so
+// a rejection here happens before any handler sees the request.
+//
+// A membership miss is 403, not 404: the caller is authenticated, they just
+// don't belong to the book they named. The repo cannot tell "no such ledger"
+// from "not yours" by design, so both land here as the same answer.
+func LedgerScope(hs *household.Service) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			p, ok := PrincipalFrom(r.Context())
+			if !ok {
+				// Public route, or an invalid token that SpecValidator will
+				// reject in a moment. Either way there is no scope to resolve.
+				next.ServeHTTP(w, r)
+				return
+			}
+			scope, err := hs.Resolve(r.Context(), p.UserID, strings.TrimSpace(r.Header.Get(LedgerHeader)))
+			if err != nil {
+				if errors.Is(err, household.ErrLedgerNotFound) {
+					writeJSONError(w, http.StatusForbidden, "ledger_forbidden",
+						"you are not a member of this ledger")
+					return
+				}
+				slog.Error("resolve ledger scope", "err", err, "user", p.UserID)
+				writeJSONError(w, http.StatusInternalServerError, "internal_error", "internal server error")
+				return
+			}
+			scoped := *p
+			scoped.LedgerID = scope.LedgerID
+			scoped.LedgerCurrency = scope.BaseCurrency
+			scoped.LedgerRole = scope.Role
+			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ctxkey.Auth, &scoped)))
+		})
+	}
+}
+
 // SpecValidator validates every request against the embedded OpenAPI spec
 // (body, query, path params) and enforces bearer security on any operation
 // marked `security: bearerAuth`; everything else (healthz, register, login) is
 // public. Spec-derived security replaces the M1 path allowlist once the
-// protected surface grew past a handful — ledger alone adds six user-scoped
+// protected surface grew past a handful: ledger alone adds six book-scoped
 // endpoints, and hand-maintaining a map would drift from the spec.
 func SpecValidator() (func(http.Handler) http.Handler, error) {
 	swagger, err := api.GetSwagger()
@@ -106,7 +149,14 @@ func validationErrorHandler(w http.ResponseWriter, _ string, code int) {
 	case http.StatusNotFound:
 		errCode, msg = "not_found", "resource not found"
 	}
+	writeJSONError(w, code, errCode, msg)
+}
+
+// writeJSONError renders the Error shape from middleware, where the generated
+// strict-response types aren't available. Callers pass literals only, so no
+// request data is interpolated and there is nothing to escape.
+func writeJSONError(w http.ResponseWriter, status int, code, message string) {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	_, _ = w.Write([]byte(`{"code":"` + errCode + `","message":"` + msg + `"}`))
+	w.WriteHeader(status)
+	_, _ = w.Write([]byte(`{"code":"` + code + `","message":"` + message + `"}`))
 }

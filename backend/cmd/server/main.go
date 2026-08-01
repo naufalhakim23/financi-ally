@@ -21,6 +21,7 @@ import (
 	"github.com/naufalhakim23/financi-ally/backend/internal/db"
 	"github.com/naufalhakim23/financi-ally/backend/internal/fx"
 	"github.com/naufalhakim23/financi-ally/backend/internal/handler"
+	"github.com/naufalhakim23/financi-ally/backend/internal/household"
 	"github.com/naufalhakim23/financi-ally/backend/internal/ledger"
 	"github.com/naufalhakim23/financi-ally/backend/internal/recurring"
 	"github.com/naufalhakim23/financi-ally/backend/internal/reporting"
@@ -92,7 +93,11 @@ func main() {
 	// records can't bypass the validation the REST path enforces.
 	syncSvc := syncpkg.NewService(syncpkg.NewRepo(pool.Pool), ledgerSvc, budgetSvc, recSvc)
 
-	serverImpl := handler.NewServerImpl(pool, svc, ledgerSvc, budgetSvc, syncSvc, fxSvc, reportSvc, recSvc)
+	// Household wiring: ledgers, membership and join codes. Also the middleware
+	// dependency that turns an authenticated user into an active ledger.
+	householdSvc := household.NewService(household.NewRepo(pool.Pool))
+
+	serverImpl := handler.NewServerImpl(pool, svc, ledgerSvc, budgetSvc, syncSvc, fxSvc, reportSvc, recSvc, householdSvc)
 
 	// Strict-server error handlers emit our JSON Error shape instead of plain
 	// text, and never leak internal error strings to clients.
@@ -120,8 +125,9 @@ func main() {
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(30 * time.Second))
-	r.Use(handler.AuthInject(jwtSvc)) // verify + inject principal (best-effort, all routes)
-	r.Use(validator)                  // schema validation + enforce bearerAuth on protected routes
+	r.Use(handler.AuthInject(jwtSvc))        // verify + inject principal (best-effort, all routes)
+	r.Use(handler.LedgerScope(householdSvc)) // resolve the active book onto the principal
+	r.Use(validator)                         // schema validation + enforce bearerAuth on protected routes
 	r.Mount("/", api.Handler(strict))
 
 	srv := &http.Server{

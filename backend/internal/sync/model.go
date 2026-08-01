@@ -6,7 +6,7 @@
 // The model is safe for money because posted entries are immutable — there is
 // never an amount to merge. The only mutables are metadata (account name,
 // budget target), settled last-write-wins by server updated_at at push time.
-// Single-user personal scale; per-record vector clocks would be the upgrade if
+// Personal/household scale; per-record vector clocks would be the upgrade if
 // true concurrent multi-device edits on metadata ever matter (they don't here).
 package sync
 

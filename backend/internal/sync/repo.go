@@ -21,15 +21,15 @@ type Repo struct {
 func NewRepo(pool *pgxpool.Pool) *Repo { return &Repo{db: pool} }
 
 // App-field column lists per table — exactly what the mobile WatermelonDB model
-// defines, and ONLY those (server bookkeeping columns like user_id, created_at,
+// defines, and ONLY those (server bookkeeping columns like ledger_id, created_at,
 // updated_at, deleted_at are never sent; WMB manages created_at/updated_at
 // locally and uses our server updated_at only for the pull filter).
 var tableColumns = map[string]string{
 	"accounts": "id, type, currency, name, parent_id, archived",
 	"entries":  "id, txn_date, status, currency, fx_rate, source, memo",
 	// journal_lines pulls join entries (which also has id/currency), so qualify.
-	"journal_lines":   "jl.id, jl.entry_id, jl.account_id, jl.dc, jl.amount_minor, jl.currency",
-	"budgets":         "id, account_id, period_month, target_minor, currency",
+	"journal_lines": "jl.id, jl.entry_id, jl.account_id, jl.dc, jl.amount_minor, jl.currency",
+	"budgets":       "id, account_id, period_month, target_minor, currency",
 	// template::text so the JSONB arrives as a string — WatermelonDB columns are
 	// scalars, so the client stores the template as a JSON string and parses it.
 	"recurring_rules": "id, rrule, template::text AS template, next_run, last_run, active",
@@ -37,7 +37,7 @@ var tableColumns = map[string]string{
 
 // PullCreated returns records created since the watermark (created_at > since).
 // Uses an as-of timestamp `asOf` so the pull sees a consistent snapshot.
-func (r *Repo) PullCreated(ctx context.Context, userID, table string, since, asOf time.Time) ([]map[string]any, error) {
+func (r *Repo) PullCreated(ctx context.Context, ledgerID, table string, since, asOf time.Time) ([]map[string]any, error) {
 	cols, ok := tableColumns[table]
 	if !ok {
 		return nil, fmt.Errorf("unknown sync table %q", table)
@@ -49,19 +49,19 @@ func (r *Repo) PullCreated(ctx context.Context, userID, table string, since, asO
 		// the moment its entry was posted, so filter on the entry's created_at.
 		q = fmt.Sprintf(`SELECT %s FROM journal_lines jl
 			JOIN entries e ON e.id = jl.entry_id
-			WHERE e.user_id = $1 AND e.deleted_at IS NULL
+			WHERE e.ledger_id = $1 AND e.deleted_at IS NULL
 			  AND e.created_at > $2 AND e.created_at <= $3`, cols)
 	default:
 		q = fmt.Sprintf(`SELECT %s FROM %s
-			WHERE user_id = $1 AND deleted_at IS NULL
+			WHERE ledger_id = $1 AND deleted_at IS NULL
 			  AND created_at > $2 AND created_at <= $3`, cols, table)
 	}
-	return queryMaps(r.db.Query(ctx, q, userID, since, asOf))
+	return queryMaps(r.db.Query(ctx, q, ledgerID, since, asOf))
 }
 
 // PullUpdated returns records modified (but not first-created) since the
 // watermark: updated_at > since AND created_at <= since.
-func (r *Repo) PullUpdated(ctx context.Context, userID, table string, since, asOf time.Time) ([]map[string]any, error) {
+func (r *Repo) PullUpdated(ctx context.Context, ledgerID, table string, since, asOf time.Time) ([]map[string]any, error) {
 	cols, ok := tableColumns[table]
 	if !ok {
 		return nil, fmt.Errorf("unknown sync table %q", table)
@@ -72,21 +72,21 @@ func (r *Repo) PullUpdated(ctx context.Context, userID, table string, since, asO
 		return nil, nil
 	}
 	q := fmt.Sprintf(`SELECT %s FROM %s
-		WHERE user_id = $1 AND deleted_at IS NULL
+		WHERE ledger_id = $1 AND deleted_at IS NULL
 		  AND updated_at > $2 AND updated_at <= $3
 		  AND created_at <= $2`, cols, table)
-	return queryMaps(r.db.Query(ctx, q, userID, since, asOf))
+	return queryMaps(r.db.Query(ctx, q, ledgerID, since, asOf))
 }
 
 // PullDeleted returns ids soft-deleted since the watermark. journal_lines and
 // posted entries are never deleted, so only accounts/budgets/recurring_rules are queried.
-func (r *Repo) PullDeleted(ctx context.Context, userID, table string, since, asOf time.Time) ([]string, error) {
+func (r *Repo) PullDeleted(ctx context.Context, ledgerID, table string, since, asOf time.Time) ([]string, error) {
 	if table != "accounts" && table != "budgets" && table != "recurring_rules" {
 		return nil, nil
 	}
 	rows, err := r.db.Query(ctx,
-		fmt.Sprintf(`SELECT id FROM %s WHERE user_id = $1 AND deleted_at > $2 AND deleted_at <= $3`, table),
-		userID, since, asOf)
+		fmt.Sprintf(`SELECT id FROM %s WHERE ledger_id = $1 AND deleted_at > $2 AND deleted_at <= $3`, table),
+		ledgerID, since, asOf)
 	if err != nil {
 		return nil, fmt.Errorf("pull deleted %s: %w", table, err)
 	}
@@ -104,19 +104,19 @@ func (r *Repo) PullDeleted(ctx context.Context, userID, table string, since, asO
 
 // UpsertAccount inserts or updates an account by client id (ON CONFLICT id).
 // Used by sync push for both created and updated account records.
-func (r *Repo) UpsertAccount(ctx context.Context, id, userID, typeStr, currency, name string, parentID *string, archived bool) error {
+func (r *Repo) UpsertAccount(ctx context.Context, id, ledgerID, typeStr, currency, name string, parentID *string, archived bool) error {
 	var parent any
 	if parentID != nil {
 		parent = *parentID
 	}
 	_, err := r.db.Exec(ctx, `
-		INSERT INTO accounts (id, user_id, type, currency, name, parent_id, archived, created_at, updated_at)
+		INSERT INTO accounts (id, ledger_id, type, currency, name, parent_id, archived, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, now(), now())
 		ON CONFLICT (id) DO UPDATE
 		  SET type = EXCLUDED.type, currency = EXCLUDED.currency, name = EXCLUDED.name,
 		      parent_id = EXCLUDED.parent_id, archived = EXCLUDED.archived, updated_at = now()
-		  WHERE accounts.user_id = $2`,
-		id, userID, typeStr, currency, name, parent, archived)
+		  WHERE accounts.ledger_id = $2`,
+		id, ledgerID, typeStr, currency, name, parent, archived)
 	if err != nil {
 		return fmt.Errorf("upsert account %s: %w", id, err)
 	}
@@ -125,13 +125,13 @@ func (r *Repo) UpsertAccount(ctx context.Context, id, userID, typeStr, currency,
 
 // SoftDelete marks a record deleted (deleted_at + updated_at = now) for a synced
 // mutable table. Only accounts/budgets/recurring_rules are soft-deletable.
-func (r *Repo) SoftDelete(ctx context.Context, table, userID, id string) error {
+func (r *Repo) SoftDelete(ctx context.Context, table, ledgerID, id string) error {
 	if table != "accounts" && table != "budgets" && table != "recurring_rules" {
 		return nil
 	}
 	_, err := r.db.Exec(ctx,
-		fmt.Sprintf(`UPDATE %s SET deleted_at = now(), updated_at = now() WHERE id = $1 AND user_id = $2`, table),
-		id, userID)
+		fmt.Sprintf(`UPDATE %s SET deleted_at = now(), updated_at = now() WHERE id = $1 AND ledger_id = $2`, table),
+		id, ledgerID)
 	if err != nil {
 		return fmt.Errorf("soft-delete %s %s: %w", table, id, err)
 	}

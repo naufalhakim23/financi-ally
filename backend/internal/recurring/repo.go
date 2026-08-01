@@ -21,14 +21,14 @@ type Repo struct {
 
 func NewRepo(pool *pgxpool.Pool) *Repo { return &Repo{db: pool} }
 
-const colRule = `id, user_id, rrule, template, next_run, last_run, active,
+const colRule = `id, ledger_id, rrule, template, next_run, last_run, active,
 	last_error, last_error_at, created_at, updated_at, deleted_at`
 
 func scanRule(row pgx.Row) (*RecurringRule, error) {
 	r := &RecurringRule{}
 	var tmplBytes []byte
 	var nextRun, lastRun *time.Time
-	if err := row.Scan(&r.ID, &r.UserID, &r.RRule, &tmplBytes, &nextRun, &lastRun,
+	if err := row.Scan(&r.ID, &r.LedgerID, &r.RRule, &tmplBytes, &nextRun, &lastRun,
 		&r.Active, &r.LastError, &r.LastErrorAt, &r.CreatedAt, &r.UpdatedAt, &r.DeletedAt); err != nil {
 		return nil, err
 	}
@@ -44,22 +44,22 @@ func scanRule(row pgx.Row) (*RecurringRule, error) {
 
 // Create inserts a new recurring rule with its first computed occurrence, so a
 // rule is never persisted in a half-initialized state (no next_run).
-func (r *Repo) Create(ctx context.Context, id, userID, rrule string, tmplBytes []byte, nextRun *time.Time, active bool) (*RecurringRule, error) {
+func (r *Repo) Create(ctx context.Context, id, ledgerID, rrule string, tmplBytes []byte, nextRun *time.Time, active bool) (*RecurringRule, error) {
 	rule, err := scanRule(r.db.QueryRow(ctx, `
-		INSERT INTO recurring_rules (id, user_id, rrule, template, next_run, active)
+		INSERT INTO recurring_rules (id, ledger_id, rrule, template, next_run, active)
 		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING `+colRule,
-		id, userID, rrule, tmplBytes, nextRun, active))
+		id, ledgerID, rrule, tmplBytes, nextRun, active))
 	if err != nil {
 		return nil, fmt.Errorf("create recurring rule: %w", err)
 	}
 	return rule, nil
 }
 
-// Get fetches one rule scoped to the user.
-func (r *Repo) Get(ctx context.Context, userID, id string) (*RecurringRule, error) {
+// Get fetches one rule scoped to the ledger.
+func (r *Repo) Get(ctx context.Context, ledgerID, id string) (*RecurringRule, error) {
 	rule, err := scanRule(r.db.QueryRow(ctx,
-		`SELECT `+colRule+` FROM recurring_rules WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL`, id, userID))
+		`SELECT `+colRule+` FROM recurring_rules WHERE id = $1 AND ledger_id = $2 AND deleted_at IS NULL`, id, ledgerID))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrRuleNotFound
@@ -69,23 +69,23 @@ func (r *Repo) Get(ctx context.Context, userID, id string) (*RecurringRule, erro
 	return rule, nil
 }
 
-// List returns a user's non-deleted recurring rules.
-func (r *Repo) List(ctx context.Context, userID string) ([]*RecurringRule, error) {
+// List returns a ledger's non-deleted recurring rules.
+func (r *Repo) List(ctx context.Context, ledgerID string) ([]*RecurringRule, error) {
 	return r.queryRules(ctx,
 		`SELECT `+colRule+` FROM recurring_rules
-		 WHERE user_id = $1 AND deleted_at IS NULL ORDER BY created_at DESC`, userID)
+		 WHERE ledger_id = $1 AND deleted_at IS NULL ORDER BY created_at DESC`, ledgerID)
 }
 
 // Update rewrites a rule's definition and its recomputed next_run. A rule that
 // changed shape has no meaningful pending error, so last_error is cleared.
-func (r *Repo) Update(ctx context.Context, userID, id, rrule string, tmplBytes []byte, nextRun *time.Time, active bool) (*RecurringRule, error) {
+func (r *Repo) Update(ctx context.Context, ledgerID, id, rrule string, tmplBytes []byte, nextRun *time.Time, active bool) (*RecurringRule, error) {
 	rule, err := scanRule(r.db.QueryRow(ctx, `
 		UPDATE recurring_rules
 		SET rrule = $3, template = $4, next_run = $5, active = $6,
 		    last_error = NULL, last_error_at = NULL, updated_at = now()
-		WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
+		WHERE id = $1 AND ledger_id = $2 AND deleted_at IS NULL
 		RETURNING `+colRule,
-		id, userID, rrule, tmplBytes, nextRun, active))
+		id, ledgerID, rrule, tmplBytes, nextRun, active))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrRuleNotFound
@@ -125,10 +125,10 @@ func (r *Repo) RecordError(ctx context.Context, id, msg string) error {
 }
 
 // Delete soft-deletes a recurring rule.
-func (r *Repo) Delete(ctx context.Context, userID, id string) error {
+func (r *Repo) Delete(ctx context.Context, ledgerID, id string) error {
 	_, err := r.db.Exec(ctx,
 		`UPDATE recurring_rules SET deleted_at = now(), updated_at = now()
-		 WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL`, id, userID)
+		 WHERE id = $1 AND ledger_id = $2 AND deleted_at IS NULL`, id, ledgerID)
 	if err != nil {
 		return fmt.Errorf("delete recurring rule: %w", err)
 	}
@@ -136,15 +136,15 @@ func (r *Repo) Delete(ctx context.Context, userID, id string) error {
 }
 
 // DueRules returns active rules whose next_run is on or before the cutoff.
-// userID scopes the sweep to one user (the manual trigger endpoint); empty
-// sweeps every user (the background scheduler).
-func (r *Repo) DueRules(ctx context.Context, userID string, cutoff time.Time) ([]*RecurringRule, error) {
+// ledgerID scopes the sweep to one book (the manual trigger endpoint); empty
+// sweeps every book (the background scheduler).
+func (r *Repo) DueRules(ctx context.Context, ledgerID string, cutoff time.Time) ([]*RecurringRule, error) {
 	q := `SELECT ` + colRule + ` FROM recurring_rules
 		  WHERE active = true AND next_run IS NOT NULL AND next_run <= $1 AND deleted_at IS NULL`
 	args := []any{cutoff}
-	if userID != "" {
-		q += ` AND user_id = $2`
-		args = append(args, userID)
+	if ledgerID != "" {
+		q += ` AND ledger_id = $2`
+		args = append(args, ledgerID)
 	}
 	return r.queryRules(ctx, q+` ORDER BY next_run ASC`, args...)
 }

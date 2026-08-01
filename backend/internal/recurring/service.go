@@ -55,11 +55,11 @@ func NewService(repo *Repo, led *ledger.Service, loc *time.Location) *Service {
 // Create validates and persists a recurring rule. id is the client id (sync) or
 // empty → server uuid (REST). next_run is computed before the insert so the
 // rule is never stored without its first occurrence.
-func (s *Service) Create(ctx context.Context, userID, id, rruleStr string, tmpl Template, active bool) (*RecurringRule, error) {
+func (s *Service) Create(ctx context.Context, ledgerID, id, rruleStr string, tmpl Template, active bool) (*RecurringRule, error) {
 	if id == "" {
 		id = uuid.NewString()
 	}
-	r, tmpl, err := s.validate(ctx, userID, rruleStr, tmpl)
+	r, tmpl, err := s.validate(ctx, ledgerID, rruleStr, tmpl)
 	if err != nil {
 		return nil, err
 	}
@@ -75,34 +75,34 @@ func (s *Service) Create(ctx context.Context, userID, id, rruleStr string, tmpl 
 	if err != nil {
 		return nil, ErrInvalidInput
 	}
-	return s.repo.Create(ctx, id, userID, rruleStr, tmplBytes, nextRun, active)
+	return s.repo.Create(ctx, id, ledgerID, rruleStr, tmplBytes, nextRun, active)
 }
 
-// List returns a user's non-deleted recurring rules.
-func (s *Service) List(ctx context.Context, userID string) ([]*RecurringRule, error) {
-	return s.repo.List(ctx, userID)
+// List returns a ledger's non-deleted recurring rules.
+func (s *Service) List(ctx context.Context, ledgerID string) ([]*RecurringRule, error) {
+	return s.repo.List(ctx, ledgerID)
 }
 
-// Get returns one rule scoped to the user.
-func (s *Service) Get(ctx context.Context, userID, id string) (*RecurringRule, error) {
+// Get returns one rule scoped to the ledger.
+func (s *Service) Get(ctx context.Context, ledgerID, id string) (*RecurringRule, error) {
 	if id == "" {
 		return nil, ErrRuleNotFound
 	}
-	return s.repo.Get(ctx, userID, id)
+	return s.repo.Get(ctx, ledgerID, id)
 }
 
 // Update changes a rule's definition and recomputes its next occurrence from
 // whichever is later: today, or the day after the last one already posted (so
 // editing a rule never re-posts an occurrence that already exists).
-func (s *Service) Update(ctx context.Context, userID, id, rruleStr string, tmpl Template, active bool) (*RecurringRule, error) {
+func (s *Service) Update(ctx context.Context, ledgerID, id, rruleStr string, tmpl Template, active bool) (*RecurringRule, error) {
 	if id == "" {
 		return nil, ErrRuleNotFound
 	}
-	existing, err := s.repo.Get(ctx, userID, id)
+	existing, err := s.repo.Get(ctx, ledgerID, id)
 	if err != nil {
 		return nil, err
 	}
-	r, tmpl, err := s.validate(ctx, userID, rruleStr, tmpl)
+	r, tmpl, err := s.validate(ctx, ledgerID, rruleStr, tmpl)
 	if err != nil {
 		return nil, err
 	}
@@ -122,38 +122,38 @@ func (s *Service) Update(ctx context.Context, userID, id, rruleStr string, tmpl 
 	if err != nil {
 		return nil, ErrInvalidInput
 	}
-	return s.repo.Update(ctx, userID, id, rruleStr, tmplBytes, nextRun, active)
+	return s.repo.Update(ctx, ledgerID, id, rruleStr, tmplBytes, nextRun, active)
 }
 
 // Delete soft-deletes a recurring rule (idempotent).
-func (s *Service) Delete(ctx context.Context, userID, id string) error {
+func (s *Service) Delete(ctx context.Context, ledgerID, id string) error {
 	if id == "" {
 		return ErrRuleNotFound
 	}
-	return s.repo.Delete(ctx, userID, id)
+	return s.repo.Delete(ctx, ledgerID, id)
 }
 
-// MaterializeDue posts entries for every user's due rules. Used by the
+// MaterializeDue posts entries for every book's due rules. Used by the
 // background scheduler.
 func (s *Service) MaterializeDue(ctx context.Context) (int, error) {
 	return s.materializeDue(ctx, "")
 }
 
-// MaterializeDueForUser posts entries for one user's due rules. Used by the
+// MaterializeDueForLedger posts entries for one book's due rules. Used by the
 // manual trigger endpoint, which must not touch other tenants' ledgers.
-func (s *Service) MaterializeDueForUser(ctx context.Context, userID string) (int, error) {
-	if userID == "" {
+func (s *Service) MaterializeDueForLedger(ctx context.Context, ledgerID string) (int, error) {
+	if ledgerID == "" {
 		return 0, ErrInvalidInput
 	}
-	return s.materializeDue(ctx, userID)
+	return s.materializeDue(ctx, ledgerID)
 }
 
 // materializeDue posts every occurrence that is due on or before today. A rule
 // whose posting fails records the error and is skipped — one bad rule must not
 // stall the sweep for everyone else.
-func (s *Service) materializeDue(ctx context.Context, userID string) (int, error) {
+func (s *Service) materializeDue(ctx context.Context, ledgerID string) (int, error) {
 	today := s.today()
-	due, err := s.repo.DueRules(ctx, userID, today)
+	due, err := s.repo.DueRules(ctx, ledgerID, today)
 	if err != nil {
 		return 0, err
 	}
@@ -222,7 +222,8 @@ func (s *Service) postOccurrence(ctx context.Context, rule *RecurringRule, txnDa
 		})
 	}
 
-	if _, err := s.led.Post(ctx, rule.UserID, in); err != nil {
+	// No author: the scheduler posts this, not a person.
+	if _, err := s.led.Post(ctx, rule.LedgerID, "", in); err != nil {
 		if errors.Is(err, ledger.ErrDuplicateEntry) {
 			return false, nil
 		}
@@ -234,7 +235,7 @@ func (s *Service) postOccurrence(ctx context.Context, rule *RecurringRule, txnDa
 // validate checks the rrule, the template's shape and balance, and that every
 // referenced account is usable — all at write time, so a rule that could never
 // post is rejected with a 400 instead of failing silently on every tick.
-func (s *Service) validate(ctx context.Context, userID, rruleStr string, tmpl Template) (*rrule.RRule, Template, error) {
+func (s *Service) validate(ctx context.Context, ledgerID, rruleStr string, tmpl Template) (*rrule.RRule, Template, error) {
 	r, err := s.parseRule(rruleStr)
 	if err != nil {
 		return nil, tmpl, ErrInvalidInput
@@ -276,7 +277,7 @@ func (s *Service) validate(ctx context.Context, userID, rruleStr string, tmpl Te
 	}
 
 	for _, id := range uniqueAccountIDs(tmpl.Lines) {
-		acct, err := s.led.GetAccount(ctx, userID, id)
+		acct, err := s.led.GetAccount(ctx, ledgerID, id)
 		if err != nil {
 			if errors.Is(err, ledger.ErrAccountNotFound) {
 				return nil, tmpl, ErrAccountNotUsable

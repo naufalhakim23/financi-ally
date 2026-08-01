@@ -9,7 +9,7 @@ import (
 	"github.com/naufalhakim23/financi-ally/backend/internal/pkg/money"
 )
 
-// Service generates user-scoped reports from the immutable ledger. It depends
+// Service generates ledger-scoped reports from the immutable journal. It depends
 // on FX rates for currency normalization.
 type Service struct {
 	repo *Repo
@@ -21,12 +21,12 @@ func NewService(repo *Repo, fxSvc *fx.Service) *Service {
 	return &Service{repo: repo, fx: fxSvc}
 }
 
-// NetWorth returns the user's net worth as of today, normalized to base
-// currency. Each account's balance is converted to the user's base currency
+// NetWorth returns the book's net worth as of today, normalized to base
+// currency. Each account's balance is converted to the ledger's base currency
 // using the most recent available FX rate.
-func (s *Service) NetWorth(ctx context.Context, userID, baseCurrency string) (*NetWorth, error) {
+func (s *Service) NetWorth(ctx context.Context, ledgerID, baseCurrency string) (*NetWorth, error) {
 	asOf := time.Now()
-	rows, err := s.repo.AccountBalancesByType(ctx, userID, "asset")
+	rows, err := s.repo.AccountBalancesByType(ctx, ledgerID, "asset")
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +41,7 @@ func (s *Service) NetWorth(ctx context.Context, userID, baseCurrency string) (*N
 		totalAsset.Currency = baseCurrency
 	}
 
-	rows, err = s.repo.AccountBalancesByType(ctx, userID, "liability")
+	rows, err = s.repo.AccountBalancesByType(ctx, ledgerID, "liability")
 	if err != nil {
 		return nil, err
 	}
@@ -67,8 +67,8 @@ func (s *Service) NetWorth(ctx context.Context, userID, baseCurrency string) (*N
 
 // SpendingByCategory returns total spending per expense account within the
 // period, normalized to base currency.
-func (s *Service) SpendingByCategory(ctx context.Context, userID, baseCurrency string, start, end time.Time) ([]CategorySpend, error) {
-	rows, err := s.repo.SpendingByCategory(ctx, userID, start, end)
+func (s *Service) SpendingByCategory(ctx context.Context, ledgerID, baseCurrency string, start, end time.Time) ([]CategorySpend, error) {
+	rows, err := s.repo.SpendingByCategory(ctx, ledgerID, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -90,12 +90,12 @@ func (s *Service) SpendingByCategory(ctx context.Context, userID, baseCurrency s
 }
 
 // CashFlow returns income and expense totals for the period, normalized to base.
-func (s *Service) CashFlow(ctx context.Context, userID, baseCurrency string, start, end time.Time) (*CashFlow, error) {
-	incomes, err := s.repo.TotalsByType(ctx, userID, "income", start, end)
+func (s *Service) CashFlow(ctx context.Context, ledgerID, baseCurrency string, start, end time.Time) (*CashFlow, error) {
+	incomes, err := s.repo.TotalsByType(ctx, ledgerID, "income", start, end)
 	if err != nil {
 		return nil, err
 	}
-	expenses, err := s.repo.TotalsByType(ctx, userID, "expense", start, end)
+	expenses, err := s.repo.TotalsByType(ctx, ledgerID, "expense", start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -137,14 +137,14 @@ func (s *Service) CashFlow(ctx context.Context, userID, baseCurrency string, sta
 //
 // ponytail: this reuses CashFlow per month (2 queries each) instead of one
 // grouped date_trunc rollup. At the 1–24 month ceiling that is at most 48 small
-// indexed queries on a single user's ledger, and it inherits CashFlow's tested
+// indexed queries on a single ledger, and it inherits CashFlow's tested
 // FX normalization. Swap in a single grouped query if the reports screen ever
 // gets hot.
-func (s *Service) MonthlySeries(ctx context.Context, userID, baseCurrency string, months int) ([]MonthlyPoint, error) {
+func (s *Service) MonthlySeries(ctx context.Context, ledgerID, baseCurrency string, months int) ([]MonthlyPoint, error) {
 	windows := monthWindows(time.Now(), months)
 	out := make([]MonthlyPoint, 0, len(windows))
 	for _, w := range windows {
-		cf, err := s.CashFlow(ctx, userID, baseCurrency, w.start, w.end)
+		cf, err := s.CashFlow(ctx, ledgerID, baseCurrency, w.start, w.end)
 		if err != nil {
 			return nil, err
 		}

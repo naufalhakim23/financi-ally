@@ -25,7 +25,7 @@ type accountBalanceRow struct {
 
 // AccountBalancesByType returns the signed balance for every account of the
 // given type. Used by net-worth computation.
-func (r *Repo) AccountBalancesByType(ctx context.Context, userID, acctType string) ([]accountBalanceRow, error) {
+func (r *Repo) AccountBalancesByType(ctx context.Context, ledgerID, acctType string) ([]accountBalanceRow, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT a.id, a.type, a.currency,
 			COALESCE(SUM(jl.amount_minor) FILTER (WHERE jl.dc = 'debit'), 0) AS debit_total,
@@ -33,9 +33,9 @@ func (r *Repo) AccountBalancesByType(ctx context.Context, userID, acctType strin
 		FROM accounts a
 		LEFT JOIN journal_lines jl ON jl.account_id = a.id
 		LEFT JOIN entries e ON e.id = jl.entry_id AND e.status = 'posted' AND e.deleted_at IS NULL
-		WHERE a.user_id = $1 AND a.type = $2 AND a.deleted_at IS NULL
+		WHERE a.ledger_id = $1 AND a.type = $2 AND a.deleted_at IS NULL
 		GROUP BY a.id, a.type, a.currency
-		ORDER BY a.name`, userID, acctType)
+		ORDER BY a.name`, ledgerID, acctType)
 	if err != nil {
 		return nil, fmt.Errorf("account balances by type: %w", err)
 	}
@@ -70,18 +70,18 @@ type categorySpendRow struct {
 
 // SpendingByCategory returns total posted debits per expense account within the
 // period, per-currency.
-func (r *Repo) SpendingByCategory(ctx context.Context, userID string, start, end time.Time) ([]categorySpendRow, error) {
+func (r *Repo) SpendingByCategory(ctx context.Context, ledgerID string, start, end time.Time) ([]categorySpendRow, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT a.id, a.name, a.currency, COALESCE(SUM(jl.amount_minor), 0)
 		FROM accounts a
 		JOIN journal_lines jl ON jl.account_id = a.id
 		JOIN entries e ON e.id = jl.entry_id
-		WHERE a.user_id = $1 AND a.type = 'expense' AND a.deleted_at IS NULL
+		WHERE a.ledger_id = $1 AND a.type = 'expense' AND a.deleted_at IS NULL
 		  AND e.status = 'posted' AND e.deleted_at IS NULL
 		  AND jl.dc = 'debit'
 		  AND e.txn_date >= $2 AND e.txn_date < $3
 		GROUP BY a.id, a.name, a.currency
-		ORDER BY a.name`, userID, start, end)
+		ORDER BY a.name`, ledgerID, start, end)
 	if err != nil {
 		return nil, fmt.Errorf("spending by category: %w", err)
 	}
@@ -105,7 +105,7 @@ type typeTotalRow struct {
 
 // TotalsByType returns total posted debits (for expense) or credits (for income)
 // in the period, grouped by currency.
-func (r *Repo) TotalsByType(ctx context.Context, userID, acctType string, start, end time.Time) ([]typeTotalRow, error) {
+func (r *Repo) TotalsByType(ctx context.Context, ledgerID, acctType string, start, end time.Time) ([]typeTotalRow, error) {
 	dcFilter := "debit"
 	if acctType == "income" {
 		dcFilter = "credit"
@@ -115,11 +115,11 @@ func (r *Repo) TotalsByType(ctx context.Context, userID, acctType string, start,
 		FROM accounts a
 		JOIN journal_lines jl ON jl.account_id = a.id
 		JOIN entries e ON e.id = jl.entry_id
-		WHERE a.user_id = $1 AND a.type = $2 AND a.deleted_at IS NULL
+		WHERE a.ledger_id = $1 AND a.type = $2 AND a.deleted_at IS NULL
 		  AND e.status = 'posted' AND e.deleted_at IS NULL
 		  AND jl.dc = $3
 		  AND e.txn_date >= $4 AND e.txn_date < $5
-		GROUP BY jl.currency`, userID, acctType, dcFilter, start, end)
+		GROUP BY jl.currency`, ledgerID, acctType, dcFilter, start, end)
 	if err != nil {
 		return nil, fmt.Errorf("totals by type %s: %w", acctType, err)
 	}

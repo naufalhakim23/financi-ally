@@ -5,7 +5,7 @@ import { ChevronDown, Delete } from "lucide-react-native";
 import { Chip, usePressed } from "./core";
 import { ListRow } from "./lists";
 import { Sheet } from "./overlays";
-import { C, ELEVATION } from "./tokens";
+import { useTheme } from "./tokens";
 import { KEYPAD_KEYS, type KeypadKey, applyKey } from "../../lib/keypad";
 
 export { applyKey, type KeypadKey };
@@ -64,6 +64,7 @@ export function Field({
   autoCap?: "none" | "sentences" | "characters";
   secure?: boolean;
 }) {
+  const { C } = useTheme();
   return (
     <FieldShell label={label} helper={helper} error={error}>
       <TextInput
@@ -104,6 +105,7 @@ export function AmountField({
   helper?: string;
   error?: string | null;
 }) {
+  const { C } = useTheme();
   return (
     <FieldShell label={label} helper={helper} error={error}>
       <View
@@ -148,6 +150,7 @@ export function Select<T extends string>({
   error?: string | null;
   onSelect: (v: T) => void;
 }) {
+  const { C } = useTheme();
   const [open, setOpen] = useState(false);
   const { pressed, handlers } = usePressed();
   const selected = options.find((o) => o.value === value);
@@ -258,6 +261,7 @@ export function SegmentedControl<T extends string>({
   value: T;
   onChange: (v: T) => void;
 }) {
+  const { ELEVATION } = useTheme();
   return (
     <View className="flex-row rounded-lg bg-surface-container p-[3px]">
       {options.map((o) => {
@@ -306,6 +310,7 @@ export function AmountWell({
   helper?: string;
   onPressCurrency?: () => void;
 }) {
+  const { C } = useTheme();
   return (
     <View className="bg-surface-container rounded-lg px-4 py-4 items-center" style={{ gap: 6 }}>
       <Pressable
@@ -341,6 +346,7 @@ export function Keypad({ onKey }: { onKey: (key: KeypadKey) => void }) {
 }
 
 function KeypadButton({ value, onPress }: { value: KeypadKey; onPress: () => void }) {
+  const { C } = useTheme();
   const { pressed, handlers } = usePressed();
   return (
     <Pressable
@@ -383,6 +389,7 @@ export function SwitchRow({
   value: boolean;
   onChange: (v: boolean) => void;
 }) {
+  const { C } = useTheme();
   return (
     <View className="flex-row items-center justify-between py-3 min-h-touch">
       <View className="flex-1 pr-4">

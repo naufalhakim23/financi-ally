@@ -1,7 +1,7 @@
 import { Text, View } from "react-native";
 import Svg, { Circle, G } from "react-native-svg";
 
-import { C, CHART_SLOTS, slotColor } from "./tokens";
+import { CHART_SLOTS, slotColor, useTheme } from "./tokens";
 
 // ─── Chart primitives (DESIGN.md v1.0 → Charts) ─────────────────────────────
 // The brand palette is deliberately neutral, so it can't encode series
@@ -38,6 +38,7 @@ export function Donut({
   thickness?: number;
   center?: React.ReactNode;
 }) {
+  const { C } = useTheme();
   const total = slices.reduce((s, x) => s + Math.max(0, x.value), 0);
   const r = (size - thickness) / 2;
   const circumference = 2 * Math.PI * r;
@@ -227,14 +228,18 @@ export type GroupedPoint = { key: string; label: string; a: number; b: number };
 export function GroupedBars({
   points,
   height = 88,
-  aColor = C.success,
-  bColor = C.primary,
+  aColor,
+  bColor,
 }: {
   points: GroupedPoint[];
   height?: number;
   aColor?: string;
   bColor?: string;
 }) {
+  // Defaults resolve at render, not at module load, so they follow the theme.
+  const { C } = useTheme();
+  const a = aColor ?? C.success;
+  const b = bColor ?? C.primary;
   const max = points.reduce((m, p) => Math.max(m, p.a, p.b), 0);
   const MIN_BAR = 3;
   const bar = (v: number) => (max > 0 ? Math.max((v / max) * height, MIN_BAR) : MIN_BAR);
@@ -246,11 +251,11 @@ export function GroupedBars({
           <View key={p.key} className="flex-1 flex-row items-end" style={{ gap: 3, height }}>
             <View
               className="flex-1"
-              style={{ height: bar(p.a), backgroundColor: aColor, borderRadius: BAR_RADIUS }}
+              style={{ height: bar(p.a), backgroundColor: a, borderRadius: BAR_RADIUS }}
             />
             <View
               className="flex-1"
-              style={{ height: bar(p.b), backgroundColor: bColor, borderRadius: BAR_RADIUS }}
+              style={{ height: bar(p.b), backgroundColor: b, borderRadius: BAR_RADIUS }}
             />
           </View>
         ))}

@@ -18,12 +18,15 @@ import {
   Dialog,
   EmptyState,
   IconBox,
+  ListRow,
   Receipt,
   ScreenHeader,
   SectionLabel,
+  Sheet,
   accountGlyph,
   categorySlot,
   formatGrouped,
+  useTheme,
 } from "../../../src/components/ui";
 
 export default function EntryDetail() {
@@ -31,7 +34,9 @@ export default function EntryDetail() {
   const { user } = useAuth();
   const base = user?.base_currency ?? "IDR";
   const { t, showSides } = useWording();
+  const { C } = useTheme();
   const [confirming, setConfirming] = useState(false);
+  const [moving, setMoving] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const accountsObs = useMemo(() => database.get<Account>("accounts").query().observe(), []);
@@ -72,6 +77,34 @@ export default function EntryDetail() {
     }
   }
 
+  /**
+   * Re-file the entry under a different category, leaving both amounts and the
+   * money side untouched. Only the category line moves, so the entry stays
+   * balanced by construction — no re-post, no server round trip beyond sync.
+   */
+  async function moveTo(accountId: string) {
+    if (!view) return;
+    const side = view.direction === "in" ? "credit" : "debit";
+    const line = lines.find((l) => l.entryId === id && l.dc === side);
+    if (!line) return;
+    setBusy(true);
+    try {
+      await database.write(async () => {
+        await line.update((l: JournalLine) => {
+          l.accountId = accountId;
+        });
+      });
+      try {
+        await syncDatabase();
+      } catch {
+        // Offline is fine — the change is local and pushes on the next cycle.
+      }
+    } finally {
+      setBusy(false);
+      setMoving(false);
+    }
+  }
+
   if (!view) {
     return (
       <SafeAreaView edges={["top"]} className="flex-1 bg-background">
@@ -84,6 +117,11 @@ export default function EntryDetail() {
   }
 
   const category = view.direction === "out" ? view.to : view.from;
+  // A move sits between two money accounts, so it has no category to re-file.
+  const moveTargets =
+    view.direction === "move" || !category
+      ? []
+      : accounts.filter((a) => a.type === category.type && !a.archived && a.id !== category.id);
   const when = new Date(view.entry.txnDate);
   const negative = view.direction === "out";
   const sign = view.direction === "move" ? "" : negative ? "−" : "+";
@@ -110,7 +148,11 @@ export default function EntryDetail() {
             />
             <Text
               className={`text-amount-hero font-mono-bold ${
-                view.direction === "move" ? "text-ink" : negative ? "text-error" : "text-success"
+                view.direction === "move"
+                  ? "text-ink"
+                  : negative
+                    ? "text-error-strong"
+                    : "text-success-strong"
               }`}
             >
               {sign}
@@ -178,7 +220,7 @@ export default function EntryDetail() {
         {/* Receipts have no upload path yet; the placeholder says what will
             appear rather than offering an action that does nothing. */}
         <View className="bg-surface border border-dashed border-outline-strong rounded-2xl p-3.5 items-center">
-          <Camera size={24} color="#98A1B5" strokeWidth={1.75} />
+          <Camera size={24} color={C.disabled} strokeWidth={1.75} />
           <Text className="text-caption font-sans-medium text-faint mt-1.5">
             A receipt photo you add will appear here
           </Text>
@@ -198,11 +240,30 @@ export default function EntryDetail() {
               }
             />
           </View>
+          {moveTargets.length > 0 && (
+            <View className="flex-1">
+              <Button label="Move" variant="secondary" onPress={() => setMoving(true)} />
+            </View>
+          )}
           <View className="flex-1">
             <Button label="Delete" variant="destructive" onPress={() => setConfirming(true)} />
           </View>
         </View>
       </ScrollView>
+
+      <Sheet visible={moving} onClose={() => setMoving(false)} title={`Move to another ${category?.type ?? "category"}`}>
+        {moveTargets.map((a, i) => (
+          <ListRow
+            key={a.id}
+            divider={i > 0}
+            glyph={accountGlyph(a.name, a.type)}
+            slot={categorySlot(a.id)}
+            title={a.name}
+            subtitle={a.currency}
+            onPress={() => moveTo(a.id)}
+          />
+        ))}
+      </Sheet>
 
       <Dialog
         visible={confirming}

@@ -19,7 +19,6 @@ import { useObservable } from "../../../src/lib/useObserve";
 import { useWording } from "../../../src/lib/wording";
 import { Account, Budget, Entry, JournalLine } from "../../../src/model/models";
 import {
-  Amount,
   BucketChildRow,
   Button,
   Card,
@@ -166,55 +165,52 @@ export default function BucketsScreen() {
         {/* Spending is a period, not a balance — it gets the plan bar and the
             category breakdown rather than a child list. */}
         {spendingRows.length > 0 && (
-          <Card>
-            <View className="flex-row items-center" style={{ gap: 12 }}>
-              <View className="flex-1">
-                <Text className="text-body-lg font-sans-semibold text-ink">Spending</Text>
-                <Text className="text-caption font-sans-medium text-faint mt-0.5">
-                  {planned > 0
-                    ? `${formatGrouped(base, spent)} of ${formatGrouped(base, planned)} planned`
-                    : `${formatGrouped(base, spent)} this month`}
-                </Text>
+          <Card padded={false}>
+            {/* Spending is a bucket like the others, so it opens the same way —
+                the whole row, not a separate button below the breakdown. */}
+            <ListRow
+              glyph={accountGlyph("Spending", "expense")}
+              slot={byId("spending").slot}
+              title="Spending"
+              titleSize="lg"
+              subtitle={
+                planned > 0
+                  ? `${formatGrouped(base, spent)} of ${formatGrouped(base, planned)} planned`
+                  : `${formatGrouped(base, spent)} this month`
+              }
+              chevron
+              onPress={() => router.push("/(app)/budgets")}
+            />
+            <View className="px-4 pb-4">
+              {planned > 0 && <ProgressBar pct={spendPct} />}
+
+              <View className="mt-3" style={{ gap: 8 }}>
+                {spendingRows.slice(0, 5).map((r) => {
+                  const over = r.target != null && r.spent > r.target;
+                  return (
+                    <View key={r.account.id} className="flex-row items-center" style={{ gap: 8 }}>
+                      <View
+                        className="w-2.5 h-2.5 rounded-sm"
+                        style={{ backgroundColor: slotColor(categorySlot(r.account.id)) }}
+                      />
+                      <Text
+                        className="flex-1 text-caption font-sans-medium text-dim"
+                        numberOfLines={1}
+                      >
+                        {r.account.name}
+                      </Text>
+                      <Text
+                        className={`text-amount-sm font-mono-medium ${
+                          over ? "text-warning-strong" : "text-ink"
+                        }`}
+                      >
+                        {formatGrouped(base, r.spent)}
+                        {r.target != null ? ` / ${formatGrouped(base, r.target)}` : ""}
+                      </Text>
+                    </View>
+                  );
+                })}
               </View>
-              <Amount minor={spent} currency={base} size="lg" tone="neutral" />
-            </View>
-
-            {planned > 0 && (
-              <View className="mt-3">
-                <ProgressBar pct={spendPct} />
-              </View>
-            )}
-
-            <View className="mt-3" style={{ gap: 8 }}>
-              {spendingRows.slice(0, 5).map((r) => {
-                const over = r.target != null && r.spent > r.target;
-                return (
-                  <View key={r.account.id} className="flex-row items-center" style={{ gap: 8 }}>
-                    <View
-                      className="w-2.5 h-2.5 rounded-sm"
-                      style={{ backgroundColor: slotColor(categorySlot(r.account.id)) }}
-                    />
-                    <Text className="flex-1 text-caption font-sans-medium text-dim" numberOfLines={1}>
-                      {r.account.name}
-                    </Text>
-                    <Text
-                      className={`text-amount-sm font-mono-medium ${over ? "text-warning" : "text-ink"}`}
-                    >
-                      {formatGrouped(base, r.spent)}
-                      {r.target != null ? ` / ${formatGrouped(base, r.target)}` : ""}
-                    </Text>
-                  </View>
-                );
-              })}
-            </View>
-
-            <View className="mt-3">
-              <Button
-                label="Edit the plan"
-                variant="tertiary"
-                fullWidth={false}
-                onPress={() => router.push("/(app)/budgets")}
-              />
             </View>
           </Card>
         )}

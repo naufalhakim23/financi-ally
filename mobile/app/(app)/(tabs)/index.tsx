@@ -15,7 +15,7 @@ import {
   spendingForMonth,
 } from "../../../src/lib/buckets";
 import { database } from "../../../src/lib/db";
-import { EMPTY_RATES, rateCaption, type RateTable } from "../../../src/lib/fx";
+import { EMPTY_RATES, convert, rateCaption, type RateTable } from "../../../src/lib/fx";
 import { useSyncState } from "../../../src/lib/syncState";
 import { useObservable } from "../../../src/lib/useObserve";
 import { useWording } from "../../../src/lib/wording";
@@ -33,6 +33,7 @@ import {
   Wallet,
   accountGlyph,
   formatGrouped,
+  useTheme,
 } from "../../../src/components/ui";
 
 type Range = "6M" | "1Y" | "All";
@@ -42,6 +43,7 @@ export default function HomeScreen() {
   const { user } = useAuth();
   const base = user?.base_currency ?? "IDR";
   const { t } = useWording();
+  const { C } = useTheme();
   const sync = useSyncState();
   const [range, setRange] = useState<Range>("1Y");
 
@@ -135,6 +137,10 @@ export default function HomeScreen() {
   const foreignCurrency = buckets.find((b) => b.id === "foreign")?.children[0]?.account.currency;
   const fxCaption = foreignCurrency ? rateCaption(foreignCurrency, base, rates) : null;
 
+  // The same figure in the currency the user actually thinks in abroad. Only
+  // shown when there is a foreign holding and a rate path for it.
+  const worthAbroad = foreignCurrency ? convert(worth, base, foreignCurrency, rates) : null;
+
   const initials = (user?.email ?? "?").slice(0, 2).toUpperCase();
 
   // First run: a zeroed home tells a new user nothing. Send them to the one
@@ -160,7 +166,7 @@ export default function HomeScreen() {
             picker states the one space that exists rather than pretending. */}
         <View className="flex-row items-center bg-secondary rounded-full px-3 py-2" style={{ gap: 6 }}>
           <Text className="text-label font-sans-semibold text-on-secondary">Personal</Text>
-          <ChevronDown size={14} color="#5A6379" strokeWidth={2} />
+          <ChevronDown size={14} color={C.dim} strokeWidth={2} />
         </View>
         <View className="flex-row items-center" style={{ gap: 8 }}>
           <IconButton glyph={Search} label="Search" onPress={() => router.push("/(app)/(tabs)/history")} />
@@ -193,7 +199,7 @@ export default function HomeScreen() {
           <View className="flex-row items-baseline mt-1" style={{ gap: 8 }}>
             <Text
               className={`text-amount-sm font-mono-medium ${
-                thisMonthNet < 0 ? "text-error" : "text-success"
+                thisMonthNet < 0 ? "text-error-strong" : "text-success-strong"
               }`}
             >
               {thisMonthNet < 0 ? "−" : "+"}
@@ -202,6 +208,9 @@ export default function HomeScreen() {
             <Text className="text-caption font-sans-medium text-faint">
               {pct >= 0 ? "+" : ""}
               {pct.toFixed(1)}% this month
+              {worthAbroad != null && foreignCurrency
+                ? ` · ≈ ${foreignCurrency} ${formatGrouped(foreignCurrency, worthAbroad)}`
+                : ""}
             </Text>
           </View>
 

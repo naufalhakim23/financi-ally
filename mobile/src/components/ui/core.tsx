@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { Plus } from "lucide-react-native";
 
 import { format } from "../../lib/money";
-import { C, ELEVATION, type Glyph, slotColor, slotTint } from "./tokens";
+import { type Palette, useTheme, type Glyph, slotColor, slotTint } from "./tokens";
 
 /**
  * Pressed state as a boolean plus the handlers that drive it.
@@ -38,6 +38,7 @@ export function Card({
   className?: string;
   padded?: boolean;
 }) {
+  const { ELEVATION } = useTheme();
   return (
     <View
       className={`bg-surface rounded-2xl border border-outline ${padded ? "p-4" : ""} ${className}`}
@@ -95,12 +96,12 @@ const BUTTON_STYLE: Record<
   },
 };
 
-const SPINNER_COLOR: Record<ButtonVariant, string> = {
+const spinnerColor = (C: Palette): Record<ButtonVariant, string> => ({
   primary: C.onPrimary,
   secondary: C.ink,
   destructive: C.error,
   tertiary: C.info,
-};
+});
 
 /**
  * The one button. Loading swaps the label for a spinner in the label's color so
@@ -125,6 +126,7 @@ export function Button({
   fullWidth?: boolean;
   className?: string;
 }) {
+  const { C } = useTheme();
   const s = BUTTON_STYLE[variant];
   const off = disabled || busy;
   const tertiary = variant === "tertiary";
@@ -149,7 +151,7 @@ export function Button({
       ].join(" ")}
     >
       {busy ? (
-        <ActivityIndicator color={SPINNER_COLOR[variant]} />
+        <ActivityIndicator color={spinnerColor(C)[variant]} />
       ) : (
         <>
           {G && <G size={18} color={off ? C.disabled : undefined} strokeWidth={1.75} />}
@@ -166,6 +168,7 @@ export function Button({
 
 /** Floating add affordance. The only element besides sheets that truly floats. */
 export function Fab({ onPress, size = 56 }: { onPress: () => void; size?: number }) {
+  const { C, ELEVATION } = useTheme();
   const { pressed, handlers } = usePressed();
   return (
     <Pressable
@@ -228,7 +231,13 @@ export function Amount({
 }) {
   const neg = minor < 0;
   const color =
-    tone === "flow" ? (neg ? "text-error" : "text-success") : neg ? "text-error" : "text-ink";
+    tone === "flow"
+      ? neg
+        ? "text-error-strong"
+        : "text-success-strong"
+      : neg
+        ? "text-error-strong"
+        : "text-ink";
   const sign = tone === "flow" ? (neg ? "−" : "+") : neg ? "−" : "";
 
   return (
@@ -243,7 +252,7 @@ export function Amount({
         </Text>
       )}
       {stale && (
-        <Text className="text-mono-meta font-mono text-warning">stale rate</Text>
+        <Text className="text-mono-meta font-mono text-warning-strong">stale rate</Text>
       )}
     </View>
   );
@@ -274,6 +283,7 @@ export function IconBox({
   slot?: number;
   size?: number;
 }) {
+  const { C } = useTheme();
   const tinted = slot != null;
   return (
     <View
@@ -289,13 +299,13 @@ export function IconBox({
 }
 
 type BadgeTone = "neutral" | "success" | "warning" | "error" | "info";
-const BADGE_TONE: Record<BadgeTone, { box: string; text: string; glyph: string }> = {
+const badgeTone = (C: Palette): Record<BadgeTone, { box: string; text: string; glyph: string }> => ({
   neutral: { box: "bg-surface-container-high", text: "text-dim", glyph: C.dim },
-  success: { box: "bg-success-wash border border-success-edge", text: "text-success", glyph: C.success },
-  warning: { box: "bg-warning-wash border border-warning-edge", text: "text-warning", glyph: C.warning },
-  error: { box: "bg-error-wash border border-error-edge", text: "text-error", glyph: C.error },
-  info: { box: "bg-info-wash border border-info-edge", text: "text-info", glyph: C.info },
-};
+  success: { box: "bg-success-wash border border-success-edge", text: "text-success-strong", glyph: C.success },
+  warning: { box: "bg-warning-wash border border-warning-edge", text: "text-warning-strong", glyph: C.warning },
+  error: { box: "bg-error-wash border border-error-edge", text: "text-error-strong", glyph: C.error },
+  info: { box: "bg-info-wash border border-info-edge", text: "text-info-strong", glyph: C.info },
+});
 
 /**
  * Small status pill. Status tones are for status meaning only, and always carry
@@ -310,7 +320,8 @@ export function Badge({
   tone?: BadgeTone;
   glyph?: Glyph;
 }) {
-  const t = BADGE_TONE[tone];
+  const { C } = useTheme();
+  const t = badgeTone(C)[tone];
   return (
     <View className={`flex-row items-center rounded-full px-2.5 py-0.5 ${t.box}`}>
       {G && <G size={12} color={t.glyph} strokeWidth={1.75} />}

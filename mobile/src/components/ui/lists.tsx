@@ -2,7 +2,7 @@ import { Pressable, Text, View } from "react-native";
 import { ArrowLeftRight, ChevronRight, Plus } from "lucide-react-native";
 
 import { Amount, Button, Card, IconBox, usePressed } from "./core";
-import { C, type Glyph } from "./tokens";
+import { useTheme, type Glyph } from "./tokens";
 
 // ─── List atoms (DESIGN.md v1.0 → List rows, Empty states) ──────────────────
 
@@ -55,6 +55,7 @@ export function ListRow({
   divider?: boolean;
   onPress?: () => void;
 }) {
+  const { C } = useTheme();
   const { pressed, handlers } = usePressed();
   const tall = converted != null;
 
@@ -134,6 +135,7 @@ export function EmptyState({
   actionLabel?: string;
   onAction?: () => void;
 }) {
+  const { C } = useTheme();
   return (
     <Card>
       <View className="items-center py-3">
@@ -170,6 +172,7 @@ export function RowAction({
   /** `info` marks a move: shifting money between pockets is not spending. */
   tone?: "neutral" | "info";
 }) {
+  const { C } = useTheme();
   const { pressed, handlers } = usePressed();
   return (
     <Pressable

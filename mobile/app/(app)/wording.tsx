@@ -5,12 +5,12 @@ import { Home, LayoutGrid, LineChart, MoreHorizontal, Plus } from "lucide-react-
 
 import { TERM_ROWS, term, useWording, type Wording } from "../../src/lib/wording";
 import {
-  C,
   Card,
   ScreenHeader,
   SectionLabel,
   SegmentedControl,
   SwitchRow,
+  useTheme,
 } from "../../src/components/ui";
 
 // One switch renames the whole app between plain and ledger vocabulary. The
@@ -95,6 +95,7 @@ export default function WordingScreen() {
 const PREVIEW_GLYPHS = [Home, LineChart, LayoutGrid, MoreHorizontal];
 
 function TabPreview({ mode, active }: { mode: Wording; active: boolean }) {
+  const { C } = useTheme();
   const labels = ["Home", term("history", mode), term("buckets", mode), "More"];
   const color = active ? C.ink : C.faint;
 

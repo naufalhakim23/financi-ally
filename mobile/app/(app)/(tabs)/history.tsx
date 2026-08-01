@@ -20,7 +20,6 @@ import { EntryRow } from "../../../src/components/entry-row";
 import { useWording } from "../../../src/lib/wording";
 import { Account, Entry, JournalLine } from "../../../src/model/models";
 import {
-  C,
   Card,
   DayHeader,
   EmptyState,
@@ -33,6 +32,7 @@ import {
   SegmentedControl,
   TitleBar,
   formatGrouped,
+  useTheme,
 } from "../../../src/components/ui";
 
 type Tab = "months" | "entries";
@@ -80,6 +80,7 @@ export default function HistoryScreen() {
   const { user } = useAuth();
   const base = user?.base_currency ?? "IDR";
   const { t } = useWording();
+  const { C } = useTheme();
   const [tab, setTab] = useState<Tab>("months");
 
   const accountsObs = useMemo(() => database.get<Account>("accounts").query().observe(), []);

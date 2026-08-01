@@ -1,4 +1,5 @@
 import { router } from "expo-router";
+import { RefreshCw } from "lucide-react-native";
 
 import type { EntryView } from "../lib/ledger";
 import { ListRow, accountGlyph, categorySlot, formatGrouped } from "./ui";
@@ -27,13 +28,24 @@ export function EntryRow({
   const signed = v.direction === "out" ? -v.amountMinor : v.amountMinor;
   const move = v.direction === "move";
 
+  // A local write the server has not acknowledged yet. It outranks the flow
+  // line in the subtitle slot: which accounts it touched is on the detail
+  // screen anyway, whereas "this only exists on your phone" is not.
+  const unsynced = v.entry.syncStatus !== "synced";
+
   return (
     <ListRow
       divider={divider}
       glyph={accountGlyph(category?.name ?? v.entry.memo ?? "", category?.type)}
       slot={category ? categorySlot(category.id) : undefined}
       title={v.entry.memo || category?.name || "Entry"}
-      subtitle={`${v.from?.name ?? "—"} → ${v.to?.name ?? "—"}${move ? " · move" : ""}`}
+      subtitleTone={unsynced ? "warning" : "faint"}
+      subtitleGlyph={unsynced ? RefreshCw : undefined}
+      subtitle={
+        unsynced
+          ? "unsynced"
+          : `${v.from?.name ?? "—"} → ${v.to?.name ?? "—"}${move ? " · move" : ""}`
+      }
       amount={move ? v.amountMinor : signed}
       currency={v.currency || base}
       amountTone={move ? "neutral" : "flow"}

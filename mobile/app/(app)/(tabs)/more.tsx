@@ -17,13 +17,16 @@ import { useAuth } from "../../../src/lib/auth";
 import { syncDatabase } from "../../../src/lib/sync";
 import { useSyncState } from "../../../src/lib/syncState";
 import { useWording } from "../../../src/lib/wording";
-import { Badge, Button, Card, ListRow, SectionLabel, TitleBar } from "../../../src/components/ui";
+import { Badge, BookOpen, Button, Card, ListRow, SectionLabel, TitleBar, Users } from "../../../src/components/ui";
+import { useLedgerState } from "../../../src/lib/ledgerStore";
 
 // Everything direction 2a does not give a tab. Budgets, recurring rules and
 // reports still exist — they just stopped being destinations of their own.
 export default function MoreScreen() {
   const { user, logout } = useAuth();
   const { mode } = useWording();
+  // null means the personal book; only a household name is worth showing.
+  const { active: activeLedger } = useLedgerState();
   const sync = useSyncState();
   const [syncing, setSyncing] = useState(false);
 
@@ -50,6 +53,14 @@ export default function MoreScreen() {
       >
         <Card padded={false}>
           <ListRow
+            glyph={activeLedger ? Users : BookOpen}
+            title="Books"
+            subtitle={activeLedger ? `${activeLedger.name} · shared` : "Personal · private to you"}
+            chevron
+            onPress={() => router.push("/(app)/ledgers")}
+          />
+          <ListRow
+            divider
             glyph={Type}
             title="How it is worded"
             subtitle={mode === "finance" ? "Finance" : "Normal"}

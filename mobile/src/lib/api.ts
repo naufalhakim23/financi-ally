@@ -122,6 +122,14 @@ export const api = {
   google: (code: string, redirectUri: string) =>
     client.POST("/auth/google", { body: { code, redirect_uri: redirectUri } }).then(unwrap),
 
+  // Answers 204 whether or not the address is registered — the UI must say
+  // "if that address has an account…" and never confirm one exists.
+  forgotPassword: (email: string) =>
+    client.POST("/auth/password/forgot", { body: { email } }).then(unwrap),
+
+  resetPassword: (email: string, code: string, password: string) =>
+    client.POST("/auth/password/reset", { body: { email, code, password } }).then(unwrap),
+
   me: (accessToken: string) => client.GET("/auth/me", { headers: authHdr(accessToken) }).then(unwrap),
 
   logout: (accessToken: string, refreshToken: string) =>

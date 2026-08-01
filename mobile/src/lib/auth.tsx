@@ -40,6 +40,10 @@ type AuthContextValue = {
   register: (email: string, password: string, baseCurrency?: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   googleSignin: () => Promise<void>;
+  /** Ask for a reset code. Resolves the same way for unknown addresses. */
+  forgotPassword: (email: string) => Promise<void>;
+  /** Redeem a reset code; on success the user is signed in on this device. */
+  resetPassword: (email: string, code: string, password: string) => Promise<void>;
   startGuest: (baseCurrency: string) => Promise<void>;
   logout: () => Promise<void>;
 };
@@ -156,6 +160,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [applySession],
   );
 
+  const forgotPassword = useCallback(async (email: string) => {
+    await api.forgotPassword(email);
+  }, []);
+
+  const resetPassword = useCallback(
+    async (email: string, code: string, password: string) => {
+      const s = await api.resetPassword(email, code, password);
+      await applySession(s);
+    },
+    [applySession],
+  );
+
   const startGuest = useCallback(async (baseCurrency: string) => {
     await persistGuest(baseCurrency.trim().toUpperCase() || "IDR");
   }, []);
@@ -206,6 +222,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         register,
         login,
         googleSignin,
+        forgotPassword,
+        resetPassword,
         startGuest,
         logout,
       }}

@@ -3,6 +3,7 @@ import type { SyncPullResult } from "@nozbe/watermelondb/sync";
 
 import { authedApi } from "./api";
 import { database } from "./db";
+import { takeLedgerStale } from "./ledgerStore";
 import { refreshPending, setSyncState } from "./syncState";
 
 // Runs one WatermelonDB sync cycle: pull server changes into local tables, then
@@ -13,6 +14,14 @@ import { refreshPending, setSyncState } from "./syncState";
 export async function syncDatabase(): Promise<void> {
   setSyncState({ status: "syncing", lastError: null });
   try {
+    // A book we were removed from left its rows and its watermark behind. Wipe
+    // before pulling, or the personal book's history merges into a household's
+    // and the watermark hides the rows that should arrive.
+    if (takeLedgerStale()) {
+      await database.write(async () => {
+        await database.unsafeResetDatabase();
+      });
+    }
     await synchronize({
       database,
       pullChanges: async ({ lastPulledAt }) => {

@@ -1,10 +1,19 @@
-import { schemaMigrations, createTable } from "@nozbe/watermelondb/Schema/migrations";
+import { schemaMigrations, addColumns, createTable } from "@nozbe/watermelondb/Schema/migrations";
 
 // Without a migration for a bumped schema version, WatermelonDB throws on open
 // and the local database (including unsynced offline writes) is unusable. Every
 // schema.ts version bump needs a step here.
 export default schemaMigrations({
   migrations: [
+    {
+      toVersion: 3,
+      steps: [
+        addColumns({
+          table: "entries",
+          columns: [{ name: "fx_rate", type: "string", isOptional: true }],
+        }),
+      ],
+    },
     {
       toVersion: 2,
       steps: [

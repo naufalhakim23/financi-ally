@@ -4,7 +4,7 @@ import { appSchema, tableSchema } from "@nozbe/watermelondb";
 // are WatermelonDB-managed and never declared. Timestamps from the server
 // (txn_date, period_month) arrive as ms epoch and are stored as numbers.
 export default appSchema({
-  version: 2,
+  version: 3,
   tables: [
     tableSchema({
       name: "accounts",
@@ -22,6 +22,10 @@ export default appSchema({
         { name: "txn_date", type: "number" },
         { name: "status", type: "string" },
         { name: "currency", type: "string" },
+        // Cross-currency rate (M4). /sync/pull has always sent it; without the
+        // column WatermelonDB drops it, so a converted entry read back from the
+        // local database lost the rate it was converted at.
+        { name: "fx_rate", type: "string", isOptional: true },
         { name: "source", type: "string" },
         { name: "memo", type: "string", isOptional: true },
       ],

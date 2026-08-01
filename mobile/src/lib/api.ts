@@ -12,6 +12,7 @@
 import createClient from "openapi-fetch";
 
 import type { components, paths } from "./api-types";
+import { activeLedgerId, clearActiveLedger, markLedgerStale } from "./ledgerStore";
 
 type S = components["schemas"];
 
@@ -43,6 +44,11 @@ export type SyncRecord = NonNullable<SyncTableChanges["created"]>[number];
 export type SyncPullResponse = S["SyncPullResponse"];
 export type SyncPushRequest = S["SyncPushRequest"];
 export type SyncPushResponse = S["SyncPushResponse"];
+export type Ledger = S["Ledger"];
+export type LedgerMembership = S["LedgerMembership"];
+export type LedgerMember = S["LedgerMember"];
+export type LedgerRole = S["LedgerRole"];
+export type LedgerInvite = S["LedgerInvite"];
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8080";
 
@@ -74,8 +80,16 @@ async function unwrap<T>(r: FetchResult<T>): Promise<T> {
   return r.data as T;
 }
 
+// Every authed call carries the active book. Setting it here rather than at
+// each call site is what makes "switch ledger" a one-line change instead of an
+// audit of 20 endpoints, and what stops a new endpoint from silently reading
+// the personal book while the UI shows a household.
 function authHdr(accessToken: string): Record<string, string> {
-  return { Authorization: `Bearer ${accessToken}` };
+  const ledgerId = activeLedgerId();
+  return {
+    Authorization: `Bearer ${accessToken}`,
+    ...(ledgerId ? { "X-Ledger-Id": ledgerId } : {}),
+  };
 }
 
 // 15s ceiling so a stalled network can't leave the UI spinning forever. If the
@@ -130,7 +144,17 @@ async function withAuthRetry<T>(call: (token: string) => Promise<T>): Promise<T>
   try {
     return await call(token);
   } catch (e) {
-    if (!(e instanceof HTTPError) || e.status !== 401 || !accessors) throw e;
+    if (!(e instanceof HTTPError)) throw e;
+    // The active book went away (an owner removed us, or the ledger was
+    // deleted). Every request carries that header, so without dropping it the
+    // app 403s forever, including the Books screen that would let the user fix
+    // it. Fall back to the personal book, which every user always has.
+    if (e.status === 403 && e.body?.code === "ledger_forbidden" && activeLedgerId()) {
+      await clearActiveLedger();
+      markLedgerStale();
+      return await call(token);
+    }
+    if (e.status !== 401 || !accessors) throw e;
     const fresh = await accessors.refreshAccessToken();
     if (!fresh) throw e; // refresh failed; surface original 401
     return await call(fresh);
@@ -232,6 +256,46 @@ export const authedApi = {
   listFxRates: () =>
     withAuthRetry((tok) =>
       client.GET("/fx/rates", { headers: authHdr(tok) }).then(unwrap),
+    ),
+
+  // --- ledgers (books) ---
+  // These target a book by path id rather than the active-book header: you
+  // manage a ledger from wherever you are, without switching into it first.
+
+  listLedgers: () =>
+    withAuthRetry((tok) =>
+      client.GET("/ledgers", { headers: authHdr(tok) }).then(unwrap),
+    ),
+
+  createLedger: (name: string, baseCurrency?: string) =>
+    withAuthRetry((tok) =>
+      client.POST("/ledgers", {
+        headers: authHdr(tok),
+        body: { name, ...(baseCurrency ? { base_currency: baseCurrency } : {}) },
+      }).then(unwrap),
+    ),
+
+  listLedgerMembers: (id: string) =>
+    withAuthRetry((tok) =>
+      client.GET("/ledgers/{id}/members", { headers: authHdr(tok), params: { path: { id } } }).then(unwrap),
+    ),
+
+  removeLedgerMember: (id: string, userId: string) =>
+    withAuthRetry((tok) =>
+      client.DELETE("/ledgers/{id}/members/{userId}", {
+        headers: authHdr(tok),
+        params: { path: { id, userId } },
+      }).then(unwrap),
+    ),
+
+  createLedgerInvite: (id: string) =>
+    withAuthRetry((tok) =>
+      client.POST("/ledgers/{id}/invite", { headers: authHdr(tok), params: { path: { id } } }).then(unwrap),
+    ),
+
+  joinLedger: (code: string) =>
+    withAuthRetry((tok) =>
+      client.POST("/ledgers/join", { headers: authHdr(tok), body: { code } }).then(unwrap),
     ),
 
   syncPull: (lastPulledAt: number) =>

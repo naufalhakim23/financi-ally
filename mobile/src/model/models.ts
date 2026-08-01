@@ -20,6 +20,8 @@ export class Entry extends Model {
   @date("txn_date") txnDate!: Date;
   @field("status") status!: string;
   @field("currency") currency!: string;
+  /** Cross-currency rate as a decimal string; null on single-currency entries. */
+  @field("fx_rate") fxRate!: string | null;
   @field("source") source!: string;
   @text("memo") memo!: string;
 }

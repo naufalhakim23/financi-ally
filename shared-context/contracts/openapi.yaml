@@ -357,6 +357,34 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /accounts/balances:
+    get:
+      operationId: listAccountBalances
+      tags: [ledger]
+      summary: Signed balance for every account in the book
+      description: |
+        The whole-book balance per account, computed from the full journal.
+        Clients must not derive balances from a bounded /entries window — an
+        account whose history predates the window would show a wrong figure.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/LedgerId'
+      responses:
+        '200':
+          description: balances for every non-deleted account
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AccountBalance'
+        '401':
+          description: missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /accounts/{id}:
     patch:
       operationId: updateAccount

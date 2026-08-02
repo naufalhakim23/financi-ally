@@ -97,6 +97,72 @@ func TestPostBalancedReconciles(t *testing.T) {
 	}
 }
 
+// The web client renders pockets from the bulk endpoint, so it has to agree
+// with the per-account figure it replaced.
+func TestBalancesMatchPerAccount(t *testing.T) {
+	svc, ledgerID, cleanup := newTestService(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	bca, _ := svc.CreateAccount(ctx, ledgerID, "", "asset", "IDR", "BCA", nil)
+	food, _ := svc.CreateAccount(ctx, ledgerID, "", "expense", "IDR", "Groceries", nil)
+	visa, _ := svc.CreateAccount(ctx, ledgerID, "", "liability", "IDR", "Visa", nil)
+	// Never touched by an entry — must still appear, at zero.
+	empty, _ := svc.CreateAccount(ctx, ledgerID, "", "asset", "IDR", "Cash", nil)
+
+	if _, err := svc.Post(ctx, ledgerID, "", EntryInput{
+		TxnDate:  time.Date(2026, 7, 26, 0, 0, 0, 0, time.UTC),
+		Currency: "IDR",
+		Lines: []LineInput{
+			{AccountID: food.ID, DC: DCDebit, AmountMinor: 50000},
+			{AccountID: bca.ID, DC: DCCredit, AmountMinor: 50000},
+		},
+	}); err != nil {
+		t.Fatalf("post cash purchase: %v", err)
+	}
+	if _, err := svc.Post(ctx, ledgerID, "", EntryInput{
+		TxnDate:  time.Date(2026, 7, 27, 0, 0, 0, 0, time.UTC),
+		Currency: "IDR",
+		Lines: []LineInput{
+			{AccountID: food.ID, DC: DCDebit, AmountMinor: 30000},
+			{AccountID: visa.ID, DC: DCCredit, AmountMinor: 30000},
+		},
+	}); err != nil {
+		t.Fatalf("post card purchase: %v", err)
+	}
+
+	bals, err := svc.Balances(ctx, ledgerID)
+	if err != nil {
+		t.Fatalf("balances: %v", err)
+	}
+	got := map[string]int64{}
+	for _, b := range bals {
+		got[b.AccountID] = b.SignedMinor
+	}
+	want := map[string]int64{
+		bca.ID:   -50000, // asset: debit−credit
+		food.ID:  80000,  // expense: debit−credit
+		visa.ID:  30000,  // liability: credit−debit, positive means owed
+		empty.ID: 0,
+	}
+	if len(got) != len(want) {
+		t.Fatalf("balances returned %d accounts, want %d", len(got), len(want))
+	}
+	for id, w := range want {
+		if got[id] != w {
+			t.Errorf("account %s signed = %d, want %d", id, got[id], w)
+		}
+		// Same number the single-account endpoint reports.
+		one, err := svc.Balance(ctx, ledgerID, id)
+		if err != nil {
+			t.Fatalf("balance %s: %v", id, err)
+		}
+		if one.SignedMinor != got[id] {
+			t.Errorf("account %s: bulk %d != single %d", id, got[id], one.SignedMinor)
+		}
+	}
+}
+
 func TestPostUnbalancedRejected(t *testing.T) {
 	svc, ledgerID, cleanup := newTestService(t)
 	defer cleanup()

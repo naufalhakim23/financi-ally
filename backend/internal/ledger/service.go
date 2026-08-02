@@ -119,6 +119,12 @@ func (s *Service) Balance(ctx context.Context, ledgerID, accountID string) (*Bal
 	}, nil
 }
 
+// Balances returns every account's balance in one shot — same figures as
+// Balance, batched.
+func (s *Service) Balances(ctx context.Context, ledgerID string) ([]*Balance, error) {
+	return s.repo.AllAccountTotals(ctx, ledgerID)
+}
+
 // Post validates ownership + the balance invariant, then writes an immutable
 // posted entry in one transaction. Single-currency entries (M2 behavior) enforce
 // matching account currencies and per-currency balance via the DB trigger.

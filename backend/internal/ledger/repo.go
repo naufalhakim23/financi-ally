@@ -172,6 +172,40 @@ func (r *Repo) AccountTotals(ctx context.Context, ledgerID, accountID string) (d
 	return debit, credit, nil
 }
 
+// AllAccountTotals returns debit/credit totals for every non-deleted account in
+// one query, so a client showing many pockets doesn't need N round trips. LEFT
+// JOIN keeps accounts with no activity yet, at zero.
+func (r *Repo) AllAccountTotals(ctx context.Context, ledgerID string) ([]*Balance, error) {
+	const q = `SELECT a.id, a.type, a.currency,
+			COALESCE(SUM(jl.amount_minor) FILTER (WHERE jl.dc = 'debit'), 0),
+			COALESCE(SUM(jl.amount_minor) FILTER (WHERE jl.dc = 'credit'), 0)
+		FROM accounts a
+		LEFT JOIN journal_lines jl ON jl.account_id = a.id
+		LEFT JOIN entries e ON e.id = jl.entry_id AND e.status = 'posted' AND e.deleted_at IS NULL
+		WHERE a.ledger_id = $1 AND a.deleted_at IS NULL
+		GROUP BY a.id, a.type, a.currency
+		ORDER BY a.name`
+	rows, err := r.db.Query(ctx, q, ledgerID)
+	if err != nil {
+		return nil, fmt.Errorf("all account totals: %w", err)
+	}
+	defer rows.Close()
+	out := []*Balance{}
+	for rows.Next() {
+		var b Balance
+		var typ AccountType
+		if err := rows.Scan(&b.AccountID, &typ, &b.Currency, &b.DebitMinor, &b.CreditMinor); err != nil {
+			return nil, fmt.Errorf("scan account totals: %w", err)
+		}
+		b.SignedMinor = b.DebitMinor - b.CreditMinor
+		if !typ.IsDebitNormal() {
+			b.SignedMinor = b.CreditMinor - b.DebitMinor
+		}
+		out = append(out, &b)
+	}
+	return out, rows.Err()
+}
+
 // PostEntry writes a balanced entry in one transaction: insert the header, then
 // batch-insert all lines in a single statement (so the balance trigger sees the
 // full set). The service validates ownership and balance before calling; the

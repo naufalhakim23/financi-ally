@@ -214,6 +214,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/accounts/balances": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Signed balance for every account in the book
+         * @description The whole-book balance per account, computed from the full journal.
+         *     Clients must not derive balances from a bounded /entries window — an
+         *     account whose history predates the window would show a wrong figure.
+         */
+        get: operations["listAccountBalances"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/accounts/{id}": {
         parameters: {
             query?: never;
@@ -1597,6 +1619,41 @@ export interface operations {
             };
             /** @description an account of this type with this name already exists */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listAccountBalances: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description Which book this request reads and writes. Omit for the caller's personal
+                 *     ledger. A ledger the caller is not a member of is rejected with 403.
+                 */
+                "X-Ledger-Id"?: components["parameters"]["LedgerId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description balances for every non-deleted account */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountBalance"][];
+                };
+            };
+            /** @description missing or invalid token */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

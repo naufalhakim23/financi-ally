@@ -320,6 +320,29 @@ func (s *ServerImpl) GetAccountBalance(ctx context.Context, req api.GetAccountBa
 	}), nil
 }
 
+// ListAccountBalances returns whole-book balances for every account.
+func (s *ServerImpl) ListAccountBalances(ctx context.Context, req api.ListAccountBalancesRequestObject) (api.ListAccountBalancesResponseObject, error) {
+	p, ok := PrincipalFrom(ctx)
+	if !ok {
+		return api.ListAccountBalances401JSONResponse(api.Error{Code: "unauthenticated", Message: "missing or invalid token"}), nil
+	}
+	bals, err := s.ledger.Balances(ctx, p.LedgerID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]api.AccountBalance, 0, len(bals))
+	for _, b := range bals {
+		out = append(out, api.AccountBalance{
+			AccountId:   b.AccountID,
+			Currency:    b.Currency,
+			DebitMinor:  b.DebitMinor,
+			CreditMinor: b.CreditMinor,
+			SignedMinor: b.SignedMinor,
+		})
+	}
+	return api.ListAccountBalances200JSONResponse(out), nil
+}
+
 // PostEntry writes a balanced double-entry transaction.
 func (s *ServerImpl) PostEntry(ctx context.Context, req api.PostEntryRequestObject) (api.PostEntryResponseObject, error) {
 	p, ok := PrincipalFrom(ctx)

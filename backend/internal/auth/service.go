@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/naufalhakim23/financi-ally/backend/internal/mail"
 	"github.com/naufalhakim23/financi-ally/backend/internal/pkg/money"
 )
 
@@ -52,16 +53,18 @@ type Service struct {
 	repo         *Repo
 	jwt          *JWTService
 	google       *GoogleService
+	mail         mail.Sender // nil is tolerated; reset codes are then only logged
 	refreshTTL   time.Duration
 	baseCurrency string // default when register omits it
 }
 
 // NewService wires the service with its dependencies and policy knobs.
-func NewService(repo *Repo, jwt *JWTService, google *GoogleService, refreshTTL time.Duration, baseCurrencyDefault string) *Service {
+func NewService(repo *Repo, jwt *JWTService, google *GoogleService, sender mail.Sender, refreshTTL time.Duration, baseCurrencyDefault string) *Service {
 	return &Service{
 		repo:         repo,
 		jwt:          jwt,
 		google:       google,
+		mail:         sender,
 		refreshTTL:   refreshTTL,
 		baseCurrency: baseCurrencyDefault,
 	}

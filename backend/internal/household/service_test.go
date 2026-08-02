@@ -41,7 +41,7 @@ func newTestService(t *testing.T) (*Service, *pgxpool.Pool, func()) {
 func newUser(t *testing.T, pool *pgxpool.Pool, email string) string {
 	t.Helper()
 	authSvc := auth.NewService(auth.NewRepo(pool), auth.NewJWTService("test-secret", time.Minute),
-		auth.NewGoogle("", ""), time.Hour, "IDR")
+		auth.NewGoogle("", ""), nil, time.Hour, "IDR")
 	sess, err := authSvc.Register(context.Background(), email, "password123", "IDR")
 	if err != nil {
 		t.Fatalf("register %s: %v", email, err)

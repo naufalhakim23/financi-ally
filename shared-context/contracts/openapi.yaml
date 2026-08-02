@@ -177,6 +177,68 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /auth/password/forgot:
+    post:
+      operationId: forgotPassword
+      tags: [auth]
+      summary: Email a password-reset code
+      description: |
+        Always answers 204, registered address or not. The endpoint is
+        unauthenticated, so distinguishing the two would turn it into an account
+        enumeration oracle. A six-digit code (not a link — the client is a native
+        app) is emailed and expires in 15 minutes; issuing a new one retires the
+        previous. Five wrong guesses burn the request.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequest'
+      responses:
+        '204':
+          description: if the address is registered, a code is on its way
+        '400':
+          description: malformed email
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /auth/password/reset:
+    post:
+      operationId: resetPassword
+      tags: [auth]
+      summary: Set a new password using an emailed code
+      description: |
+        On success the new password is stored, every outstanding refresh token
+        for the account is revoked (a reset is the remedy for a compromise), and
+        a fresh session is returned so the caller is signed in on this device.
+        An account created through Google with no password can use this flow to
+        set its first one.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '200':
+          description: password changed, session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: malformed body or weak password
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: code wrong, expired, already used, or too many attempts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /auth/me:
     get:
       operationId: getMe
@@ -1437,6 +1499,28 @@ components:
       properties:
         refresh_token:
           type: string
+    ForgotPasswordRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+    ResetPasswordRequest:
+      type: object
+      required: [email, code, password]
+      properties:
+        email:
+          type: string
+          format: email
+        code:
+          type: string
+          description: the six-digit code from the reset email
+          pattern: '^[0-9]{6}$'
+        password:
+          type: string
+          format: password
+          minLength: 8
     GoogleRequest:
       type: object
       required: [code, redirect_uri]

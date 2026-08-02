@@ -1,4 +1,5 @@
 import "../global.css";
+import { useEffect, useState } from "react";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
@@ -18,6 +19,7 @@ import {
 } from "@expo-google-fonts/ibm-plex-mono";
 
 import { AuthProvider } from "../src/lib/auth";
+import { hydrateTheme } from "../src/lib/theme";
 
 // Single QueryClient for the app lifetime (module scope, not per-render).
 const queryClient = new QueryClient();
@@ -35,7 +37,19 @@ export default function RootLayout() {
     "Mono-Medium": IBMPlexMono_500Medium,
     "Mono-Bold": IBMPlexMono_700Bold,
   });
-  if (!loaded) return null;
+  // The saved palette must be applied before the first frame, or the app opens
+  // in the OS scheme and visibly repaints. Gated alongside the fonts, which
+  // already hold the first render.
+  const [themeReady, setThemeReady] = useState(false);
+  useEffect(() => {
+    // Raced against a timeout: a storage read that never settles would
+    // otherwise hold a blank screen forever over a cosmetic preference.
+    Promise.race([hydrateTheme(), new Promise((r) => setTimeout(r, 2000))]).finally(() =>
+      setThemeReady(true),
+    );
+  }, []);
+
+  if (!loaded || !themeReady) return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -44,12 +58,18 @@ export default function RootLayout() {
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <StatusBar style="auto" />
-          <Stack>
+          {/* Every screen draws its own chrome — the app screens via
+              ScreenHeader/TitleBar, the unauthenticated ones via AuthScreen.
+              Leaving the stock header on login/register was the one place the
+              app looked like two different products. */}
+          <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="index" />
-            <Stack.Screen name="(app)" options={{ headerShown: false }} />
-            <Stack.Screen name="welcome" options={{ headerShown: false }} />
-            <Stack.Screen name="login" options={{ title: "Sign in" }} />
-            <Stack.Screen name="register" options={{ title: "Create account" }} />
+            <Stack.Screen name="(app)" />
+            <Stack.Screen name="welcome" />
+            <Stack.Screen name="login" />
+            <Stack.Screen name="register" />
+            <Stack.Screen name="forgot-password" />
+            <Stack.Screen name="reset-password" />
           </Stack>
         </AuthProvider>
       </QueryClientProvider>

@@ -107,6 +107,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/password/forgot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Email a password-reset code
+         * @description Always answers 204, registered address or not. The endpoint is
+         *     unauthenticated, so distinguishing the two would turn it into an account
+         *     enumeration oracle. A six-digit code (not a link — the client is a native
+         *     app) is emailed and expires in 15 minutes; issuing a new one retires the
+         *     previous. Five wrong guesses burn the request.
+         */
+        post: operations["forgotPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/password/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set a new password using an emailed code
+         * @description On success the new password is stored, every outstanding refresh token
+         *     for the account is revoked (a reset is the remedy for a compromise), and
+         *     a fresh session is returned so the caller is signed in on this device.
+         *     An account created through Google with no password can use this flow to
+         *     set its first one.
+         */
+        post: operations["resetPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/me": {
         parameters: {
             query?: never;
@@ -550,7 +598,7 @@ export interface paths {
         /**
          * Remove a member, or leave the book yourself
          * @description Owners may remove anyone; members may remove only themselves. The last
-         *     owner cannot be removed — a book with no owner could never be managed
+         *     owner cannot be removed: a book with no owner could never be managed
          *     again. Idempotent: removing a non-member returns 204.
          */
         delete: operations["removeLedgerMember"];
@@ -716,6 +764,18 @@ export interface components {
         };
         RefreshRequest: {
             refresh_token: string;
+        };
+        ForgotPasswordRequest: {
+            /** Format: email */
+            email: string;
+        };
+        ResetPasswordRequest: {
+            /** Format: email */
+            email: string;
+            /** @description the six-digit code from the reset email */
+            code: string;
+            /** Format: password */
+            password: string;
         };
         GoogleRequest: {
             /** @description authorization code from expo-auth-session */
@@ -1266,6 +1326,79 @@ export interface operations {
             };
             /** @description google oauth not configured on the server */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    forgotPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForgotPasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description if the address is registered, a code is on its way */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description malformed email */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    resetPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResetPasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description password changed, session created */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthResponse"];
+                };
+            };
+            /** @description malformed body or weak password */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description code wrong, expired, already used, or too many attempts */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

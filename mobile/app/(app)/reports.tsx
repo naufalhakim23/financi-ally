@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { RefreshControl, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 
@@ -18,12 +18,15 @@ import {
   ChartLegend,
   Donut,
   EmptyState,
+  ErrorNotice,
   SectionLabel,
   Skeleton,
   TrendBars,
   seriesColor,
   ScreenHeader,
+  useTheme,
 } from "../../src/components/ui";
+import { messageFor } from "../../src/lib/errors";
 
 function monthStart(d = new Date()): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
@@ -63,38 +66,60 @@ function toSlices(spending: CategorySpend[]): Slice[] {
 
 export default function Reports() {
   const { user, baseCurrency: base } = useAuth();
+  const { C } = useTheme();
   const [nw, setNw] = useState<NetWorth | null>(null);
   const [cf, setCf] = useState<CashFlow | null>(null);
   const [spending, setSpending] = useState<CategorySpend[]>([]);
   const [series, setSeries] = useState<MonthlySeries | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   const from = monthStart();
   const to = monthEnd();
 
+  // Every load takes a ticket; only the newest may write. Without this, a slow
+  // response lands the previous account's figures on the next one's screen.
+  const gen = useRef(0);
+
+  const load = useCallback(async () => {
+    const mine = ++gen.current;
+    setErr(null);
+    try {
+      const [n, c, s, m] = await Promise.all([
+        authedApi.getNetWorth(),
+        authedApi.getCashFlow(from, to),
+        authedApi.getSpending(from, to),
+        authedApi.getMonthlySeries(6),
+      ]);
+      if (mine !== gen.current) return;
+      setNw(n);
+      setCf(c);
+      setSpending(s);
+      setSeries(m);
+    } catch (e) {
+      if (mine === gen.current) setErr(messageFor(e, "Couldn't load your reports"));
+    }
+  }, [from, to]);
+
   useEffect(() => {
     let cancelled = false;
-    async function load() {
-      setErr(null);
+    (async () => {
       setLoading(true);
-      try {
-        const [n, c, s, m] = await Promise.all([
-          authedApi.getNetWorth(),
-          authedApi.getCashFlow(from, to),
-          authedApi.getSpending(from, to),
-          authedApi.getMonthlySeries(6),
-        ]);
-        if (!cancelled) { setNw(n); setCf(c); setSpending(s); setSeries(m); }
-      } catch (e) {
-        if (!cancelled) setErr(e instanceof Error ? e.message : "failed to load reports");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    load();
-    return () => { cancelled = true; };
-  }, [from, to, user]);
+      await load();
+      if (!cancelled) setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+      gen.current++; // retire whatever is still in flight
+    };
+  }, [load, user]);
+
+  async function refresh() {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+  }
 
   const slices = toSlices(spending);
   const totalSpent = slices.reduce((s, x) => s + x.value, 0);
@@ -118,11 +143,14 @@ export default function Reports() {
       <ScrollView
       className="flex-1 bg-background"
       contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={C.dim} />
+      }
     >
       {err && (
-        <Card className="mb-card-gap">
-          <Text className="text-error text-body font-sans-medium">{err}</Text>
-        </Card>
+        <View className="mb-card-gap">
+          <ErrorNotice message={err} onRetry={() => void load()} />
+        </View>
       )}
 
       {loading ? (

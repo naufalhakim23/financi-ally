@@ -37,7 +37,7 @@ func newTestService(t *testing.T) (*Service, string, func()) {
 	}
 	authRepo := auth.NewRepo(pool)
 	jwt := auth.NewJWTService("test-secret", time.Minute)
-	authSvc := auth.NewService(authRepo, jwt, auth.NewGoogle("", ""), time.Hour, "IDR")
+	authSvc := auth.NewService(authRepo, jwt, auth.NewGoogle("", ""), nil, time.Hour, "IDR")
 	user, err := authSvc.Register(context.Background(), "sync@example.com", "password123", "IDR")
 	if err != nil {
 		t.Fatalf("register: %v", err)

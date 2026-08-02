@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { RefreshControl, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
@@ -16,6 +16,7 @@ import {
 import { database } from "../../../src/lib/db";
 import { EMPTY_RATES, type RateTable } from "../../../src/lib/fx";
 import { useObservable } from "../../../src/lib/useObserve";
+import { useSyncRefresh } from "../../../src/lib/useSyncRefresh";
 import { useWording } from "../../../src/lib/wording";
 import { Account, Budget, Entry, JournalLine } from "../../../src/model/models";
 import {
@@ -32,6 +33,7 @@ import {
   categorySlot,
   formatGrouped,
   slotColor,
+  useTheme,
 } from "../../../src/components/ui";
 
 // Direction 2a: accounts and categories in one tree. Every bucket carries one
@@ -40,6 +42,8 @@ import {
 export default function BucketsScreen() {
   const { guest, baseCurrency: base } = useAuth();
   const { t } = useWording();
+  const { C } = useTheme();
+  const pull = useSyncRefresh();
   const [open, setOpen] = useState<BucketId | null>("cash");
 
   const accountsObs = useMemo(() => database.get<Account>("accounts").query().observe(), []);
@@ -130,6 +134,7 @@ export default function BucketsScreen() {
         className="flex-1"
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24, gap: 12 }}
         showsVerticalScrollIndicator={false}
+        refreshControl={pull ? <RefreshControl {...pull} tintColor={C.dim} /> : undefined}
       >
         {accounts.length === 0 && (
           <EmptyState

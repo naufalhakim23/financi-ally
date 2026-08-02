@@ -1,5 +1,5 @@
 import { Pressable, Text, View } from "react-native";
-import { ArrowLeftRight, ChevronRight, Plus } from "lucide-react-native";
+import { ArrowLeftRight, ChevronRight, Plus, TriangleAlert } from "lucide-react-native";
 
 import { Amount, Button, Card, IconBox, usePressed } from "./core";
 import { useTheme, type Glyph } from "./tokens";
@@ -151,6 +151,36 @@ export function EmptyState({
             <Button label={actionLabel} onPress={onAction} variant="tertiary" />
           </View>
         )}
+      </View>
+    </Card>
+  );
+}
+
+/**
+ * A server read that failed. Distinct from EmptyState: empty means "nothing
+ * here yet", this means "we don't know what's here" — so it must offer the
+ * retry rather than leave the screen looking authoritatively blank.
+ */
+export function ErrorNotice({ message, onRetry }: { message: string; onRetry?: () => void }) {
+  const { C } = useTheme();
+  return (
+    <Card>
+      <View className="flex-row items-start" style={{ gap: 10 }}>
+        <TriangleAlert size={18} color={C.warning} strokeWidth={1.75} />
+        <View className="flex-1">
+          <Text
+            className="text-body font-sans-medium text-ink"
+            accessibilityLiveRegion="polite"
+            role="alert"
+          >
+            {message}
+          </Text>
+          {onRetry && (
+            <View className="mt-1 -ml-2 self-start">
+              <Button label="Try again" variant="tertiary" onPress={onRetry} />
+            </View>
+          )}
+        </View>
       </View>
     </Card>
   );

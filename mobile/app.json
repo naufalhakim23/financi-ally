@@ -14,7 +14,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.naufalhakim23.financially"
+      "bundleIdentifier": "com.naufalhakim23.financially",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.naufalhakim23.financially",
@@ -33,6 +36,12 @@
       "expo-status-bar",
       "expo-secure-store",
       "expo-web-browser"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "e12f2acb-0c12-48a9-b2e4-f337857488ea"
+      }
+    }
   }
 }

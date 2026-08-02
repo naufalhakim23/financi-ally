@@ -1,6 +1,13 @@
-import { useState } from "react";
-import { Pressable, Switch as RNSwitch, Text, TextInput, View } from "react-native";
-import { ChevronDown, Delete } from "lucide-react-native";
+import { forwardRef, useState } from "react";
+import {
+  Pressable,
+  Switch as RNSwitch,
+  Text,
+  TextInput,
+  View,
+  type TextInputProps,
+} from "react-native";
+import { ChevronDown, Delete, Eye, EyeOff } from "lucide-react-native";
 
 import { Chip, usePressed } from "./core";
 import { ListRow } from "./lists";
@@ -43,47 +50,108 @@ function FieldShell({
   );
 }
 
-export function Field({
-  label,
-  value,
-  onChange,
-  placeholder,
-  helper,
-  error,
-  keyboardType,
-  autoCap,
-  secure,
-}: {
+export const Field = forwardRef<TextInput, {
   label?: string;
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   helper?: string;
   error?: string | null;
-  keyboardType?: "default" | "email-address";
+  keyboardType?: "default" | "email-address" | "number-pad";
   autoCap?: "none" | "sentences" | "characters";
   secure?: boolean;
-}) {
+  /** Lets the OS password manager and SMS/email autofill recognise the field. */
+  autoComplete?: TextInputProps["autoComplete"];
+  textContentType?: TextInputProps["textContentType"];
+  returnKeyType?: TextInputProps["returnKeyType"];
+  /** Fired by the keyboard's return key — wire it to the next field or submit. */
+  onSubmit?: () => void;
+  autoFocus?: boolean;
+  maxLength?: number;
+  editable?: boolean;
+}>(function Field(
+  {
+    label,
+    value,
+    onChange,
+    placeholder,
+    helper,
+    error,
+    keyboardType,
+    autoCap,
+    secure,
+    autoComplete,
+    textContentType,
+    returnKeyType,
+    onSubmit,
+    autoFocus,
+    maxLength,
+    editable = true,
+  },
+  ref,
+) {
   const { C } = useTheme();
+  // Reveal is per-field local state and resets on unmount, so a password is
+  // never left visible across a navigation.
+  const [revealed, setRevealed] = useState(false);
+  const hidden = !!secure && !revealed;
+
   return (
     <FieldShell label={label} helper={helper} error={error}>
-      <TextInput
-        value={value}
-        onChangeText={onChange}
-        placeholder={placeholder}
-        placeholderTextColor={C.disabled}
-        keyboardType={keyboardType}
-        autoCapitalize={autoCap}
-        secureTextEntry={secure}
-        accessibilityLabel={label}
-        aria-invalid={!!error}
-        className={`bg-surface-container rounded-lg px-4 py-3 min-h-touch text-body font-sans-medium ${
-          error ? "border border-error-edge text-error" : "text-ink"
-        }`}
-      />
+      <View
+        className={`flex-row items-center bg-surface-container rounded-lg pl-4 min-h-touch ${
+          secure ? "pr-1" : "pr-4"
+        } ${error ? "border border-error-edge" : ""}`}
+      >
+        <TextInput
+          ref={ref}
+          value={value}
+          onChangeText={onChange}
+          placeholder={placeholder}
+          placeholderTextColor={C.disabled}
+          keyboardType={keyboardType}
+          autoCapitalize={autoCap}
+          // A password manager can't fill a field it can't identify, so these
+          // are as important as the keyboard type.
+          autoComplete={autoComplete}
+          textContentType={textContentType}
+          autoCorrect={false}
+          secureTextEntry={hidden}
+          returnKeyType={returnKeyType}
+          onSubmitEditing={onSubmit}
+          // Without this the keyboard closes on return before the next field
+          // can take focus, and the form flickers shut between every entry.
+          blurOnSubmit={!onSubmit}
+          autoFocus={autoFocus}
+          maxLength={maxLength}
+          editable={editable}
+          accessibilityLabel={label}
+          aria-invalid={!!error}
+          className={`flex-1 py-3 text-body font-sans-medium ${
+            error ? "text-error" : editable ? "text-ink" : "text-dim"
+          }`}
+        />
+        {secure && (
+          <Pressable
+            onPress={() => setRevealed((v) => !v)}
+            accessibilityRole="button"
+            accessibilityLabel={revealed ? "Hide password" : "Show password"}
+            accessibilityState={{ selected: revealed }}
+            // 44px target: the icon is 20px, the padding carries the rest.
+            className="w-11 h-11 items-center justify-center"
+            hitSlop={4}
+          >
+            {revealed ? (
+              <EyeOff size={20} color={C.dim} strokeWidth={1.75} />
+            ) : (
+              <Eye size={20} color={C.dim} strokeWidth={1.75} />
+            )}
+          </Pressable>
+        )}
+      </View>
     </FieldShell>
   );
-}
+});
 
 /**
  * Numeric entry for a money amount. Mono, right-aligned, currency code as a

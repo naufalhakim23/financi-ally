@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { RefreshControl, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 
@@ -16,15 +16,19 @@ import {
   ChipGroup,
   Dialog,
   EmptyState,
+  ErrorNotice,
   IconBox,
   ProgressBar,
   SectionLabel,
   Sheet,
+  Skeleton,
   Target,
   accountGlyph,
   categorySlot,
   ScreenHeader,
+  useTheme,
 } from "../../src/components/ui";
+import { messageFor } from "../../src/lib/errors";
 
 function currentMonth(): string {
   const d = new Date();
@@ -33,9 +37,15 @@ function currentMonth(): string {
 
 export default function Budgets() {
   const { user, baseCurrency: base } = useAuth();
+  const { C } = useTheme();
   const period = currentMonth();
   const [items, setItems] = useState<BudgetWithSpent[]>([]);
   const [err, setErr] = useState<string | null>(null);
+  // Distinct from `items.length === 0`: without it the first paint claims "no
+  // budgets this month" while the request is still in flight, which reads as an
+  // answer rather than a wait.
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const accountsObs = useMemo(() => database.get<Account>("accounts").query().observe(), []);
   const accounts = useObservable(accountsObs, [] as Account[]);
@@ -57,22 +67,43 @@ export default function Budgets() {
   const [pendingDelete, setPendingDelete] = useState<BudgetWithSpent | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
 
-  function fetchBudgets() {
+  // One loader for the mount, the pull-to-refresh and the post-save refetch —
+  // they were three near-copies that had already drifted on error handling.
+  // Only the newest fetch may write: a response outliving the account or period
+  // that asked for it is discarded, not rendered.
+  const gen = useRef(0);
+
+  const fetchBudgets = useCallback(async () => {
+    const mine = ++gen.current;
     setErr(null);
-    authedApi.listBudgets(period).then(setItems).catch((e) => {
-      setErr(e instanceof Error ? e.message : "failed to load budgets");
-    });
-  }
+    try {
+      const rows = await authedApi.listBudgets(period);
+      if (mine === gen.current) setItems(rows);
+    } catch (e) {
+      if (mine === gen.current) setErr(messageFor(e, "Couldn't load the spending plan"));
+    }
+  }, [period]);
 
   useEffect(() => {
     let cancelled = false;
-    authedApi.listBudgets(period).then((bs) => {
-      if (!cancelled) setItems(bs);
-    }).catch((e) => {
-      if (!cancelled) setErr(e instanceof Error ? e.message : "failed to load budgets");
-    });
-    return () => { cancelled = true; };
-  }, [period, user]);
+    (async () => {
+      setLoading(true);
+      await fetchBudgets();
+      if (!cancelled) setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+      gen.current++; // retire whatever is still in flight
+    };
+    // `user` is a dependency because switching account must not show the
+    // previous one's plan.
+  }, [fetchBudgets, user]);
+
+  async function refresh() {
+    setRefreshing(true);
+    await fetchBudgets();
+    setRefreshing(false);
+  }
 
   const accountFor = (id: string) => accounts.find((a) => a.id === id);
   const nameFor = (id: string) => accountFor(id)?.name ?? "—";
@@ -124,7 +155,7 @@ export default function Budgets() {
         await authedApi.setBudget(accountId, period, minor);
       }
       closeForm();
-      fetchBudgets();
+      void fetchBudgets();
     } catch (e) {
       setFormErr(e instanceof Error ? e.message : "save failed");
     } finally {
@@ -139,9 +170,9 @@ export default function Budgets() {
     try {
       await authedApi.deleteBudget(b.id);
       setPendingDelete(null);
-      fetchBudgets();
+      void fetchBudgets();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "delete failed");
+      setErr(messageFor(e, "Couldn't delete that budget"));
       setPendingDelete(null);
     } finally {
       setDeleteBusy(false);
@@ -156,6 +187,9 @@ export default function Budgets() {
       <ScrollView
         className="flex-1"
         contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={C.dim} />
+        }
       >
         <Card className="mb-card-gap">
           <View className="flex-row items-end justify-between mb-3">
@@ -186,12 +220,20 @@ export default function Budgets() {
         </Card>
 
         {err && (
+          <View className="mb-card-gap">
+            <ErrorNotice message={err} onRetry={() => void fetchBudgets()} />
+          </View>
+        )}
+
+        {loading && (
           <Card className="mb-card-gap">
-            <Text className="text-error text-body font-sans-medium">{err}</Text>
+            <Skeleton className="h-3 w-28 mb-3" />
+            <Skeleton className="h-10 w-full mb-3" />
+            <Skeleton className="h-10 w-full" />
           </Card>
         )}
 
-        {items.length === 0 && !err && (
+        {!loading && items.length === 0 && !err && (
           <View className="mb-card-gap">
             <EmptyState
               glyph={Target}

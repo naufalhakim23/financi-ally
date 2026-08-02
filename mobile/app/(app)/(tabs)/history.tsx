@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ScrollView, View } from "react-native";
+import { RefreshControl, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { ListFilter, Search } from "lucide-react-native";
@@ -16,6 +16,7 @@ import {
   signedAmount,
 } from "../../../src/lib/ledger";
 import { useObservable } from "../../../src/lib/useObserve";
+import { useSyncRefresh } from "../../../src/lib/useSyncRefresh";
 import { EntryRow } from "../../../src/components/entry-row";
 import { useWording } from "../../../src/lib/wording";
 import { Account, Entry, JournalLine } from "../../../src/model/models";
@@ -80,6 +81,7 @@ export default function HistoryScreen() {
   const { baseCurrency: base } = useAuth();
   const { t } = useWording();
   const { C } = useTheme();
+  const pull = useSyncRefresh();
   const [tab, setTab] = useState<Tab>("months");
 
   const accountsObs = useMemo(() => database.get<Account>("accounts").query().observe(), []);
@@ -149,6 +151,7 @@ export default function HistoryScreen() {
         className="flex-1"
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24, gap: 12 }}
         showsVerticalScrollIndicator={false}
+        refreshControl={pull ? <RefreshControl {...pull} tintColor={C.dim} /> : undefined}
       >
         {views.length === 0 && (
           <EmptyState

@@ -29,14 +29,14 @@ func newTestService(t *testing.T) (*Service, func()) {
 	if err != nil {
 		t.Fatalf("open pool: %v", err)
 	}
-	for _, tbl := range []string{"oauth_identities", "refresh_tokens", "users"} {
+	for _, tbl := range []string{"password_resets", "oauth_identities", "refresh_tokens", "users"} {
 		if _, err := pool.Exec(context.Background(), "TRUNCATE TABLE "+tbl+" RESTART IDENTITY CASCADE"); err != nil {
 			t.Fatalf("truncate %s: %v", tbl, err)
 		}
 	}
 	repo := NewRepo(pool)
 	jwt := NewJWTService("test-secret", time.Minute)
-	svc := NewService(repo, jwt, NewGoogle("", ""), time.Hour, "IDR")
+	svc := NewService(repo, jwt, NewGoogle("", ""), nil, time.Hour, "IDR")
 	return svc, func() { pool.Close() }
 }
 

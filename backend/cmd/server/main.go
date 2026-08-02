@@ -112,7 +112,14 @@ func main() {
 			writeStrictError(w, http.StatusInternalServerError, "internal_error", "internal server error")
 		},
 	}
-	strict := api.NewStrictHandlerWithOptions(serverImpl, nil, opts)
+	// The browser client's refresh token lives in an httpOnly cookie rather than
+	// localStorage; see internal/handler/cookie_auth.go. Mobile is unaffected
+	// either way, so this stays off unless a web deploy asks for it.
+	var strictMW []api.StrictMiddlewareFunc
+	if cfg.Auth.WebCookieAuth {
+		strictMW = append(strictMW, handler.WebCookieAuth(cfg.Auth.WebCookieSecure, cfg.Auth.WebCookiePath))
+	}
+	strict := api.NewStrictHandlerWithOptions(serverImpl, strictMW, opts)
 
 	// Spec-derived request validation + bearer security (replaces the M1 path
 	// allowlist once ledger grew the protected surface past a handful).

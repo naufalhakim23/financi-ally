@@ -11,12 +11,17 @@ backend/tmp/
 *.log
 
 # --- Node / Expo ---
+node_modules/
 mobile/node_modules/
 mobile/.expo/
 mobile/dist/
 mobile/web-build/
 mobile/expo-env.d.ts
 mobile/*.tsbuildinfo
+# EAS local builds land here — 100MB+ binaries, never a source artefact.
+mobile/*.apk
+mobile/*.aab
+mobile/*.ipa
 npm-debug.*
 yarn-error.*
 ios/
@@ -28,3 +33,5 @@ Thumbs.db
 
 backend_original/
 mobile_original/
+
+shared-context/domain/node_modules/

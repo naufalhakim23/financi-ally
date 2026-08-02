@@ -7,6 +7,7 @@ import { ChevronDown, ChevronUp, Plus } from "lucide-react-native";
 
 import { authedApi } from "../../../src/lib/api";
 import { useAuth } from "../../../src/lib/auth";
+import { accountSigned } from "../../../src/lib/balances";
 import {
   type Bucket,
   type BucketId,
@@ -80,7 +81,7 @@ export default function BucketsScreen() {
       .map((e) => e.id),
   );
   const spendingRows = spendingForMonth(accounts, lines, monthEntryIds, budgets, base, monthStart);
-  const buckets = buildBuckets(accounts, lines, base, rates, spendingRows);
+  const buckets = buildBuckets(accounts, (a) => accountSigned(a, lines), base, rates, spendingRows);
 
   const spent = spendingRows.reduce((s, r) => s + r.spent, 0);
   const planned = spendingRows.reduce((s, r) => s + (r.target ?? 0), 0);

@@ -7,7 +7,7 @@ import { ChevronDown, Search, TriangleAlert } from "lucide-react-native";
 
 import { authedApi } from "../../../src/lib/api";
 import { useAuth } from "../../../src/lib/auth";
-import { netWorth } from "../../../src/lib/balances";
+import { accountSigned, netWorth } from "../../../src/lib/balances";
 import {
   buildBuckets,
   daysLeftInMonth,
@@ -103,7 +103,7 @@ export default function HomeScreen() {
       .map((e) => e.id),
   );
   const spendingRows = spendingForMonth(accounts, lines, monthEntryIds, budgets, base, monthStart);
-  const buckets = buildBuckets(accounts, lines, base, rates, spendingRows);
+  const buckets = buildBuckets(accounts, (a) => accountSigned(a, lines), base, rates, spendingRows);
   const safe = safeToSpend(spendingRows);
 
   const points = seriesQuery.data?.points ?? [];

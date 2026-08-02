@@ -35,6 +35,26 @@ var tableColumns = map[string]string{
 	"recurring_rules": "id, rrule, template::text AS template, next_run, last_run, active",
 }
 
+// Now returns the pull's snapshot bound: the database's clock, rounded up to
+// the next whole millisecond.
+//
+// Not time.Now(): rows are stamped by Postgres, so any host/database clock skew
+// makes a Go timestamp skip rows that already exist. Rounded because the bound
+// must equal the millisecond watermark returned with it — at microsecond
+// precision the sub-millisecond tail is re-sent as "created" on the next pull
+// and WMB rejects it as a duplicate id. Up rather than down, or those same rows
+// fall outside the bound and wait a pull.
+func (r *Repo) Now(ctx context.Context) (time.Time, error) {
+	var now time.Time
+	if err := r.db.QueryRow(ctx, `SELECT now()`).Scan(&now); err != nil {
+		return time.Time{}, fmt.Errorf("sync clock: %w", err)
+	}
+	if rounded := now.Truncate(time.Millisecond); rounded.Before(now) {
+		return rounded.Add(time.Millisecond), nil
+	}
+	return now, nil
+}
+
 // PullCreated returns records created since the watermark (created_at > since).
 // Uses an as-of timestamp `asOf` so the pull sees a consistent snapshot.
 func (r *Repo) PullCreated(ctx context.Context, ledgerID, table string, since, asOf time.Time) ([]map[string]any, error) {
@@ -78,15 +98,22 @@ func (r *Repo) PullUpdated(ctx context.Context, ledgerID, table string, since, a
 	return queryMaps(r.db.Query(ctx, q, ledgerID, since, asOf))
 }
 
-// PullDeleted returns ids soft-deleted since the watermark. journal_lines and
-// posted entries are never deleted, so only accounts/budgets/recurring_rules are queried.
+// PullDeleted returns ids soft-deleted since the watermark. Entries carry the
+// deletion flag for their lines too — a line has no deleted_at of its own — so
+// journal_lines resolves through its entry.
 func (r *Repo) PullDeleted(ctx context.Context, ledgerID, table string, since, asOf time.Time) ([]string, error) {
-	if table != "accounts" && table != "budgets" && table != "recurring_rules" {
+	var q string
+	switch table {
+	case "accounts", "budgets", "recurring_rules", "entries":
+		q = fmt.Sprintf(`SELECT id FROM %s WHERE ledger_id = $1 AND deleted_at > $2 AND deleted_at <= $3`, table)
+	case "journal_lines":
+		q = `SELECT jl.id FROM journal_lines jl
+			JOIN entries e ON e.id = jl.entry_id
+			WHERE e.ledger_id = $1 AND e.deleted_at > $2 AND e.deleted_at <= $3`
+	default:
 		return nil, nil
 	}
-	rows, err := r.db.Query(ctx,
-		fmt.Sprintf(`SELECT id FROM %s WHERE ledger_id = $1 AND deleted_at > $2 AND deleted_at <= $3`, table),
-		ledgerID, since, asOf)
+	rows, err := r.db.Query(ctx, q, ledgerID, since, asOf)
 	if err != nil {
 		return nil, fmt.Errorf("pull deleted %s: %w", table, err)
 	}

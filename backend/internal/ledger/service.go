@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 
@@ -74,6 +75,26 @@ func (s *Service) GetAccount(ctx context.Context, ledgerID, id string) (*Account
 	return s.repo.GetAccount(ctx, ledgerID, id)
 }
 
+// UpdateAccount renames and/or (un)archives an account. Both fields are
+// optional — a nil leaves it unchanged — so this covers rename, archive and
+// restore without three endpoints.
+func (s *Service) UpdateAccount(ctx context.Context, ledgerID, id string, name *string, archived *bool) (*Account, error) {
+	if !validID(id) {
+		return nil, ErrAccountNotFound
+	}
+	if name != nil {
+		trimmed := strings.TrimSpace(*name)
+		if trimmed == "" || utf8.RuneCountInString(trimmed) > 80 {
+			return nil, ErrInvalidInput
+		}
+		name = &trimmed
+	}
+	if name == nil && archived == nil {
+		return nil, ErrInvalidInput
+	}
+	return s.repo.UpdateAccount(ctx, ledgerID, id, name, archived)
+}
+
 // Balance returns an account's debit/credit totals and the normal-balance-signed
 // amount (asset/expense: debit−credit; liability/income/equity: credit−debit).
 func (s *Service) Balance(ctx context.Context, ledgerID, accountID string) (*Balance, error) {
@@ -96,6 +117,12 @@ func (s *Service) Balance(ctx context.Context, ledgerID, accountID string) (*Bal
 		CreditMinor: credit,
 		SignedMinor: signed,
 	}, nil
+}
+
+// Balances returns every account's balance in one shot — same figures as
+// Balance, batched.
+func (s *Service) Balances(ctx context.Context, ledgerID string) ([]*Balance, error) {
+	return s.repo.AllAccountTotals(ctx, ledgerID)
 }
 
 // Post validates ownership + the balance invariant, then writes an immutable
@@ -254,6 +281,33 @@ func (s *Service) GetEntry(ctx context.Context, ledgerID, id string) (*Entry, er
 		return nil, ErrEntryNotFound
 	}
 	return s.repo.GetEntry(ctx, ledgerID, id)
+}
+
+// UpdateEntryMemo relabels a posted entry. The memo is the only mutable field:
+// amounts, accounts and dates *are* the posting, so correcting one means
+// deleting and re-posting, not editing in place.
+func (s *Service) UpdateEntryMemo(ctx context.Context, ledgerID, id, memo string) (*Entry, error) {
+	if !validID(id) {
+		return nil, ErrEntryNotFound
+	}
+	// Characters, not bytes: the contract's maxLength counts code points, so a
+	// byte check would reject a memo the request validator just accepted (any
+	// non-ASCII memo — an Indonesian rupiah sign, an emoji — is multi-byte).
+	if utf8.RuneCountInString(memo) > 500 {
+		return nil, ErrInvalidInput
+	}
+	return s.repo.UpdateEntryMemo(ctx, ledgerID, id, memo)
+}
+
+// DeleteEntry removes an entry from the ledger by soft-deleting it. Both the
+// REST path and the sync push land here, so a delete means the same thing
+// whichever client made it. Idempotent: deleting an already-deleted entry
+// succeeds.
+func (s *Service) DeleteEntry(ctx context.Context, ledgerID, id string) error {
+	if !validID(id) {
+		return ErrEntryNotFound
+	}
+	return s.repo.SoftDeleteEntry(ctx, ledgerID, id)
 }
 
 // validID accepts a client (WatermelonDB) id or a uuid — any non-empty string

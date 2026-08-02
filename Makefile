@@ -1,26 +1,38 @@
 # FinanciAlly monorepo. The OpenAPI contract in shared-context/contracts/ is the
 # single source of truth for the API surface; `make generate-contract` regenerates
-# the typed bindings for BOTH the Go backend (oapi-codegen) and the Expo mobile
-# app (openapi-typescript) from it.
+# the typed bindings for the Go backend (oapi-codegen) and both TS clients
+# (openapi-typescript).
+#
+# The money logic itself lives in shared-context/domain/ and is imported by both
+# clients, so `make test-domain` is the suite that guards the arithmetic.
 
 CONTRACT := shared-context/contracts/openapi.yaml
 
-.PHONY: help generate-contract gen-backend gen-mobile
+.PHONY: help generate-contract gen-backend gen-mobile gen-web test-domain
 
 help:
 	@echo "FinanciAlly monorepo targets:"
-	@echo "  make generate-contract  regen BE (Go) + FE (TS) bindings from $(CONTRACT)"
+	@echo "  make generate-contract  regen BE (Go) + mobile + web bindings from $(CONTRACT)"
 	@echo "  make gen-backend        regen backend/api/generated.go only"
 	@echo "  make gen-mobile         regen mobile/src/lib/api-types.ts only"
+	@echo "  make gen-web            regen web/src/lib/api-types.ts only"
+	@echo "  make test-domain        run the shared money-logic suite (Vitest)"
 	@echo ""
 	@echo "Edit $(CONTRACT), then run make generate-contract."
 
-# Regenerate both clients from the single contract.
-generate-contract: gen-backend gen-mobile
-	@echo ">> contract regenerated for BE + FE from $(CONTRACT)"
+# Regenerate every client from the single contract. gen-web is skipped until
+# web/ exists so this target stays usable during the web build-out.
+generate-contract: gen-backend gen-mobile gen-web
+	@echo ">> contract regenerated from $(CONTRACT)"
 
 gen-backend:
 	@cd backend && make gen
 
 gen-mobile:
 	@cd mobile && yarn gen
+
+gen-web:
+	@if [ -d web ]; then cd web && yarn gen; else echo ">> web/ not present yet, skipping"; fi
+
+test-domain:
+	@cd shared-context/domain && yarn test

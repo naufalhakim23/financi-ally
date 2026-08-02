@@ -92,15 +92,18 @@ function authHdr(accessToken: string): Record<string, string> {
   };
 }
 
-// 15s ceiling so a stalled network can't leave the UI spinning forever. If the
-// caller already supplied a signal (e.g. the health poll), it wins. openapi-fetch
-// hands the built Request here, so read the signal off it.
+const TIMEOUT_MS = 15_000;
+
+// 15s ceiling so a stalled network can't leave the UI spinning forever.
+// `Request.signal` is never null, so guarding on it would disable the timeout
+// entirely — compose instead, so a caller's own signal still cancels. By hand
+// rather than AbortSignal.any, which Hermes does not ship.
 const client = createClient<paths>({
   baseUrl: BASE_URL,
   fetch: (req: Request) => {
-    if (req.signal) return fetch(req);
     const ctrl = new AbortController();
-    const timeout = setTimeout(() => ctrl.abort(), 15000);
+    const timeout = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+    req.signal?.addEventListener("abort", () => ctrl.abort(), { once: true });
     return fetch(new Request(req, { signal: ctrl.signal })).finally(() => clearTimeout(timeout));
   },
 });

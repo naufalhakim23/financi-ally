@@ -98,7 +98,14 @@ func (s *ServerImpl) Login(ctx context.Context, req api.LoginRequestObject) (api
 
 // Refresh rotates a refresh token into a new session.
 func (s *ServerImpl) Refresh(ctx context.Context, req api.RefreshRequestObject) (api.RefreshResponseObject, error) {
-	sess, err := s.svc.Refresh(ctx, req.Body.RefreshToken)
+	// refresh_token is optional in the contract: a browser posts `{}` and
+	// presents the token via the fa_refresh cookie, which WebCookieAuth folds
+	// into Body before this runs. Nothing at all is simply an invalid token.
+	token := refreshTokenOf(req.Body)
+	if token == "" {
+		return api.Refresh401JSONResponse(api.Error{Code: "invalid_token", Message: "refresh token invalid, expired, or already used"}), nil
+	}
+	sess, err := s.svc.Refresh(ctx, token)
 	if errors.Is(err, auth.ErrInvalidToken) {
 		return api.Refresh401JSONResponse(api.Error{Code: "invalid_token", Message: "refresh token invalid, expired, or already used"}), nil
 	}
@@ -190,7 +197,9 @@ func (s *ServerImpl) Logout(ctx context.Context, req api.LogoutRequestObject) (a
 	if !ok {
 		return api.Logout401JSONResponse(api.Error{Code: "unauthenticated", Message: "missing or invalid token"}), nil
 	}
-	if err := s.svc.Logout(ctx, p.UserID, req.Body.RefreshToken); err != nil {
+	// No token presented (a browser whose cookie already expired) still logs
+	// out: revoking nothing is the same 204 as revoking an unknown token.
+	if err := s.svc.Logout(ctx, p.UserID, refreshTokenOf(req.Body)); err != nil {
 		return nil, err
 	}
 	return api.Logout204Response{}, nil
@@ -268,6 +277,27 @@ func (s *ServerImpl) ListAccounts(ctx context.Context, req api.ListAccountsReque
 	return api.ListAccounts200JSONResponse(out), nil
 }
 
+// UpdateAccount renames and/or archives an account. Omitted fields stay as they
+// are, so the same call serves rename, archive and restore.
+func (s *ServerImpl) UpdateAccount(ctx context.Context, req api.UpdateAccountRequestObject) (api.UpdateAccountResponseObject, error) {
+	p, ok := PrincipalFrom(ctx)
+	if !ok {
+		return api.UpdateAccount401JSONResponse(api.Error{Code: "unauthenticated", Message: "missing or invalid token"}), nil
+	}
+	a, err := s.ledger.UpdateAccount(ctx, p.LedgerID, req.Id, req.Body.Name, req.Body.Archived)
+	switch {
+	case errors.Is(err, ledger.ErrInvalidInput):
+		return api.UpdateAccount400JSONResponse(api.Error{Code: "invalid_input", Message: "supply a name and/or archived"}), nil
+	case errors.Is(err, ledger.ErrAccountNotFound):
+		return api.UpdateAccount404JSONResponse(api.Error{Code: "not_found", Message: "account not found"}), nil
+	case errors.Is(err, ledger.ErrAccountNameExists):
+		return api.UpdateAccount409JSONResponse(api.Error{Code: "account_exists", Message: "an account of this type with this name already exists"}), nil
+	case err != nil:
+		return nil, err
+	}
+	return api.UpdateAccount200JSONResponse(toAPIAccount(a)), nil
+}
+
 // GetAccountBalance returns debit/credit totals and the signed balance.
 func (s *ServerImpl) GetAccountBalance(ctx context.Context, req api.GetAccountBalanceRequestObject) (api.GetAccountBalanceResponseObject, error) {
 	p, ok := PrincipalFrom(ctx)
@@ -288,6 +318,29 @@ func (s *ServerImpl) GetAccountBalance(ctx context.Context, req api.GetAccountBa
 		CreditMinor: bal.CreditMinor,
 		SignedMinor: bal.SignedMinor,
 	}), nil
+}
+
+// ListAccountBalances returns whole-book balances for every account.
+func (s *ServerImpl) ListAccountBalances(ctx context.Context, req api.ListAccountBalancesRequestObject) (api.ListAccountBalancesResponseObject, error) {
+	p, ok := PrincipalFrom(ctx)
+	if !ok {
+		return api.ListAccountBalances401JSONResponse(api.Error{Code: "unauthenticated", Message: "missing or invalid token"}), nil
+	}
+	bals, err := s.ledger.Balances(ctx, p.LedgerID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]api.AccountBalance, 0, len(bals))
+	for _, b := range bals {
+		out = append(out, api.AccountBalance{
+			AccountId:   b.AccountID,
+			Currency:    b.Currency,
+			DebitMinor:  b.DebitMinor,
+			CreditMinor: b.CreditMinor,
+			SignedMinor: b.SignedMinor,
+		})
+	}
+	return api.ListAccountBalances200JSONResponse(out), nil
 }
 
 // PostEntry writes a balanced double-entry transaction.
@@ -381,6 +434,42 @@ func (s *ServerImpl) GetEntry(ctx context.Context, req api.GetEntryRequestObject
 		return nil, err
 	}
 	return api.GetEntry200JSONResponse(toAPIEntry(e)), nil
+}
+
+// UpdateEntry relabels a posted entry. Only the memo is mutable — see
+// ledger.Service.UpdateEntryMemo for why.
+func (s *ServerImpl) UpdateEntry(ctx context.Context, req api.UpdateEntryRequestObject) (api.UpdateEntryResponseObject, error) {
+	p, ok := PrincipalFrom(ctx)
+	if !ok {
+		return api.UpdateEntry401JSONResponse(api.Error{Code: "unauthenticated", Message: "missing or invalid token"}), nil
+	}
+	e, err := s.ledger.UpdateEntryMemo(ctx, p.LedgerID, req.Id, req.Body.Memo)
+	switch {
+	case errors.Is(err, ledger.ErrInvalidInput):
+		return api.UpdateEntry400JSONResponse(api.Error{Code: "invalid_input", Message: "memo is too long"}), nil
+	case errors.Is(err, ledger.ErrEntryNotFound):
+		return api.UpdateEntry404JSONResponse(api.Error{Code: "not_found", Message: "entry not found"}), nil
+	case err != nil:
+		return nil, err
+	}
+	return api.UpdateEntry200JSONResponse(toAPIEntry(e)), nil
+}
+
+// DeleteEntry soft-deletes an entry: it leaves every balance and report as if
+// the entry had never been posted, while the row survives for audit.
+func (s *ServerImpl) DeleteEntry(ctx context.Context, req api.DeleteEntryRequestObject) (api.DeleteEntryResponseObject, error) {
+	p, ok := PrincipalFrom(ctx)
+	if !ok {
+		return api.DeleteEntry401JSONResponse(api.Error{Code: "unauthenticated", Message: "missing or invalid token"}), nil
+	}
+	err := s.ledger.DeleteEntry(ctx, p.LedgerID, req.Id)
+	if errors.Is(err, ledger.ErrEntryNotFound) {
+		return api.DeleteEntry404JSONResponse(api.Error{Code: "not_found", Message: "entry not found"}), nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return api.DeleteEntry204Response{}, nil
 }
 
 // --- budget handlers -------------------------------------------------------

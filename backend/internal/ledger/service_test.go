@@ -97,6 +97,72 @@ func TestPostBalancedReconciles(t *testing.T) {
 	}
 }
 
+// The web client renders pockets from the bulk endpoint, so it has to agree
+// with the per-account figure it replaced.
+func TestBalancesMatchPerAccount(t *testing.T) {
+	svc, ledgerID, cleanup := newTestService(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	bca, _ := svc.CreateAccount(ctx, ledgerID, "", "asset", "IDR", "BCA", nil)
+	food, _ := svc.CreateAccount(ctx, ledgerID, "", "expense", "IDR", "Groceries", nil)
+	visa, _ := svc.CreateAccount(ctx, ledgerID, "", "liability", "IDR", "Visa", nil)
+	// Never touched by an entry — must still appear, at zero.
+	empty, _ := svc.CreateAccount(ctx, ledgerID, "", "asset", "IDR", "Cash", nil)
+
+	if _, err := svc.Post(ctx, ledgerID, "", EntryInput{
+		TxnDate:  time.Date(2026, 7, 26, 0, 0, 0, 0, time.UTC),
+		Currency: "IDR",
+		Lines: []LineInput{
+			{AccountID: food.ID, DC: DCDebit, AmountMinor: 50000},
+			{AccountID: bca.ID, DC: DCCredit, AmountMinor: 50000},
+		},
+	}); err != nil {
+		t.Fatalf("post cash purchase: %v", err)
+	}
+	if _, err := svc.Post(ctx, ledgerID, "", EntryInput{
+		TxnDate:  time.Date(2026, 7, 27, 0, 0, 0, 0, time.UTC),
+		Currency: "IDR",
+		Lines: []LineInput{
+			{AccountID: food.ID, DC: DCDebit, AmountMinor: 30000},
+			{AccountID: visa.ID, DC: DCCredit, AmountMinor: 30000},
+		},
+	}); err != nil {
+		t.Fatalf("post card purchase: %v", err)
+	}
+
+	bals, err := svc.Balances(ctx, ledgerID)
+	if err != nil {
+		t.Fatalf("balances: %v", err)
+	}
+	got := map[string]int64{}
+	for _, b := range bals {
+		got[b.AccountID] = b.SignedMinor
+	}
+	want := map[string]int64{
+		bca.ID:   -50000, // asset: debit−credit
+		food.ID:  80000,  // expense: debit−credit
+		visa.ID:  30000,  // liability: credit−debit, positive means owed
+		empty.ID: 0,
+	}
+	if len(got) != len(want) {
+		t.Fatalf("balances returned %d accounts, want %d", len(got), len(want))
+	}
+	for id, w := range want {
+		if got[id] != w {
+			t.Errorf("account %s signed = %d, want %d", id, got[id], w)
+		}
+		// Same number the single-account endpoint reports.
+		one, err := svc.Balance(ctx, ledgerID, id)
+		if err != nil {
+			t.Fatalf("balance %s: %v", id, err)
+		}
+		if one.SignedMinor != got[id] {
+			t.Errorf("account %s: bulk %d != single %d", id, got[id], one.SignedMinor)
+		}
+	}
+}
+
 func TestPostUnbalancedRejected(t *testing.T) {
 	svc, ledgerID, cleanup := newTestService(t)
 	defer cleanup()
@@ -172,6 +238,136 @@ func TestCrossLedgerAccountRejected(t *testing.T) {
 	})
 	if !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("cross-ledger post: want ErrInvalidInput, got %v", err)
+	}
+}
+
+// TestDeleteEntryClearsBalances is the invariant behind DELETE /entries/{id}:
+// a soft-deleted entry must vanish from the money, not just from the list. The
+// lines stay in journal_lines, so if any read path stopped joining entries on
+// deleted_at, the balance below would still show the spend.
+func TestDeleteEntryClearsBalances(t *testing.T) {
+	svc, ledgerID, cleanup := newTestService(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	bca, _ := svc.CreateAccount(ctx, ledgerID, "", "asset", "IDR", "BCA", nil)
+	food, _ := svc.CreateAccount(ctx, ledgerID, "", "expense", "IDR", "Groceries", nil)
+	e, err := svc.Post(ctx, ledgerID, "", EntryInput{
+		Currency: "IDR",
+		Memo:     "Indomaret",
+		Lines: []LineInput{
+			{AccountID: food.ID, DC: DCDebit, AmountMinor: 50000},
+			{AccountID: bca.ID, DC: DCCredit, AmountMinor: 50000},
+		},
+	})
+	if err != nil {
+		t.Fatalf("post: %v", err)
+	}
+
+	if err := svc.DeleteEntry(ctx, ledgerID, e.ID); err != nil {
+		t.Fatalf("delete entry: %v", err)
+	}
+
+	bcaBal, _ := svc.Balance(ctx, ledgerID, bca.ID)
+	foodBal, _ := svc.Balance(ctx, ledgerID, food.ID)
+	if bcaBal.SignedMinor != 0 || foodBal.SignedMinor != 0 {
+		t.Fatalf("after delete: bca=%d food=%d, want 0 / 0", bcaBal.SignedMinor, foodBal.SignedMinor)
+	}
+	if _, err := svc.GetEntry(ctx, ledgerID, e.ID); !errors.Is(err, ErrEntryNotFound) {
+		t.Fatalf("get deleted entry: want ErrEntryNotFound, got %v", err)
+	}
+	list, err := svc.ListEntries(ctx, ledgerID, nil, nil)
+	if err != nil || len(list) != 0 {
+		t.Fatalf("list after delete: %d entries, err %v", len(list), err)
+	}
+
+	// Idempotent — a sync replay must not turn into an error.
+	if err := svc.DeleteEntry(ctx, ledgerID, e.ID); err != nil {
+		t.Fatalf("second delete: %v", err)
+	}
+	// An id that never existed is still a 404.
+	if err := svc.DeleteEntry(ctx, ledgerID, "no-such-entry"); !errors.Is(err, ErrEntryNotFound) {
+		t.Fatalf("delete unknown: want ErrEntryNotFound, got %v", err)
+	}
+}
+
+// TestUpdateEntryMemo pins the memo as the only mutable field on a posting.
+func TestUpdateEntryMemo(t *testing.T) {
+	svc, ledgerID, cleanup := newTestService(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	bca, _ := svc.CreateAccount(ctx, ledgerID, "", "asset", "IDR", "BCA", nil)
+	food, _ := svc.CreateAccount(ctx, ledgerID, "", "expense", "IDR", "Groceries", nil)
+	e, _ := svc.Post(ctx, ledgerID, "", EntryInput{
+		Currency: "IDR",
+		Memo:     "Indomaret",
+		Lines: []LineInput{
+			{AccountID: food.ID, DC: DCDebit, AmountMinor: 50000},
+			{AccountID: bca.ID, DC: DCCredit, AmountMinor: 50000},
+		},
+	})
+
+	updated, err := svc.UpdateEntryMemo(ctx, ledgerID, e.ID, "Alfamart")
+	if err != nil {
+		t.Fatalf("update memo: %v", err)
+	}
+	if updated.Memo != "Alfamart" || len(updated.Lines) != 2 {
+		t.Fatalf("updated entry: memo=%q lines=%d", updated.Memo, len(updated.Lines))
+	}
+	// Relabelling must not move money.
+	foodBal, _ := svc.Balance(ctx, ledgerID, food.ID)
+	if foodBal.SignedMinor != 50000 {
+		t.Fatalf("food after relabel = %d, want 50000", foodBal.SignedMinor)
+	}
+	if _, err := svc.UpdateEntryMemo(ctx, ledgerID, "no-such-entry", "x"); !errors.Is(err, ErrEntryNotFound) {
+		t.Fatalf("update unknown: want ErrEntryNotFound, got %v", err)
+	}
+}
+
+// TestUpdateAccount covers rename, archive and restore through the one call.
+func TestUpdateAccount(t *testing.T) {
+	svc, ledgerID, cleanup := newTestService(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	bca, _ := svc.CreateAccount(ctx, ledgerID, "", "asset", "IDR", "BCA", nil)
+	name := "BCA Utama"
+	renamed, err := svc.UpdateAccount(ctx, ledgerID, bca.ID, &name, nil)
+	if err != nil {
+		t.Fatalf("rename: %v", err)
+	}
+	if renamed.Name != name || renamed.Archived {
+		t.Fatalf("renamed: %+v", renamed)
+	}
+
+	yes, no := true, false
+	archived, err := svc.UpdateAccount(ctx, ledgerID, bca.ID, nil, &yes)
+	if err != nil || !archived.Archived || archived.Name != name {
+		t.Fatalf("archive: %+v, err %v", archived, err)
+	}
+	restored, err := svc.UpdateAccount(ctx, ledgerID, bca.ID, nil, &no)
+	if err != nil || restored.Archived {
+		t.Fatalf("restore: %+v, err %v", restored, err)
+	}
+
+	// An empty patch is a caller mistake, not a no-op.
+	if _, err := svc.UpdateAccount(ctx, ledgerID, bca.ID, nil, nil); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("empty patch: want ErrInvalidInput, got %v", err)
+	}
+	// A blank name would erase the only label the account has.
+	blank := "   "
+	if _, err := svc.UpdateAccount(ctx, ledgerID, bca.ID, &blank, nil); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("blank name: want ErrInvalidInput, got %v", err)
+	}
+	if _, err := svc.UpdateAccount(ctx, ledgerID, "no-such-account", &name, nil); !errors.Is(err, ErrAccountNotFound) {
+		t.Fatalf("update unknown: want ErrAccountNotFound, got %v", err)
+	}
+
+	// Renaming onto an existing (type, name) is the same 409 as creating one.
+	other, _ := svc.CreateAccount(ctx, ledgerID, "", "asset", "IDR", "GoPay", nil)
+	if _, err := svc.UpdateAccount(ctx, ledgerID, other.ID, &name, nil); !errors.Is(err, ErrAccountNameExists) {
+		t.Fatalf("duplicate rename: want ErrAccountNameExists, got %v", err)
 	}
 }
 

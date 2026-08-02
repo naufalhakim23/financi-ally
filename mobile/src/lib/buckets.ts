@@ -168,13 +168,23 @@ export function daysLeftInMonth(now = new Date()): number {
   return end.getDate() - now.getDate() + 1;
 }
 
-/** Spending rows for a month, from local ledger data + whatever budgets exist. */
+function inPeriod(b: Budget, monthStart: Date): boolean {
+  const p = new Date(b.periodMonth);
+  return p.getFullYear() === monthStart.getFullYear() && p.getMonth() === monthStart.getMonth();
+}
+
+/**
+ * Spending rows for a month, from local ledger data + that month's budgets.
+ * `monthStart` is needed because budgets are per period — matching on account
+ * alone lets last month's target inflate this month's safe-to-spend.
+ */
 export function spendingForMonth(
   accounts: Account[],
   lines: JournalLine[],
   entryIdsInMonth: Set<string>,
   budgets: Budget[],
   base: string,
+  monthStart: Date,
 ): SpendingRow[] {
   return accounts
     .filter((a) => a.type === "expense" && !a.archived)
@@ -182,7 +192,7 @@ export function spendingForMonth(
       const spent = lines
         .filter((l) => l.accountId === a.id && l.dc === "debit" && entryIdsInMonth.has(l.entryId))
         .reduce((s, l) => s + l.amountMinor, 0);
-      const budget = budgets.find((b) => b.accountId === a.id);
+      const budget = budgets.find((b) => b.accountId === a.id && inPeriod(b, monthStart));
       return { account: a, spent, target: budget?.targetMinor ?? null, currency: budget?.currency ?? base };
     })
     .filter((r) => r.spent > 0 || r.target != null)

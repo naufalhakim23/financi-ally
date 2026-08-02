@@ -130,7 +130,10 @@ assert.equal(monthKey(new Date("2026-07-04")), "2026-07", "zero-padded month key
 
 // ── buckets ─────────────────────────────────────────────────────────────────
 
-const budgets = [{ accountId: "groceries", targetMinor: 2_000_000, currency: "IDR" }];
+const july = new Date(2026, 6, 1);
+const budgets = [
+  { accountId: "groceries", targetMinor: 2_000_000, currency: "IDR", periodMonth: july },
+];
 const monthIds = new Set(["e1", "e2", "e3"]);
 const spending = spendingForMonth(
   accounts as never,
@@ -138,9 +141,22 @@ const spending = spendingForMonth(
   monthIds,
   budgets as never,
   "IDR",
+  july,
 );
 assert.equal(spending.length, 1, "only categories with spend or a target");
 assert.equal(spending[0].spent, 45_000, "spend is the debit total");
+assert.equal(spending[0].target, 2_000_000, "this month's target is picked up");
+
+const august = new Date(2026, 7, 1);
+const staleTarget = spendingForMonth(
+  accounts as never,
+  lines as never,
+  monthIds,
+  budgets as never,
+  "IDR",
+  august,
+);
+assert.equal(staleTarget[0].target, null, "last month's target does not leak forward");
 
 const buckets = buildBuckets(accounts as never, lines as never, "IDR", rates, spending);
 const cash = buckets.find((b) => b.id === "cash")!;

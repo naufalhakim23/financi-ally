@@ -165,6 +165,8 @@ func unauthenticated() api.Error {
 	return api.Error{Code: "unauthenticated", Message: "missing or invalid token"}
 }
 
+// Not "ledger_forbidden": that code makes the client drop its active book and
+// reset its local database, which must not happen for some other ledger.
 func notAMember() api.Error {
-	return api.Error{Code: "ledger_forbidden", Message: "you are not a member of this ledger"}
+	return api.Error{Code: "not_a_member", Message: "you are not a member of this ledger"}
 }

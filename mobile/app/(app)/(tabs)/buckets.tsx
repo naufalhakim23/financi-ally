@@ -79,7 +79,7 @@ export default function BucketsScreen() {
       })
       .map((e) => e.id),
   );
-  const spendingRows = spendingForMonth(accounts, lines, monthEntryIds, budgets, base);
+  const spendingRows = spendingForMonth(accounts, lines, monthEntryIds, budgets, base, monthStart);
   const buckets = buildBuckets(accounts, lines, base, rates, spendingRows);
 
   const spent = spendingRows.reduce((s, r) => s + r.spent, 0);

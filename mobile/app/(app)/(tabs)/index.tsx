@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { RefreshControl, ScrollView, Text, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
@@ -16,6 +16,7 @@ import {
 } from "../../../src/lib/buckets";
 import { database } from "../../../src/lib/db";
 import { EMPTY_RATES, convert, rateCaption, type RateTable } from "../../../src/lib/fx";
+import { useLedgerState } from "../../../src/lib/ledgerStore";
 import { useSyncState } from "../../../src/lib/syncState";
 import { useObservable } from "../../../src/lib/useObserve";
 import { useSyncRefresh } from "../../../src/lib/useSyncRefresh";
@@ -45,6 +46,7 @@ export default function HomeScreen() {
   const { t } = useWording();
   const { C } = useTheme();
   const sync = useSyncState();
+  const { active } = useLedgerState();
   const [range, setRange] = useState<Range>("1Y");
 
   const accountsObs = useMemo(() => database.get<Account>("accounts").query().observe(), []);
@@ -100,7 +102,7 @@ export default function HomeScreen() {
       })
       .map((e) => e.id),
   );
-  const spendingRows = spendingForMonth(accounts, lines, monthEntryIds, budgets, base);
+  const spendingRows = spendingForMonth(accounts, lines, monthEntryIds, budgets, base, monthStart);
   const buckets = buildBuckets(accounts, lines, base, rates, spendingRows);
   const safe = safeToSpend(spendingRows);
 
@@ -173,12 +175,18 @@ export default function HomeScreen() {
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-background">
       <View className="flex-row items-center justify-between px-4 pt-2 pb-3.5">
-        {/* Spaces (personal / shared / freelance) are not modelled yet, so the
-            picker states the one space that exists rather than pretending. */}
-        <View className="flex-row items-center bg-secondary rounded-full px-3 py-2" style={{ gap: 6 }}>
-          <Text className="text-label font-sans-semibold text-on-secondary">Personal</Text>
+        <Pressable
+          onPress={() => router.push("/(app)/ledgers")}
+          accessibilityRole="button"
+          accessibilityLabel={`Book: ${active?.name ?? "Personal"}. Change book`}
+          className="flex-row items-center bg-secondary rounded-full px-3 py-2 min-h-touch"
+          style={{ gap: 6 }}
+        >
+          <Text className="text-label font-sans-semibold text-on-secondary" numberOfLines={1}>
+            {active?.name ?? "Personal"}
+          </Text>
           <ChevronDown size={14} color={C.dim} strokeWidth={2} />
-        </View>
+        </Pressable>
         <View className="flex-row items-center" style={{ gap: 8 }}>
           <IconButton glyph={Search} label="Search" onPress={() => router.push("/(app)/(tabs)/history")} />
           <View className="w-10 h-10 rounded-full bg-surface-container-high items-center justify-center">

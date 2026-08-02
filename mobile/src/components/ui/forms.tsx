@@ -370,12 +370,15 @@ export function AmountWell({
   currency,
   display,
   helper,
+  helperTone = "muted",
   onPressCurrency,
 }: {
   currency: string;
   /** Already grouped for display — the keypad owns the raw digits. */
   display: string;
   helper?: string;
+  /** A refusal and a "check this" must not look identical. */
+  helperTone?: "muted" | "warn" | "error";
   onPressCurrency?: () => void;
 }) {
   const { C } = useTheme();
@@ -393,7 +396,15 @@ export function AmountWell({
         {onPressCurrency && <ChevronDown size={13} color={C.dim} strokeWidth={2} />}
       </Pressable>
       <Text className="text-amount-hero font-mono-bold text-ink">{display || "0"}</Text>
-      {helper && <Text className="text-mono-meta font-mono text-faint">{helper}</Text>}
+      {helper && (
+        <Text
+          className={`text-mono-meta font-mono ${
+            helperTone === "error" ? "text-error" : helperTone === "warn" ? "text-warning" : "text-faint"
+          }`}
+        >
+          {helper}
+        </Text>
+      )}
     </View>
   );
 }

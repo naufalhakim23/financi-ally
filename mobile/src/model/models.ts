@@ -24,6 +24,8 @@ export class Entry extends Model {
   @field("fx_rate") fxRate!: string | null;
   @field("source") source!: string;
   @text("memo") memo!: string;
+  /** Receipt image to file against this entry on the next push; null otherwise. */
+  @field("attachment_id") attachmentId!: string | null;
 }
 
 export class JournalLine extends Model {

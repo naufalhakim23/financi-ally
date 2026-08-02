@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -22,11 +23,20 @@ type Service struct {
 	led  *ledger.Service
 	bud  *budget.Service
 	rec  *recurring.Service
+	att  AttachmentLinker
 }
 
-// NewService wires the sync service.
-func NewService(repo *Repo, led *ledger.Service, bud *budget.Service, rec *recurring.Service) *Service {
-	return &Service{repo: repo, led: led, bud: bud, rec: rec}
+// AttachmentLinker files a scanned receipt image against the entry it produced.
+// A narrow interface rather than the scan service itself: sync needs exactly one
+// verb from it, and stating that keeps the dependency legible.
+type AttachmentLinker interface {
+	Link(ctx context.Context, ledgerID, attachmentID, entryID string) error
+}
+
+// NewService wires the sync service. att may be nil, in which case pushed
+// attachment ids are ignored.
+func NewService(repo *Repo, led *ledger.Service, bud *budget.Service, rec *recurring.Service, att AttachmentLinker) *Service {
+	return &Service{repo: repo, led: led, bud: bud, rec: rec, att: att}
 }
 
 // Pull returns all changes since the client's watermark (ms epoch). The
@@ -209,7 +219,7 @@ func (s *Service) pushEntry(ctx context.Context, ledgerID, userID, id string, re
 		ID:       id,
 		Currency: cur,
 		Memo:     strOr(rec, "memo"),
-		Source:   "manual",
+		Source:   ledger.ClientSource(strOr(rec, "source")),
 		TxnDate:  toTime(rec["txn_date"]),
 	}
 	if fx := strOr(rec, "fx_rate"); fx != "" {
@@ -229,6 +239,16 @@ func (s *Service) pushEntry(ctx context.Context, ledgerID, userID, id string, re
 	}
 	if _, err := s.led.Post(ctx, ledgerID, userID, in); err != nil {
 		return err
+	}
+
+	// File the scanned photo now that the entry it came from exists server-side.
+	// A failure is logged, not returned: the entry is posted and immutable, so
+	// reporting an error here would make the client resend a record that can
+	// only fail as a duplicate. The unlinked image is reaped on schedule.
+	if attID := strOr(rec, "attachment_id"); attID != "" && s.att != nil {
+		if err := s.att.Link(ctx, ledgerID, attID, id); err != nil {
+			slog.Error("link receipt attachment", "entry", id, "attachment", attID, "err", err)
+		}
 	}
 	return nil
 }

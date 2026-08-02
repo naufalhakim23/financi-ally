@@ -49,6 +49,7 @@ export type LedgerMembership = S["LedgerMembership"];
 export type LedgerMember = S["LedgerMember"];
 export type LedgerRole = S["LedgerRole"];
 export type LedgerInvite = S["LedgerInvite"];
+export type ReceiptDraft = S["ReceiptDraft"];
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8080";
 
@@ -305,6 +306,42 @@ export const authedApi = {
     withAuthRetry((tok) =>
       client.POST("/ledgers/join", { headers: authHdr(tok), body: { code } }).then(unwrap),
     ),
+
+  // Receipt scan. Hand-rolled rather than routed through openapi-fetch: this is
+  // the one multipart endpoint, and React Native's FormData wants the
+  // `{ uri, name, type }` file shape that the typed client will not produce.
+  // Wider than the usual 15s — an upload plus a vision call is slow — and wider
+  // than the server's own 90s budget for this route, so the server's answer
+  // wins the race instead of the client showing a generic network error.
+  scanReceipt: (imageUri: string): Promise<ReceiptDraft> =>
+    withAuthRetry(async (tok) => {
+      const form = new FormData();
+      form.append("image", {
+        uri: imageUri,
+        name: "receipt.jpg",
+        type: "image/jpeg",
+      } as unknown as Blob);
+
+      const ctrl = new AbortController();
+      const timeout = setTimeout(() => ctrl.abort(), 95000);
+      let res: Response;
+      try {
+        res = await fetch(`${BASE_URL}/scan/receipt`, {
+          method: "POST",
+          // Content-Type is omitted on purpose: fetch sets it with the
+          // multipart boundary, and setting it by hand breaks the parse.
+          headers: authHdr(tok),
+          body: form,
+          signal: ctrl.signal,
+        });
+      } finally {
+        clearTimeout(timeout);
+      }
+
+      const body = await res.json().catch(() => null);
+      if (!res.ok) throw new HTTPError(res.status, isApiError(body) ? body : null);
+      return body as ReceiptDraft;
+    }),
 
   syncPull: (lastPulledAt: number) =>
     withAuthRetry((tok) =>

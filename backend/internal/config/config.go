@@ -21,6 +21,19 @@ type Config struct {
 	FX        FXConfig
 	Recurring RecurringConfig
 	Mail      MailConfig
+	Scan      ScanConfig
+}
+
+// ScanConfig holds the receipt-scanning settings. An empty APIKey (or Mock=true)
+// puts the extractor in fixed-draft mode — see internal/scan. ReapAfter is how
+// long an uploaded-but-never-confirmed image survives before collection.
+type ScanConfig struct {
+	APIKey    string
+	Model     string
+	Mock      bool
+	ReapAfter time.Duration
+	// Caps scans per user per UTC day; zero or less disables the cap.
+	DailyLimit int
 }
 
 // MailConfig holds the transactional-email settings. An empty APIKey (or
@@ -116,6 +129,18 @@ func Load() (*Config, error) {
 			From:   getEnv("MAIL_FROM", "Financi-Ally <onboarding@resend.dev>"),
 			Mock:   getEnvBool("MAIL_MOCK", false),
 		},
+		Scan: ScanConfig{
+			APIKey: getEnv("ANTHROPIC_API_KEY", ""),
+			Model:  getEnv("SCAN_MODEL", "claude-haiku-4-5"),
+			Mock:   getEnvBool("SCAN_MOCK", false),
+			// A week, not a day: the photo uploads at scan time but links only
+			// on the next successful /sync/push. A 24h window silently loses
+			// the receipt of anyone who scans on a trip and syncs at home.
+			ReapAfter: getEnvDuration("SCAN_REAP_AFTER", 7*24*time.Hour),
+			// Far above real use, far below what a loop costs — a ceiling on
+			// abuse, not a budget the user has to ration.
+			DailyLimit: getEnvInt("SCAN_DAILY_LIMIT", 50),
+		},
 		Recurring: RecurringConfig{
 			Enabled:  getEnvBool("RECURRING_ENABLED", true),
 			Interval: getEnvDuration("RECURRING_INTERVAL", 15*time.Minute),
@@ -130,6 +155,12 @@ func Load() (*Config, error) {
 	// write credentials to the app log while the user received nothing.
 	if cfg.Server.Environment == "production" && !cfg.Mail.Mock && cfg.Mail.APIKey == "" {
 		return nil, errors.New("RESEND_API_KEY must be set in production (or MAIL_MOCK=true to acknowledge no email is sent)")
+	}
+	// The mock extractor returns the same fixed draft for every photo. Shipping
+	// it unnoticed would have users confirming a fabricated 45,000 IDR expense,
+	// so production must either have a key or say out loud that scanning is off.
+	if cfg.Server.Environment == "production" && !cfg.Scan.Mock && cfg.Scan.APIKey == "" {
+		return nil, errors.New("ANTHROPIC_API_KEY must be set in production (or SCAN_MOCK=true to acknowledge receipt scanning returns a fixed draft)")
 	}
 	return cfg, nil
 }

@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
-import { Calendar, ChevronRight, Plus } from "lucide-react-native";
+import * as ImagePicker from "expo-image-picker";
+import { Calendar, Camera, ChevronRight, Plus } from "lucide-react-native";
 
 import { authedApi } from "../../src/lib/api";
 import { useAuth } from "../../src/lib/auth";
@@ -35,6 +37,9 @@ import {
 
 type Mode = "out" | "in" | "move";
 
+// Mirrors the server's floor (internal/scan: minConfidence).
+const LOW_CONFIDENCE = 0.6;
+
 // Which account types each side of the entry may point at. An entry is always
 // a balanced pair, so the mode fully determines both sides' candidates.
 const SIDES: Record<Mode, { from: string[]; to: string[] }> = {
@@ -63,6 +68,20 @@ export default function EntryNew() {
   const [picking, setPicking] = useState<"from" | "to" | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // Receipt scanning. txnDate is state rather than "now" because a receipt is
+  // often photographed days later, and posting it under today's date puts the
+  // spend in the wrong month and against the wrong budget.
+  const [txnDate, setTxnDate] = useState<Date>(new Date());
+  const [attachmentId, setAttachmentId] = useState<string | null>(null);
+  // The currency the model read off the receipt. Kept because amount_minor is in
+  // *that* currency's minor units while the entry posts in the source account's
+  // — same number, different money — and save() has to refuse the mismatch.
+  const [scanCurrency, setScanCurrency] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
+  // Advisory, not blocking. Separate from err so a hint and a refusal never
+  // wear the same colour.
+  const [warn, setWarn] = useState<string | null>(null);
+  const [dateOpen, setDateOpen] = useState(false);
 
   const accountsObs = useMemo(() => database.get<Account>("accounts").query().observe(), []);
   const linesObs = useMemo(() => database.get<JournalLine>("journal_lines").query().observe(), []);
@@ -140,6 +159,58 @@ export default function EntryNew() {
   const to = active.find((a) => a.id === toId) ?? null;
   const currency = from?.currency ?? base;
 
+  // Photograph a receipt and prefill from what the model read. Everything it
+  // returns is a suggestion sitting in an editable form — the user still presses
+  // Save, and the server still re-runs the balance invariant on the way in.
+  async function scanReceipt() {
+    setErr(null);
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) {
+      setErr("Camera access is needed to scan a receipt");
+      return;
+    }
+    const shot = await ImagePicker.launchCameraAsync({
+      // Compressed on-device: a full-resolution phone photo is several MB of
+      // upload for no gain in what the model can read off a receipt.
+      quality: 0.6,
+      exif: false,
+    });
+    if (shot.canceled || !shot.assets?.[0]) return;
+
+    setScanning(true);
+    try {
+      const draft = await authedApi.scanReceipt(shot.assets[0].uri);
+      setDigits(String(draft.amount_minor));
+      setAttachmentId(draft.attachment_id);
+      setScanCurrency(draft.currency);
+      if (draft.merchant) setMemo(draft.merchant);
+      if (draft.txn_date) setTxnDate(new Date(`${draft.txn_date}T00:00:00`));
+      // Scans are always spending; the category is the destination side.
+      setMode("out");
+      // Null category means the model was unsure. Leaving the picker empty makes
+      // the user choose, which is the point — a confident wrong guess would just
+      // get confirmed without being read.
+      if (draft.category_id) setToId(draft.category_id);
+      // Usable draft, just worth reading before confirming.
+      setWarn(
+        draft.confidence < LOW_CONFIDENCE
+          ? "Low confidence — check the amount and date before saving"
+          : null,
+      );
+    } catch (e) {
+      setWarn(null);
+      setErr(e instanceof Error ? e.message : "Could not read that receipt");
+    } finally {
+      setScanning(false);
+    }
+  }
+
+  // Android's picker closes itself; iOS keeps ours open until "Done".
+  function onDateChange(event: DateTimePickerEvent, picked?: Date) {
+    if (Platform.OS !== "ios") setDateOpen(false);
+    if (event.type === "set" && picked) setTxnDate(picked);
+  }
+
   async function save() {
     setErr(null);
     if (!fromId || !toId) {
@@ -154,6 +225,14 @@ export default function EntryNew() {
     // this screen does not collect yet, and the server rejects the entry.
     if (from && to && from.currency !== to.currency) {
       setErr(`Both sides must use the same currency — ${from.name} is ${from.currency}, ${to.name} is ${to.currency}`);
+      return;
+    }
+    // The scanned total is in the receipt's currency; the entry posts in the
+    // source account's. Saving across the two would record 12.50 US dollars as
+    // 1250 rupiah — same digits, wrong money — so it is refused rather than
+    // silently converted, exactly as the cross-currency check above does.
+    if (scanCurrency && scanCurrency !== currency) {
+      setErr(`This receipt is in ${scanCurrency} but ${from?.name ?? "this account"} holds ${currency} — pick a ${scanCurrency} account`);
       return;
     }
     const minor = Number(digits || "0");
@@ -173,11 +252,14 @@ export default function EntryNew() {
       // the server re-runs the balance invariant.
       await database.write(async () => {
         const entry = await database.get("entries").create((e: any) => {
-          e.txnDate = Date.now();
+          e.txnDate = txnDate.getTime();
           e.status = "posted";
           e.currency = currency;
-          e.source = "manual";
+          e.source = attachmentId ? "receipt_scan" : "manual";
           e.memo = memo;
+          // Carried out on the next push; that is when the server can file the
+          // photo, because only then does this entry exist there.
+          e.attachmentId = attachmentId;
         });
         await database.get("journal_lines").create((l: any) => {
           l.entryId = entry.id;
@@ -266,7 +348,8 @@ export default function EntryNew() {
         <AmountWell
           currency={currency}
           display={digits ? formatGrouped(currency, Number(digits)) : ""}
-          helper={err ?? converted ?? undefined}
+          helper={err ?? warn ?? converted ?? undefined}
+          helperTone={err ? "error" : warn ? "warn" : "muted"}
         />
 
         <View className="border border-outline rounded-lg overflow-hidden">
@@ -299,7 +382,13 @@ export default function EntryNew() {
         )}
 
         <View className="flex-row" style={{ gap: 8 }}>
-          <MetaChip glyph={Calendar} label="Today" active />
+          <MetaChip glyph={Calendar} label={dateLabel(txnDate)} active onPress={() => setDateOpen(true)} />
+          <MetaChip
+            glyph={Camera}
+            label={scanning ? "Reading…" : attachmentId ? "Receipt attached" : "Scan receipt"}
+            active={!!attachmentId || scanning}
+            onPress={scanning ? undefined : scanReceipt}
+          />
           <MetaChip glyph={Plus} label={memo ? "Note added" : "Note"} active={!!memo} onPress={() => setNoteOpen(true)} />
         </View>
 
@@ -330,6 +419,32 @@ export default function EntryNew() {
         ))}
       </Sheet>
 
+      {/* Capped at today: a receipt cannot be from the future. */}
+      {dateOpen &&
+        (Platform.OS === "ios" ? (
+          <Sheet visible onClose={() => setDateOpen(false)} title="Transaction date">
+            <DateTimePicker
+              value={txnDate}
+              mode="date"
+              display="spinner"
+              maximumDate={new Date()}
+              onChange={onDateChange}
+              textColor={C.ink}
+            />
+            <View className="mt-4">
+              <Button label="Done" onPress={() => setDateOpen(false)} />
+            </View>
+          </Sheet>
+        ) : (
+          <DateTimePicker
+            value={txnDate}
+            mode="date"
+            display="default"
+            maximumDate={new Date()}
+            onChange={onDateChange}
+          />
+        ))}
+
       <Sheet visible={noteOpen} onClose={() => setNoteOpen(false)} title="Note">
         <TextInput
           value={memo}
@@ -345,6 +460,18 @@ export default function EntryNew() {
       </Sheet>
     </SafeAreaView>
   );
+}
+
+// "Today" reads better than a date the user already knows; anything else has to
+// be shown, because a scanned receipt can be days old and posting it silently
+// under the wrong date is exactly the mistake this screen should not make.
+function dateLabel(d: Date): string {
+  const today = new Date();
+  const sameDay =
+    d.getFullYear() === today.getFullYear() &&
+    d.getMonth() === today.getMonth() &&
+    d.getDate() === today.getDate();
+  return sameDay ? "Today" : d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
 }
 
 function PickerRow({

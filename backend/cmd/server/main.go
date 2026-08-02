@@ -26,8 +26,34 @@ import (
 	"github.com/naufalhakim23/financi-ally/backend/internal/mail"
 	"github.com/naufalhakim23/financi-ally/backend/internal/recurring"
 	"github.com/naufalhakim23/financi-ally/backend/internal/reporting"
+	"github.com/naufalhakim23/financi-ally/backend/internal/scan"
 	syncpkg "github.com/naufalhakim23/financi-ally/backend/internal/sync"
 )
+
+// maxRequestBytes bounds any request body. Comfortably above the 8 MiB image
+// cap plus multipart framing, and above the largest realistic /sync/push.
+const maxRequestBytes = 16 << 20
+
+// Everything is fast except the one route that uploads several MiB over mobile
+// data and then waits on a vision model.
+const (
+	defaultTimeout = 30 * time.Second
+	scanTimeout    = 90 * time.Second
+	scanPath       = "/scan/receipt"
+)
+
+// Both handlers are built once, at wiring time, not per request.
+func routeTimeout(next http.Handler) http.Handler {
+	fast := middleware.Timeout(defaultTimeout)(next)
+	slow := middleware.Timeout(scanTimeout)(next)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == scanPath {
+			slow.ServeHTTP(w, r)
+			return
+		}
+		fast.ServeHTTP(w, r)
+	})
+}
 
 func main() {
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, nil)))
@@ -91,15 +117,28 @@ func main() {
 	recRepo := recurring.NewRepo(pool.Pool)
 	recSvc := recurring.NewService(recRepo, ledgerSvc, cfg.Recurring.Location)
 
+	// Receipt scanning: repo + blob store + vision extractor. The service has no
+	// reference to the ledger on purpose — a scan produces a draft, and only the
+	// confirmed result reaches ledger.Post.
+	scanSvc := scan.NewService(
+		scan.NewRepo(pool.Pool),
+		scan.NewPostgresBlobStore(pool.Pool),
+		scan.NewExtractor(scan.Config{APIKey: cfg.Scan.APIKey, Model: cfg.Scan.Model, Mock: cfg.Scan.Mock}),
+		cfg.Scan.DailyLimit,
+	)
+
 	// Sync reuses ledger.Post, budget.Set and the recurring service so pushed
-	// records can't bypass the validation the REST path enforces.
-	syncSvc := syncpkg.NewService(syncpkg.NewRepo(pool.Pool), ledgerSvc, budgetSvc, recSvc)
+	// records can't bypass the validation the REST path enforces. It also files
+	// a scanned receipt against the entry once that entry exists server-side —
+	// the mobile app writes entries locally and syncs them, so this is where a
+	// scanned entry gets its photo, not the REST path.
+	syncSvc := syncpkg.NewService(syncpkg.NewRepo(pool.Pool), ledgerSvc, budgetSvc, recSvc, scanSvc)
 
 	// Household wiring: ledgers, membership and join codes. Also the middleware
 	// dependency that turns an authenticated user into an active ledger.
 	householdSvc := household.NewService(household.NewRepo(pool.Pool))
 
-	serverImpl := handler.NewServerImpl(pool, svc, ledgerSvc, budgetSvc, syncSvc, fxSvc, reportSvc, recSvc, householdSvc)
+	serverImpl := handler.NewServerImpl(pool, svc, ledgerSvc, budgetSvc, syncSvc, fxSvc, reportSvc, recSvc, householdSvc, scanSvc)
 
 	// Strict-server error handlers emit our JSON Error shape instead of plain
 	// text, and never leak internal error strings to clients.
@@ -126,7 +165,11 @@ func main() {
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Recoverer)
-	r.Use(middleware.Timeout(30 * time.Second))
+	// The spec validator io.ReadAll's the whole request, so scan's 8 MiB check
+	// fires only after the bytes are already in memory. Without this cap a
+	// client could make the process allocate a gigabyte.
+	r.Use(middleware.RequestSize(maxRequestBytes))
+	r.Use(routeTimeout)
 	r.Use(handler.AuthInject(jwtSvc))        // verify + inject principal (best-effort, all routes)
 	r.Use(handler.LedgerScope(householdSvc)) // resolve the active book onto the principal
 	r.Use(validator)                         // schema validation + enforce bearerAuth on protected routes
@@ -173,6 +216,27 @@ func main() {
 		}()
 	}
 
+	// Attachment reaper. A scan uploads the photo before the user confirms the
+	// draft, so abandoned scans leave images nothing references. Its own ticker
+	// rather than a ride on the recurring scheduler: the two have no relationship,
+	// and RECURRING_ENABLED=false must not silently stop collecting garbage.
+	// Deleting only rows older than the retention window makes a second replica's
+	// concurrent sweep harmless.
+	go func() {
+		const sweepEvery = time.Hour
+		ticker := time.NewTicker(sweepEvery)
+		defer ticker.Stop()
+		reapAttachments(ctx, scanSvc, cfg.Scan.ReapAfter)
+		for {
+			select {
+			case <-ticker.C:
+				reapAttachments(ctx, scanSvc, cfg.Scan.ReapAfter)
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
@@ -195,6 +259,20 @@ func main() {
 func materializeDue(ctx context.Context, recSvc *recurring.Service) {
 	if _, err := recSvc.MaterializeDue(ctx); err != nil {
 		slog.Error("recurring materialize", "err", err)
+	}
+}
+
+// reapAttachments deletes receipt images whose drafts were never confirmed.
+// Logs only when it actually collected something — a sweep that finds nothing is
+// the expected case and says nothing worth reading at 3am.
+func reapAttachments(ctx context.Context, scanSvc *scan.Service, olderThan time.Duration) {
+	n, err := scanSvc.ReapUnlinked(ctx, olderThan)
+	if err != nil {
+		slog.Error("reap attachments", "err", err)
+		return
+	}
+	if n > 0 {
+		slog.Info("reaped unconfirmed receipt images", "count", n)
 	}
 }
 

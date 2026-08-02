@@ -87,8 +87,9 @@ export function EntryNewRoute() {
 
   // Cross-currency entries need an fx_rate the UI has no way to ask for yet, so
   // they're blocked rather than posted at a wrong rate. Mobile does the same.
-  const currencyMismatch =
-    direction === "move" && !!from && !!to && from.currency !== to.currency;
+  // Every direction, not just "move" — a category denominated differently from
+  // the pocket paying it is the same unpostable entry.
+  const currencyMismatch = !!from && !!to && from.currency !== to.currency;
 
   let amountError: string | null = null;
   if (amount.trim()) {
@@ -198,7 +199,9 @@ export function EntryNewRoute() {
           />
 
           {currencyMismatch ? (
-            <ErrorState message="Those two pockets hold different currencies. Cross-currency moves aren't supported here yet." />
+            <ErrorState
+              message={`Those two accounts are in different currencies (${from?.currency} and ${to?.currency}). Cross-currency entries aren't supported here yet.`}
+            />
           ) : null}
 
           <Field label="Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />

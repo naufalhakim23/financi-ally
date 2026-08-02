@@ -1,28 +1,16 @@
 import { Text, View } from "react-native";
 import Svg, { Circle, G } from "react-native-svg";
 
-// ─── Chart primitives ───────────────────────────────────────────────────────
-// The design system's brand palette is deliberately neutral (see DESIGN.md), so
-// charts carry their own categorical ramp: assigned by slot in fixed order,
-// never cycled and never re-assigned when the series count changes. Validated
-// on the #FFFFFF card surface — worst adjacent CVD ΔE 9.1, normal-vision 19.6.
-// Three slots sit under 3:1 contrast, which is why every chart here ships a
-// labelled legend row: identity is never color-alone.
-export const SERIES = [
-  "#2a78d6", // blue
-  "#eb6834", // orange
-  "#1baf7a", // aqua
-  "#eda100", // yellow
-  "#e87ba4", // magenta
-  "#008300", // green
-  "#4a3aa7", // violet
-  "#e34948", // red — also the "Other" bucket past 7 categories
-] as const;
+import { C, CHART_SLOTS, slotColor } from "./tokens";
 
-/** Categorical color for slot i. Past the ramp, callers fold into "Other". */
-export function seriesColor(i: number): string {
-  return SERIES[Math.min(i, SERIES.length - 1)];
-}
+// ─── Chart primitives (DESIGN.md v1.0 → Charts) ─────────────────────────────
+// The brand palette is deliberately neutral, so it can't encode series
+// identity. Charts carry the categorical ramp from tokens.ts, assigned by slot
+// in fixed order and never re-assigned when the series count changes — a filter
+// must not repaint the survivors. Three slots sit under 3:1 against the card
+// surface, which is why every chart using the ramp ships a labelled legend.
+
+export { CHART_SLOTS as SERIES, slotColor as seriesColor };
 
 // Segment gap in degrees — the 2px surface gap between adjacent fills, so
 // touching slices stay separable for CVD readers.
@@ -72,7 +60,7 @@ export function Donut({
           cx={size / 2}
           cy={size / 2}
           r={r}
-          stroke="#E8EAF2"
+          stroke={C.surfaceContainerHigh}
           strokeWidth={thickness}
           fill="none"
         />
@@ -101,12 +89,52 @@ export function Donut({
   );
 }
 
+export type LegendItem = { id: string; label: string; value: number; color: string };
+
+/**
+ * Mandatory companion to any ramp chart: it doubles as the value table, so
+ * identity never rests on color alone. Values and labels stay in ink/faint —
+ * series color belongs to marks only.
+ */
+export function ChartLegend({
+  items,
+  formatValue,
+}: {
+  items: LegendItem[];
+  formatValue: (v: number) => string;
+}) {
+  const total = items.reduce((s, x) => s + x.value, 0);
+  return (
+    <View>
+      {items.map((item) => {
+        const pct = total > 0 ? Math.round((item.value / total) * 100) : 0;
+        return (
+          <View key={item.id} className="flex-row items-center py-2" style={{ gap: 10 }}>
+            <View
+              className="w-2.5 h-2.5 rounded-full shrink-0"
+              style={{ backgroundColor: item.color }}
+            />
+            <Text className="flex-1 text-body font-sans-medium text-ink" numberOfLines={1}>
+              {item.label}
+            </Text>
+            <Text className="text-amount-sm font-mono-medium text-faint">{pct}%</Text>
+            <Text className="text-amount-sm font-mono-bold text-ink">
+              {formatValue(item.value)}
+            </Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
 export type TrendPoint = { key: string; label: string; value: number; emphasized?: boolean };
 
 /**
  * Change-over-time bars for a single series. Plain Views — bars are rectangles,
  * and SVG buys nothing here. Heights are relative to the largest bar; the
  * emphasized point (the current period) carries the ink fill, the rest recede.
+ * Single-series, so no ramp and no legend.
  */
 export function TrendBars({
   points,
@@ -138,7 +166,7 @@ export function TrendBars({
         {points.map((p) => (
           <Text
             key={p.key}
-            className={`flex-1 text-center text-[9px] ${
+            className={`flex-1 text-center text-caption ${
               p.emphasized ? "text-ink font-sans-semibold" : "text-faint font-sans-medium"
             }`}
           >
@@ -147,9 +175,7 @@ export function TrendBars({
         ))}
       </View>
       {formatValue && (
-        <Text className="text-faint text-[10px] font-mono-medium mt-1">
-          peak {formatValue(max)}
-        </Text>
+        <Text className="text-mono-meta font-mono text-faint mt-1">peak {formatValue(max)}</Text>
       )}
     </View>
   );

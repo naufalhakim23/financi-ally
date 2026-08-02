@@ -1,9 +1,26 @@
 import { useEffect, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { type ColorValue, Text, View } from "react-native";
 import { Tabs } from "expo-router";
+import {
+  ArrowUp,
+  BarChart3,
+  Home,
+  PieChart,
+  Repeat,
+  Wallet,
+} from "lucide-react-native";
 
 import { syncDatabase } from "../../src/lib/sync";
 import { refreshPending, useSyncState } from "../../src/lib/syncState";
+import { Badge, Button, C } from "../../src/components/ui";
+
+// Tab glyphs are Lucide at the default affordance size, inheriting the
+// active/inactive tint expo-router hands down.
+const tabIcon =
+  (Glyph: typeof Home) =>
+  ({ color }: { color: ColorValue }) => (
+    <Glyph size={20} color={String(color)} strokeWidth={1.75} />
+  );
 
 // Authed app shell: five tabs, a Sync action in every header, and a status
 // strip above the tab bar. Sync runs the WatermelonDB pull/push cycle; offline
@@ -31,15 +48,19 @@ export default function AppLayout() {
   }
 
   const headerRight = () => (
-    <View className="flex-row items-center mr-4" style={{ gap: 8 }}>
+    <View className="flex-row items-center mr-2" style={{ gap: 8 }}>
       {sync.pending && !syncing && (
-        <View className="rounded-full bg-warning-soft border border-warning-border px-2 py-0.5">
-          <Text className="text-warning text-[10px] font-sans-semibold">↑ pending</Text>
-        </View>
+        <Badge tone="warning" glyph={ArrowUp}>
+          pending
+        </Badge>
       )}
-      <Pressable onPress={doSync} disabled={syncing}>
-        <Text className="text-info font-sans-semibold">{syncing ? "Syncing…" : "Sync"}</Text>
-      </Pressable>
+      <Button
+        label={syncing ? "Syncing…" : "Sync"}
+        variant="tertiary"
+        fullWidth={false}
+        disabled={syncing}
+        onPress={doSync}
+      />
     </View>
   );
 
@@ -48,13 +69,13 @@ export default function AppLayout() {
   const strip =
     sync.rejected > 0
       ? {
-          tone: "bg-error-soft border-error-border",
+          tone: "bg-error-wash border-error-edge",
           text: "text-error",
           message: `${sync.rejected} ${sync.rejected === 1 ? "entry was" : "entries were"} rejected — review and re-enter`,
         }
       : sync.status === "error"
         ? {
-            tone: "bg-warning-soft border-warning-border",
+            tone: "bg-warning-wash border-warning-edge",
             text: "text-warning",
             message: sync.pending
               ? "Offline — changes are saved on this device"
@@ -67,27 +88,43 @@ export default function AppLayout() {
       <Tabs
         screenOptions={{
           headerRight,
-          headerStyle: { backgroundColor: "#F2F3F7" },
+          headerStyle: { backgroundColor: C.background },
           headerTitleStyle: {
-            fontFamily: "Outfit-SemiBold",
-            color: "#1A1F2E",
-            fontSize: 15,
+            fontFamily: "Outfit-Bold",
+            color: C.ink,
+            fontSize: 20,
           },
           headerShadowVisible: false,
-          tabBarActiveTintColor: "#1A1F2E",
-          tabBarInactiveTintColor: "#9EA6BE",
-          tabBarLabelStyle: { fontFamily: "Outfit-SemiBold", fontSize: 10 },
+          tabBarActiveTintColor: C.primary,
+          tabBarInactiveTintColor: C.faint,
+          // Labels always visible — a glyph alone is not a label (DESIGN.md).
+          tabBarLabelStyle: { fontFamily: "Outfit-SemiBold", fontSize: 11 },
           tabBarStyle: {
-            backgroundColor: "#FFFFFF",
-            borderTopColor: "#E2E6F0",
+            backgroundColor: C.surface,
+            borderTopColor: C.outline,
           },
         }}
       >
-        <Tabs.Screen name="index" options={{ title: "Home" }} />
-        <Tabs.Screen name="pockets" options={{ title: "Pockets" }} />
-        <Tabs.Screen name="budgets" options={{ title: "Budgets" }} />
-        <Tabs.Screen name="recurring" options={{ title: "Recurring" }} />
-        <Tabs.Screen name="reports" options={{ title: "Reports" }} />
+        <Tabs.Screen
+          name="index"
+          options={{ title: "Home", tabBarIcon: tabIcon(Home) }}
+        />
+        <Tabs.Screen
+          name="pockets"
+          options={{ title: "Pockets", tabBarIcon: tabIcon(Wallet) }}
+        />
+        <Tabs.Screen
+          name="budgets"
+          options={{ title: "Budgets", tabBarIcon: tabIcon(PieChart) }}
+        />
+        <Tabs.Screen
+          name="recurring"
+          options={{ title: "Recurring", tabBarIcon: tabIcon(Repeat) }}
+        />
+        <Tabs.Screen
+          name="reports"
+          options={{ title: "Reports", tabBarIcon: tabIcon(BarChart3) }}
+        />
         <Tabs.Screen name="entry-new" options={{ title: "Add entry", href: null }} />
         <Tabs.Screen name="pocket-new" options={{ title: "New pocket", href: null }} />
       </Tabs>
@@ -97,7 +134,7 @@ export default function AppLayout() {
           className={`absolute left-0 right-0 bottom-[76px] mx-4 rounded-xl border px-3 py-2 ${strip.tone}`}
           accessibilityLiveRegion="polite"
         >
-          <Text className={`text-[11px] font-sans-semibold ${strip.text}`}>{strip.message}</Text>
+          <Text className={`text-caption font-sans-semibold ${strip.text}`}>{strip.message}</Text>
         </View>
       )}
     </View>

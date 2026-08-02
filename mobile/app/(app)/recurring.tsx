@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 
 import { authedApi, type RecurringRule, type RecurringTemplate } from "../../src/lib/api";
 import { useAuth } from "../../src/lib/auth";
@@ -7,8 +7,20 @@ import { database } from "../../src/lib/db";
 import { format, toMinor } from "../../src/lib/money";
 import { useObservable } from "../../src/lib/useObserve";
 import { Account } from "../../src/model/models";
-import { AmountField, Field, Picker, PrimaryButton } from "../../src/components/forms";
-import { Badge, Card, EmptyState, IconBox, SectionLabel } from "../../src/components/ui";
+import {
+  AmountField,
+  Badge,
+  Button,
+  Card,
+  ChipGroup,
+  Dialog,
+  EmptyState,
+  Field,
+  IconBox,
+  Repeat,
+  SectionLabel,
+  Sheet,
+} from "../../src/components/ui";
 
 type Freq = "daily" | "weekly" | "monthly";
 
@@ -122,6 +134,9 @@ export default function Recurring() {
   const [memo, setMemo] = useState("");
   const [formBusy, setFormBusy] = useState(false);
   const [formErr, setFormErr] = useState<string | null>(null);
+  // Deleting a rule is irreversible from the UI, so it goes through a dialog.
+  const [pendingDelete, setPendingDelete] = useState<RecurringRule | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
   const fetchRules = useCallback(() => {
     setErr(null);
@@ -207,12 +222,19 @@ export default function Recurring() {
     }
   }
 
-  async function deleteRule(id: string) {
+  async function confirmDelete() {
+    const rule = pendingDelete;
+    if (!rule) return;
+    setDeleteBusy(true);
     try {
-      await authedApi.deleteRecurring(id);
+      await authedApi.deleteRecurring(rule.id);
+      setPendingDelete(null);
       fetchRules();
     } catch (e) {
       setErr(e instanceof Error ? e.message : "delete failed");
+      setPendingDelete(null);
+    } finally {
+      setDeleteBusy(false);
     }
   }
 
@@ -239,32 +261,38 @@ export default function Recurring() {
   return (
     <View className="flex-1 bg-background">
       <ScrollView className="flex-1" contentContainerStyle={{ padding: 16, paddingBottom: 24 }}>
-        <Card className="mb-4">
+        <Card className="mb-card-gap">
           <SectionLabel>Scheduled</SectionLabel>
-          <Text className="text-ink text-[26px] font-mono-bold mt-1 leading-none">
+          <Text className="text-ink text-amount-lg font-mono-bold mt-1">
             {active.length} active
           </Text>
-          <Text className="text-faint text-[10px] font-mono mt-2">
-            Entries post automatically on their date
+          <Text className="text-faint text-caption font-sans-medium mt-1">
+            entries post automatically on their date
           </Text>
-          <Pressable onPress={runDue} disabled={running} className="mt-3 self-start">
-            <Text className="text-info text-[11px] font-sans-semibold">
-              {running ? "Running…" : "Run due now"}
-            </Text>
-          </Pressable>
-          {notice && <Text className="text-faint text-[10px] font-mono mt-2">{notice}</Text>}
+          <View className="mt-2 self-start">
+            <Button
+              label={running ? "Running…" : "Run due now"}
+              variant="tertiary"
+              fullWidth={false}
+              disabled={running}
+              onPress={runDue}
+            />
+          </View>
+          {notice && (
+            <Text className="text-faint text-mono-meta font-mono mt-2">{notice}</Text>
+          )}
         </Card>
 
         {err && (
-          <Card className="mb-4">
-            <Text className="text-error text-sm">{err}</Text>
+          <Card className="mb-card-gap">
+            <Text className="text-error text-body font-sans-medium">{err}</Text>
           </Card>
         )}
 
         {rules.length === 0 && !err && (
-          <View className="mb-4">
+          <View className="mb-card-gap">
             <EmptyState
-              icon="🔁"
+              glyph={Repeat}
               title="Nothing recurring yet"
               body="Add rent, a subscription, or salary and it posts itself on schedule."
             />
@@ -272,127 +300,148 @@ export default function Recurring() {
         )}
 
         {rules.length > 0 && (
-          <Card padded={false} className="mb-4">
+          <Card padded={false} className="mb-card-gap">
             {rules.map((rule, i) => {
               const debit = rule.template.lines.find((l) => l.dc === "debit");
               const credit = rule.template.lines.find((l) => l.dc === "credit");
-              const last = i === rules.length - 1;
               return (
-                <View key={rule.id} className={`px-4 py-3.5 ${last ? "" : "border-b border-outline-variant"}`}>
-                  <Pressable onPress={() => openEdit(rule)}>
-                    <View className="flex-row items-center" style={{ gap: 10 }}>
-                      <IconBox bg="bg-secondary">🔁</IconBox>
-                      <View className="flex-1">
-                        <Text className="text-ink text-[13px] font-sans-semibold">
+                <View key={rule.id}>
+                  {i > 0 && <View className="h-px bg-outline-variant ml-[68px]" />}
+                  <View className="px-4 py-3.5">
+                    <View className="flex-row items-center gap-card-gap">
+                      <IconBox glyph={Repeat} />
+                      <View className="flex-1 min-w-0">
+                        <Text
+                          className="text-ink text-body-strong font-sans-semibold"
+                          numberOfLines={1}
+                        >
                           {rule.template.memo || nameFor(debit?.account_id ?? "")}
                         </Text>
-                        <Text className="text-faint text-[10px] font-mono">
+                        <Text className="text-faint text-caption font-sans-medium">
                           {describe(rule)} · from {nameFor(credit?.account_id ?? "")}
                         </Text>
                       </View>
                       <View className="items-end">
-                        <Text className="text-ink text-[12px] font-mono-bold">
+                        <Text className="text-ink text-amount-sm font-mono-bold">
+                          {rule.template.currency}&nbsp;
                           {debit ? format(rule.template.currency, debit.amount_minor) : "—"}
                         </Text>
-                        <Text className="text-faint text-[9px] font-mono mt-0.5">
+                        <Text className="text-faint text-mono-meta font-mono mt-0.5">
                           next {formatDate(rule.next_run)}
                         </Text>
                       </View>
                     </View>
-                  </Pressable>
 
-                  {!rule.active && (
-                    <View className="mt-2 self-start">
-                      <Badge tone="neutral">Paused</Badge>
+                    {!rule.active && (
+                      <View className="mt-2 self-start">
+                        <Badge tone="neutral">Paused</Badge>
+                      </View>
+                    )}
+                    {/* A rule that keeps failing (archived account, say) has to be
+                        visible here — otherwise it silently stops posting. */}
+                    {rule.last_error && (
+                      <Text className="text-error text-caption font-sans-medium mt-2">
+                        Last run failed: {rule.last_error}
+                      </Text>
+                    )}
+
+                    <View className="flex-row justify-end mt-1" style={{ gap: 4 }}>
+                      <Button
+                        label="Edit"
+                        variant="tertiary"
+                        fullWidth={false}
+                        onPress={() => openEdit(rule)}
+                      />
+                      <Button
+                        label="Delete"
+                        variant="tertiary"
+                        fullWidth={false}
+                        onPress={() => setPendingDelete(rule)}
+                      />
                     </View>
-                  )}
-                  {/* A rule that keeps failing (archived account, say) has to be
-                      visible here — otherwise it silently stops posting. */}
-                  {rule.last_error && (
-                    <Text className="text-error text-[10px] font-mono mt-2">
-                      Last run failed: {rule.last_error}
-                    </Text>
-                  )}
-
-                  <Pressable onPress={() => deleteRule(rule.id)} className="mt-1 self-end">
-                    <Text className="text-error text-[9px] font-sans-semibold">DELETE</Text>
-                  </Pressable>
+                  </View>
                 </View>
               );
             })}
           </Card>
         )}
 
-        <PrimaryButton label="＋ New recurring" onPress={openNew} busy={false} />
+        <Button label="New recurring" onPress={openNew} />
       </ScrollView>
 
-      <Modal visible={showForm} transparent animationType="slide">
-        <View className="flex-1 justify-end bg-black/40">
-          <View className="bg-background rounded-t-3xl p-6 pb-10" style={{ maxHeight: "88%" }}>
-            <View className="flex-row justify-between items-center mb-4">
-              <Text className="text-ink text-lg font-sans-bold">
-                {editingId ? "Edit recurring" : "New recurring"}
-              </Text>
-              <Pressable onPress={() => setShowForm(false)}>
-                <Text className="text-faint font-sans-semibold">Cancel</Text>
-              </Pressable>
-            </View>
+      <Sheet
+        visible={showForm}
+        onClose={() => setShowForm(false)}
+        title={editingId ? "Edit recurring" : "New recurring"}
+      >
+        <ChipGroup
+          label="How often"
+          value={freq}
+          options={[
+            { value: "daily" as Freq, label: "Daily" },
+            { value: "weekly" as Freq, label: "Weekly" },
+            { value: "monthly" as Freq, label: "Monthly" },
+          ]}
+          onSelect={setFreq}
+        />
 
-            <ScrollView keyboardShouldPersistTaps="handled">
-              <Picker
-                label="How often"
-                value={freq}
-                options={[
-                  { value: "daily" as Freq, label: "Daily" },
-                  { value: "weekly" as Freq, label: "Weekly" },
-                  { value: "monthly" as Freq, label: "Monthly" },
-                ]}
-                onSelect={setFreq}
-              />
+        {freq === "weekly" && (
+          <ChipGroup label="On" value={weekDay} options={WEEKDAYS} onSelect={setWeekDay} />
+        )}
 
-              {freq === "weekly" && (
-                <Picker label="On" value={weekDay} options={WEEKDAYS} onSelect={setWeekDay} />
-              )}
+        {freq === "monthly" && (
+          <ChipGroup
+            label="Day of month"
+            value={String(monthDay)}
+            // Capped at 28 so every month has the day — no "31st in
+            // February" surprises.
+            options={Array.from({ length: 28 }, (_, i) => ({
+              value: String(i + 1),
+              label: String(i + 1),
+            }))}
+            onSelect={(v) => setMonthDay(Number(v))}
+          />
+        )}
 
-              {freq === "monthly" && (
-                <Picker
-                  label="Day of month"
-                  value={String(monthDay)}
-                  // Capped at 28 so every month has the day — no "31st in
-                  // February" surprises.
-                  options={Array.from({ length: 28 }, (_, i) => ({
-                    value: String(i + 1),
-                    label: String(i + 1),
-                  }))}
-                  onSelect={(v) => setMonthDay(Number(v))}
-                />
-              )}
+        <ChipGroup
+          label="Category"
+          value={categoryId}
+          options={categories.map((a) => ({ value: a.id, label: a.name }))}
+          onSelect={setCategoryId}
+        />
 
-              <Picker
-                label="Category"
-                value={categoryId}
-                options={categories.map((a) => ({ value: a.id, label: a.name }))}
-                onSelect={setCategoryId}
-              />
+        <ChipGroup
+          label="Pay from"
+          value={pocketId}
+          options={pockets.map((a) => ({ value: a.id, label: a.name }))}
+          onSelect={setPocketId}
+        />
 
-              <Picker
-                label="Pay from"
-                value={pocketId}
-                options={pockets.map((a) => ({ value: a.id, label: a.name }))}
-                onSelect={setPocketId}
-              />
+        <AmountField
+          label="Amount"
+          value={amount}
+          onChange={setAmount}
+          currency={formCurrency}
+        />
 
-              <AmountField label="Amount" value={amount} onChange={setAmount} currency={formCurrency} />
+        <Field label="Memo" value={memo} onChange={setMemo} placeholder="Rent" error={formErr} />
 
-              <Field label="Memo" value={memo} onChange={setMemo} placeholder="Rent" />
+        <Button label="Save" onPress={saveRule} busy={formBusy} />
+      </Sheet>
 
-              {formErr && <Text className="text-error text-sm mb-3">{formErr}</Text>}
-
-              <PrimaryButton label="Save" onPress={saveRule} busy={formBusy} />
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+      <Dialog
+        visible={pendingDelete != null}
+        title="Delete this rule?"
+        body={
+          pendingDelete
+            ? `"${pendingDelete.template.memo || "This rule"}" stops posting. Entries it already created stay in the ledger.`
+            : undefined
+        }
+        confirmLabel="Delete"
+        busy={deleteBusy}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </View>
   );
 }

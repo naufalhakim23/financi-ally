@@ -1,0 +1,126 @@
+import { useState } from "react";
+import { ScrollView, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { router } from "expo-router";
+import {
+  ArrowUp,
+  BarChart3,
+  LogOut,
+  PieChart,
+  RefreshCw,
+  Repeat,
+  Type,
+  Wallet,
+} from "lucide-react-native";
+
+import { useAuth } from "../../../src/lib/auth";
+import { syncDatabase } from "../../../src/lib/sync";
+import { useSyncState } from "../../../src/lib/syncState";
+import { useWording } from "../../../src/lib/wording";
+import { Badge, Button, Card, ListRow, SectionLabel, TitleBar } from "../../../src/components/ui";
+
+// Everything direction 2a does not give a tab. Budgets, recurring rules and
+// reports still exist — they just stopped being destinations of their own.
+export default function MoreScreen() {
+  const { user, logout } = useAuth();
+  const { mode } = useWording();
+  const sync = useSyncState();
+  const [syncing, setSyncing] = useState(false);
+
+  async function doSync() {
+    if (syncing) return;
+    setSyncing(true);
+    try {
+      await syncDatabase();
+    } catch {
+      // Already reflected in the status strip; rethrowing would crash the tab.
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  return (
+    <SafeAreaView edges={["top"]} className="flex-1 bg-background">
+      <TitleBar title="More" />
+
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24, gap: 12 }}
+        showsVerticalScrollIndicator={false}
+      >
+        <Card padded={false}>
+          <ListRow
+            glyph={Type}
+            title="How it is worded"
+            subtitle={mode === "finance" ? "Finance" : "Normal"}
+            chevron
+            onPress={() => router.push("/(app)/wording")}
+          />
+          <ListRow
+            divider
+            glyph={PieChart}
+            title="The spending plan"
+            subtitle="Set what each category may take"
+            chevron
+            onPress={() => router.push("/(app)/budgets")}
+          />
+          <ListRow
+            divider
+            glyph={Repeat}
+            title="Repeating entries"
+            subtitle="Rent, salary, subscriptions"
+            chevron
+            onPress={() => router.push("/(app)/recurring")}
+          />
+          <ListRow
+            divider
+            glyph={BarChart3}
+            title="Reports"
+            subtitle="Cash flow and category breakdown"
+            chevron
+            onPress={() => router.push("/(app)/reports")}
+          />
+          <ListRow
+            divider
+            glyph={Wallet}
+            title="Add a pocket"
+            subtitle="A bank account, cash, a card"
+            chevron
+            onPress={() => router.push("/(app)/pocket-new")}
+          />
+        </Card>
+
+        <SectionLabel>this device</SectionLabel>
+        <Card>
+          <View className="flex-row items-center justify-between">
+            <View className="flex-1 pr-3">
+              <Text className="text-body-strong font-sans-semibold text-ink">Sync</Text>
+              <Text className="text-caption font-sans-medium text-faint mt-0.5">
+                {user?.email ?? "signed in"}
+              </Text>
+            </View>
+            {sync.pending && !syncing && (
+              <View className="mr-2">
+                <Badge tone="warning" glyph={ArrowUp}>
+                  pending
+                </Badge>
+              </View>
+            )}
+            <Button
+              label={syncing ? "Syncing…" : "Sync now"}
+              variant="secondary"
+              glyph={RefreshCw}
+              fullWidth={false}
+              disabled={syncing}
+              onPress={doSync}
+            />
+          </View>
+        </Card>
+
+        <View className="mt-2">
+          <Button label="Sign out" variant="destructive" glyph={LogOut} onPress={logout} />
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}

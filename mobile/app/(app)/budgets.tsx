@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { router } from "expo-router";
 
 import { authedApi, type BudgetWithSpent } from "../../src/lib/api";
 import { useAuth } from "../../src/lib/auth";
@@ -21,6 +23,7 @@ import {
   Target,
   accountGlyph,
   categorySlot,
+  ScreenHeader,
 } from "../../src/components/ui";
 
 function currentMonth(): string {
@@ -149,7 +152,8 @@ export default function Budgets() {
   const formCurrency = expenseAccounts.find((a) => a.id === formAccountId)?.currency ?? base;
 
   return (
-    <View className="flex-1 bg-background">
+    <SafeAreaView edges={["top"]} className="flex-1 bg-background">
+      <ScreenHeader title="The spending plan" backLabel="More" onBack={() => router.back()} />
       <ScrollView
         className="flex-1"
         contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
@@ -307,6 +311,6 @@ export default function Budgets() {
         onConfirm={confirmDelete}
         onCancel={() => setPendingDelete(null)}
       />
-    </View>
+    </SafeAreaView>
   );
 }

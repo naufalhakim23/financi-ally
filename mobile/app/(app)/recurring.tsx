@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { router } from "expo-router";
 
 import { authedApi, type RecurringRule, type RecurringTemplate } from "../../src/lib/api";
 import { useAuth } from "../../src/lib/auth";
@@ -20,6 +22,7 @@ import {
   Repeat,
   SectionLabel,
   Sheet,
+  ScreenHeader,
 } from "../../src/components/ui";
 
 type Freq = "daily" | "weekly" | "monthly";
@@ -259,7 +262,8 @@ export default function Recurring() {
   const active = rules.filter((r) => r.active);
 
   return (
-    <View className="flex-1 bg-background">
+    <SafeAreaView edges={["top"]} className="flex-1 bg-background">
+      <ScreenHeader title="Repeating entries" backLabel="More" onBack={() => router.back()} />
       <ScrollView className="flex-1" contentContainerStyle={{ padding: 16, paddingBottom: 24 }}>
         <Card className="mb-card-gap">
           <SectionLabel>Scheduled</SectionLabel>
@@ -442,6 +446,6 @@ export default function Recurring() {
         onConfirm={confirmDelete}
         onCancel={() => setPendingDelete(null)}
       />
-    </View>
+    </SafeAreaView>
   );
 }

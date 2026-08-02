@@ -1,5 +1,5 @@
 import { Pressable, Text, View } from "react-native";
-import { ChevronRight } from "lucide-react-native";
+import { ArrowLeftRight, ChevronRight, Plus } from "lucide-react-native";
 
 import { Amount, Button, Card, IconBox, usePressed } from "./core";
 import { C, type Glyph } from "./tokens";
@@ -13,30 +13,45 @@ import { C, type Glyph } from "./tokens";
  */
 export function ListRow({
   title,
+  titleSize = "md",
   subtitle,
+  subtitleTone = "faint",
+  subtitleGlyph: S,
   glyph,
   slot,
   amount,
   currency,
+  amountSize = "md",
   amountTone = "flow",
   converted,
+  meta,
   stale = false,
   trailing,
   chevron = false,
+  chevronGlyph: Chev = ChevronRight,
   divider = false,
   onPress,
 }: {
   title: string;
+  titleSize?: "md" | "lg";
   subtitle?: string;
+  /** A subtitle that carries a caution (a stale rate, an unsynced write). */
+  subtitleTone?: "faint" | "warning";
+  subtitleGlyph?: Glyph;
   glyph?: Glyph;
   slot?: number;
   amount?: number;
   currency?: string;
+  amountSize?: "hero" | "lg" | "md" | "sm";
   amountTone?: "flow" | "neutral";
   converted?: { minor: number; currency: string };
+  /** Mono footnote under the amount — a running balance, a native-currency split. */
+  meta?: string;
   stale?: boolean;
   trailing?: React.ReactNode;
   chevron?: boolean;
+  /** Swap the chevron's direction, e.g. to show an expanded bucket. */
+  chevronGlyph?: Glyph;
   divider?: boolean;
   onPress?: () => void;
 }) {
@@ -61,26 +76,41 @@ export function ListRow({
       >
         {glyph && <IconBox glyph={glyph} slot={slot} />}
         <View className="flex-1 min-w-0">
-          <Text className="text-body-strong font-sans-semibold text-ink" numberOfLines={1}>
+          <Text
+            className={`${titleSize === "lg" ? "text-body-lg" : "text-body-strong"} font-sans-semibold text-ink`}
+            numberOfLines={1}
+          >
             {title}
           </Text>
           {subtitle && (
-            <Text className="text-caption font-sans-medium text-faint" numberOfLines={1}>
-              {subtitle}
-            </Text>
+            <View className="flex-row items-center" style={{ gap: 5 }}>
+              {S && <S size={12} color={subtitleTone === "warning" ? C.warning : C.faint} strokeWidth={2} />}
+              <Text
+                className={`text-caption font-sans-medium ${
+                  subtitleTone === "warning" ? "text-warning" : "text-faint"
+                }`}
+                numberOfLines={1}
+              >
+                {subtitle}
+              </Text>
+            </View>
           )}
         </View>
         {trailing}
         {amount != null && currency && (
-          <Amount
-            minor={amount}
-            currency={currency}
-            tone={amountTone}
-            converted={converted}
-            stale={stale}
-          />
+          <View className="items-end">
+            <Amount
+              minor={amount}
+              currency={currency}
+              size={amountSize}
+              tone={amountTone}
+              converted={converted}
+              stale={stale}
+            />
+            {meta && <Text className="text-mono-meta font-mono text-faint">{meta}</Text>}
+          </View>
         )}
-        {chevron && <ChevronRight size={16} color={C.chevron} strokeWidth={1.75} />}
+        {chevron && <Chev size={18} color={C.chevron} strokeWidth={1.75} />}
       </Pressable>
     </View>
   );
@@ -121,6 +151,96 @@ export function EmptyState({
         )}
       </View>
     </Card>
+  );
+}
+
+/**
+ * 36px bordered affordance that lives at the end of a row. Small on purpose —
+ * the row itself is the primary target, these are the secondary verbs.
+ */
+export function RowAction({
+  glyph: G,
+  label,
+  onPress,
+  tone = "neutral",
+}: {
+  glyph: Glyph;
+  label: string;
+  onPress: () => void;
+  /** `info` marks a move: shifting money between pockets is not spending. */
+  tone?: "neutral" | "info";
+}) {
+  const { pressed, handlers } = usePressed();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      {...handlers}
+      className={`w-9 h-9 rounded-xl border border-outline items-center justify-center ${
+        pressed ? (tone === "info" ? "bg-info-wash" : "bg-surface-pressed") : "bg-surface"
+      }`}
+    >
+      <G size={17} color={tone === "info" ? C.info : C.ink} strokeWidth={1.75} />
+    </Pressable>
+  );
+}
+
+/**
+ * A child inside an expanded bucket. Indented to the parent's text column so
+ * the tree reads as a tree, with its own add / move affordances.
+ */
+export function BucketChildRow({
+  name,
+  meta,
+  onPress,
+  onAdd,
+  onMove,
+  divider = true,
+}: {
+  name: string;
+  meta: string;
+  onPress?: () => void;
+  onAdd?: () => void;
+  onMove?: () => void;
+  divider?: boolean;
+}) {
+  const { pressed, handlers } = usePressed();
+  return (
+    <View>
+      {divider && <View className="h-px bg-outline-variant ml-[68px]" />}
+      <Pressable
+        onPress={onPress}
+        disabled={!onPress}
+        accessibilityRole={onPress ? "button" : undefined}
+        {...handlers}
+        className={`flex-row items-center pl-[68px] pr-4 py-2.5 ${
+          pressed && onPress ? "bg-surface-pressed" : ""
+        }`}
+        style={{ gap: 10 }}
+      >
+        <View className="flex-1 min-w-0">
+          <Text className="text-body font-sans-medium text-ink" numberOfLines={1}>
+            {name}
+          </Text>
+          <Text className="text-mono-meta font-mono text-faint">{meta}</Text>
+        </View>
+        {onAdd && <RowAction glyph={Plus} label={`Add to ${name}`} onPress={onAdd} />}
+        {onMove && (
+          <RowAction glyph={ArrowLeftRight} label={`Move money in ${name}`} onPress={onMove} tone="info" />
+        )}
+      </Pressable>
+    </View>
+  );
+}
+
+/** Day or period divider above a group of ledger rows, with that group's net. */
+export function DayHeader({ label, total }: { label: string; total?: string }) {
+  return (
+    <View className="flex-row items-baseline justify-between px-1">
+      <Text className="text-overline font-sans-semibold text-faint uppercase">{label}</Text>
+      {total && <Text className="text-mono-meta font-mono text-faint">{total}</Text>}
+    </View>
   );
 }
 

@@ -16,6 +16,10 @@ export { CHART_SLOTS as SERIES, slotColor as seriesColor };
 // touching slices stay separable for CVD readers.
 const GAP_DEG = 2;
 
+// Bar corner softening. Below the smallest shape token on purpose: a 6px radius
+// on a 10px-wide bar eats the bar.
+const BAR_RADIUS = 3;
+
 export type DonutSlice = { id: string; value: number; color: string };
 
 /**
@@ -139,10 +143,15 @@ export type TrendPoint = { key: string; label: string; value: number; emphasized
 export function TrendBars({
   points,
   height = 72,
+  gap = 6,
+  showLabels = true,
   formatValue,
 }: {
   points: TrendPoint[];
   height?: number;
+  gap?: number;
+  /** Off for the dense Home sparkline, where twelve labels would not fit. */
+  showLabels?: boolean;
   formatValue?: (v: number) => string;
 }) {
   const max = points.reduce((m, p) => Math.max(m, p.value), 0);
@@ -150,33 +159,122 @@ export function TrendBars({
 
   return (
     <View>
-      <View className="flex-row items-end" style={{ height, gap: 6 }}>
+      <View className="flex-row items-end" style={{ height, gap }}>
         {points.map((p) => {
           const h = max > 0 ? Math.max((p.value / max) * height, MIN_BAR) : MIN_BAR;
           return (
             <View
               key={p.key}
-              className={`flex-1 rounded-t ${p.emphasized ? "bg-primary" : "bg-surface-container-high"}`}
-              style={{ height: h }}
+              className={`flex-1 ${p.emphasized ? "bg-primary" : "bg-surface-container-high"}`}
+              style={{ height: h, borderRadius: BAR_RADIUS }}
             />
           );
         })}
       </View>
-      <View className="flex-row mt-1.5" style={{ gap: 6 }}>
+      {showLabels && (
+        <View className="flex-row mt-1.5" style={{ gap }}>
+          {points.map((p) => (
+            <Text
+              key={p.key}
+              className={`flex-1 text-center text-caption ${
+                p.emphasized ? "text-ink font-sans-semibold" : "text-faint font-sans-medium"
+              }`}
+            >
+              {p.label}
+            </Text>
+          ))}
+        </View>
+      )}
+      {formatValue && (
+        <Text className="text-mono-meta font-mono text-faint mt-1">peak {formatValue(max)}</Text>
+      )}
+    </View>
+  );
+}
+
+export type StackSegment = { id: string; value: number; color: string };
+
+/**
+ * One horizontal bar split into shares — "where it went". Reads as a single
+ * object rather than a chart, so it carries no axis; the legend beneath it (a
+ * `ChartLegend` or a hand-laid grid) supplies identity and value.
+ */
+export function StackedBar({ segments, height = 12 }: { segments: StackSegment[]; height?: number }) {
+  const total = segments.reduce((s, x) => s + Math.max(0, x.value), 0);
+  return (
+    <View
+      className="flex-row rounded-full overflow-hidden bg-surface-container-high"
+      style={{ height }}
+    >
+      {total > 0 &&
+        segments.map((s) => (
+          <View
+            key={s.id}
+            style={{ flexGrow: Math.max(0, s.value), flexBasis: 0, backgroundColor: s.color }}
+          />
+        ))}
+    </View>
+  );
+}
+
+export type GroupedPoint = { key: string; label: string; a: number; b: number };
+
+/**
+ * Two series side by side per period — money in against money out. Two series
+ * means identity can no longer come from position alone, so the caller must
+ * ship the legend (`aLabel` / `bLabel` name what each fill means).
+ */
+export function GroupedBars({
+  points,
+  height = 88,
+  aColor = C.success,
+  bColor = C.primary,
+}: {
+  points: GroupedPoint[];
+  height?: number;
+  aColor?: string;
+  bColor?: string;
+}) {
+  const max = points.reduce((m, p) => Math.max(m, p.a, p.b), 0);
+  const MIN_BAR = 3;
+  const bar = (v: number) => (max > 0 ? Math.max((v / max) * height, MIN_BAR) : MIN_BAR);
+
+  return (
+    <View>
+      <View className="flex-row items-end" style={{ height, gap: 10 }}>
+        {points.map((p) => (
+          <View key={p.key} className="flex-1 flex-row items-end" style={{ gap: 3, height }}>
+            <View
+              className="flex-1"
+              style={{ height: bar(p.a), backgroundColor: aColor, borderRadius: BAR_RADIUS }}
+            />
+            <View
+              className="flex-1"
+              style={{ height: bar(p.b), backgroundColor: bColor, borderRadius: BAR_RADIUS }}
+            />
+          </View>
+        ))}
+      </View>
+      <View className="flex-row mt-1.5" style={{ gap: 10 }}>
         {points.map((p) => (
           <Text
             key={p.key}
-            className={`flex-1 text-center text-caption ${
-              p.emphasized ? "text-ink font-sans-semibold" : "text-faint font-sans-medium"
-            }`}
+            className="flex-1 text-center text-mono-meta font-mono text-faint"
           >
             {p.label}
           </Text>
         ))}
       </View>
-      {formatValue && (
-        <Text className="text-mono-meta font-mono text-faint mt-1">peak {formatValue(max)}</Text>
-      )}
+    </View>
+  );
+}
+
+/** Legend swatch + label pair, for charts that lay their own legend out. */
+export function LegendDot({ color, label }: { color: string; label: string }) {
+  return (
+    <View className="flex-row items-center" style={{ gap: 5 }}>
+      <View className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: color }} />
+      <Text className="text-caption font-sans-medium text-dim">{label}</Text>
     </View>
   );
 }

@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "module": "commonjs",
+    "moduleResolution": "bundler",
+    "customConditions": [],
+    "rootDir": "src",
+    "outDir": ".check",
+    "types": []
+  },
+  "include": ["src/lib/checks.ts"]
+}

@@ -1,11 +1,14 @@
 import { useState } from "react";
 import { Pressable, Switch as RNSwitch, Text, TextInput, View } from "react-native";
-import { ChevronDown } from "lucide-react-native";
+import { ChevronDown, Delete } from "lucide-react-native";
 
 import { Chip, usePressed } from "./core";
 import { ListRow } from "./lists";
 import { Sheet } from "./overlays";
-import { C } from "./tokens";
+import { C, ELEVATION } from "./tokens";
+import { KEYPAD_KEYS, type KeypadKey, applyKey } from "../../lib/keypad";
+
+export { applyKey, type KeypadKey };
 
 // ─── Form atoms (DESIGN.md v1.0 → Input fields, Selects, switches) ──────────
 // Inputs are recessed wells: surface-container fill, no border, so they read as
@@ -256,7 +259,7 @@ export function SegmentedControl<T extends string>({
   onChange: (v: T) => void;
 }) {
   return (
-    <View className="flex-row rounded-full bg-surface-container p-1" style={{ gap: 4 }}>
+    <View className="flex-row rounded-lg bg-surface-container p-[3px]">
       {options.map((o) => {
         const active = o.value === value;
         const tone = o.tone ?? "neutral";
@@ -266,10 +269,13 @@ export function SegmentedControl<T extends string>({
             onPress={() => onChange(o.value)}
             accessibilityRole="tab"
             accessibilityState={{ selected: active }}
-            className={`flex-1 py-2 rounded-full items-center ${active ? "bg-surface" : ""}`}
+            className={`flex-1 py-2.5 items-center ${active ? "bg-surface" : ""}`}
+            // The thumb sits 2px inside the track, so its radius is the track's
+            // less the padding — there is no token for a derived inner radius.
+            style={active ? [{ borderRadius: 10 }, ELEVATION.card] : undefined}
           >
             <Text
-              className={`text-label font-sans-semibold ${
+              className={`text-body-strong font-sans-semibold ${
                 active ? SEG_ACTIVE_TEXT[tone] : "text-faint"
               }`}
             >
@@ -279,6 +285,89 @@ export function SegmentedControl<T extends string>({
         );
       })}
     </View>
+  );
+}
+
+/**
+ * The amount under entry, shown as a recessed well rather than a text field.
+ * RN has no inset shadow, so the recess is carried by the tonal step alone
+ * (`surface-container` inside a `surface` sheet) — which is the depth model
+ * DESIGN.md picked anyway.
+ */
+export function AmountWell({
+  currency,
+  display,
+  helper,
+  onPressCurrency,
+}: {
+  currency: string;
+  /** Already grouped for display — the keypad owns the raw digits. */
+  display: string;
+  helper?: string;
+  onPressCurrency?: () => void;
+}) {
+  return (
+    <View className="bg-surface-container rounded-lg px-4 py-4 items-center" style={{ gap: 6 }}>
+      <Pressable
+        onPress={onPressCurrency}
+        disabled={!onPressCurrency}
+        accessibilityRole={onPressCurrency ? "button" : undefined}
+        accessibilityLabel={`Currency ${currency}`}
+        className="flex-row items-center"
+        style={{ gap: 4 }}
+      >
+        <Text className="text-label font-sans-semibold text-dim">{currency}</Text>
+        {onPressCurrency && <ChevronDown size={13} color={C.dim} strokeWidth={2} />}
+      </Pressable>
+      <Text className="text-amount-hero font-mono-bold text-ink">{display || "0"}</Text>
+      {helper && <Text className="text-mono-meta font-mono text-faint">{helper}</Text>}
+    </View>
+  );
+}
+
+/**
+ * Numeric keypad for the add sheet. Custom rather than the OS keyboard so the
+ * amount, the pickers and the keys stay on one surface — the sheet never has to
+ * fight a keyboard for the bottom of the screen.
+ */
+export function Keypad({ onKey }: { onKey: (key: KeypadKey) => void }) {
+  return (
+    <View className="flex-row flex-wrap" style={{ gap: 8 }}>
+      {KEYPAD_KEYS.map((k) => (
+        <KeypadButton key={k} value={k} onPress={() => onKey(k)} />
+      ))}
+    </View>
+  );
+}
+
+function KeypadButton({ value, onPress }: { value: KeypadKey; onPress: () => void }) {
+  const { pressed, handlers } = usePressed();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={value === "back" ? "Delete last digit" : value}
+      {...handlers}
+      className={`rounded-lg items-center justify-center py-3.5 ${
+        pressed ? "bg-surface-container-high" : "bg-surface-container"
+      }`}
+      // Three per row with two 8px gaps between them.
+      style={{ width: "31.5%", minHeight: 52 }}
+    >
+      {value === "back" ? (
+        <Delete size={22} color={C.dim} strokeWidth={1.75} />
+      ) : (
+        <Text
+          className={
+            value === "000"
+              ? "text-body-lg font-mono-medium text-dim"
+              : "text-amount-lg font-mono-bold text-ink"
+          }
+        >
+          {value}
+        </Text>
+      )}
+    </Pressable>
   );
 }
 

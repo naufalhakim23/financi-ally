@@ -1,5 +1,6 @@
 import { useMemo } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
+import { router } from "expo-router";
 
 import { useAuth } from "../../src/lib/auth";
 import { database } from "../../src/lib/db";
@@ -7,7 +8,7 @@ import { accountSigned, netWorth } from "../../src/lib/balances";
 import { format } from "../../src/lib/money";
 import { useObservable } from "../../src/lib/useObserve";
 import { Account, JournalLine } from "../../src/model/models";
-import { Card, IconBox, SectionLabel } from "../../src/components/ui";
+import { Card, EmptyState, IconBox, SectionLabel } from "../../src/components/ui";
 
 const GROUPS: { title: string; types: string[]; icon: string }[] = [
   { title: "Assets", types: ["asset"], icon: "💵" },
@@ -24,6 +25,23 @@ export default function Pockets() {
   const lines = useObservable(linesObs, [] as JournalLine[]);
 
   const worth = netWorth(accounts, lines);
+  const pockets = accounts.filter(
+    (a) => (a.type === "asset" || a.type === "liability") && !a.archived,
+  );
+
+  if (pockets.length === 0) {
+    return (
+      <View className="flex-1 bg-background justify-center px-4">
+        <EmptyState
+          icon="👛"
+          title="No pockets yet"
+          body="Add the bank account, cash, or card your money actually sits in."
+          actionLabel="Add a pocket"
+          onAction={() => router.push("/(app)/pocket-new?first=1")}
+        />
+      </View>
+    );
+  }
 
   return (
     <ScrollView
@@ -89,6 +107,13 @@ export default function Pockets() {
           </View>
         );
       })}
+
+      <Pressable
+        onPress={() => router.push("/(app)/pocket-new")}
+        className="border border-outline bg-surface rounded-xl py-4 items-center"
+      >
+        <Text className="text-ink text-[13px] font-sans-semibold">＋ New pocket</Text>
+      </Pressable>
     </ScrollView>
   );
 }

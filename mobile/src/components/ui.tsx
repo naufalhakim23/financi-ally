@@ -110,6 +110,50 @@ export function IconBox({
   );
 }
 
+/**
+ * Empty state: what a surface shows when it has nothing yet. Always says what
+ * the surface is for and, where there is one, offers the action that fills it —
+ * a bare "no data" line leaves a new user stuck.
+ */
+export function EmptyState({
+  icon,
+  title,
+  body,
+  actionLabel,
+  onAction,
+}: {
+  icon: string;
+  title: string;
+  body?: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}) {
+  return (
+    <Card>
+      <View className="items-center py-3">
+        <Text className="text-[28px] mb-2">{icon}</Text>
+        <Text className="text-ink text-[15px] font-sans-semibold text-center">{title}</Text>
+        {body && (
+          <Text className="text-dim text-[12px] font-sans-medium text-center mt-1">{body}</Text>
+        )}
+        {actionLabel && onAction && (
+          <Pressable
+            onPress={onAction}
+            className="bg-primary rounded-xl px-5 py-3 mt-4"
+          >
+            <Text className="text-on-primary text-[13px] font-sans-bold">{actionLabel}</Text>
+          </Pressable>
+        )}
+      </View>
+    </Card>
+  );
+}
+
+/** Placeholder block for content still loading. Sized by the caller. */
+export function Skeleton({ className = "" }: { className?: string }) {
+  return <View className={`bg-surface-container-high rounded-lg ${className}`} />;
+}
+
 type BadgeTone = "neutral" | "success" | "warning" | "error" | "info";
 const BADGE_TONE: Record<BadgeTone, string> = {
   neutral: "bg-surface-container-high text-dim",

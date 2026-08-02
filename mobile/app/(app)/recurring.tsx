@@ -8,7 +8,7 @@ import { format, toMinor } from "../../src/lib/money";
 import { useObservable } from "../../src/lib/useObserve";
 import { Account } from "../../src/model/models";
 import { AmountField, Field, Picker, PrimaryButton } from "../../src/components/forms";
-import { Badge, Card, IconBox, SectionLabel } from "../../src/components/ui";
+import { Badge, Card, EmptyState, IconBox, SectionLabel } from "../../src/components/ui";
 
 type Freq = "daily" | "weekly" | "monthly";
 
@@ -262,11 +262,13 @@ export default function Recurring() {
         )}
 
         {rules.length === 0 && !err && (
-          <Card className="mb-4">
-            <Text className="text-faint text-sm">
-              No recurring transactions yet. Add rent, subscriptions or salary so they post themselves.
-            </Text>
-          </Card>
+          <View className="mb-4">
+            <EmptyState
+              icon="🔁"
+              title="Nothing recurring yet"
+              body="Add rent, a subscription, or salary and it posts itself on schedule."
+            />
+          </View>
         )}
 
         {rules.length > 0 && (

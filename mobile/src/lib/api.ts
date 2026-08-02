@@ -31,6 +31,8 @@ export type BudgetWithSpent = S["BudgetWithSpent"];
 export type NetWorth = S["NetWorth"];
 export type CategorySpend = S["CategorySpend"];
 export type CashFlow = S["CashFlow"];
+export type MonthlySeries = S["MonthlySeries"];
+export type MonthlyPoint = S["MonthlyPoint"];
 export type RecurringRule = S["RecurringRule"];
 export type RecurringTemplate = S["RecurringTemplate"];
 export type FxRate = S["FxRate"];
@@ -189,6 +191,11 @@ export const authedApi = {
   getCashFlow: (from: string, to: string) =>
     withAuthRetry((tok) =>
       client.GET("/reports/cash-flow", { headers: authHdr(tok), params: { query: { from, to } } }).then(unwrap),
+    ),
+
+  getMonthlySeries: (months = 6) =>
+    withAuthRetry((tok) =>
+      client.GET("/reports/monthly", { headers: authHdr(tok), params: { query: { months } } }).then(unwrap),
     ),
 
   listRecurring: () =>

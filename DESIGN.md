@@ -227,6 +227,30 @@ Every money figure uses JetBrains Mono. Sign + color are automatic: `≥ 0` rend
 
 ALL-CAPS, Outfit SemiBold, wide tracking, `faint` color — the quiet structural label above each card group ("Accounts", "Recent", "July Budget").
 
+### Charts
+
+The brand palette is deliberately neutral, so it cannot encode series identity. Charts carry their own **categorical ramp**, assigned by slot in a fixed order — slot 1 to the largest series, and never re-assigned when the series count changes (a filter must not repaint the survivors). Implemented in `mobile/src/components/charts.tsx`.
+
+| Slot | Hue | Hex |
+|---|---|---|
+| 1 | blue | `#2a78d6` |
+| 2 | orange | `#eb6834` |
+| 3 | aqua | `#1baf7a` |
+| 4 | yellow | `#eda100` |
+| 5 | magenta | `#e87ba4` |
+| 6 | green | `#008300` |
+| 7 | violet | `#4a3aa7` |
+| 8 | red | `#e34948` — also the "Other" bucket |
+
+Validated on the `#FFFFFF` card surface: worst adjacent CVD ΔE 9.1, worst adjacent normal-vision ΔE 19.6. Aqua, yellow and magenta sit under 3:1 against the surface, so **every chart using this ramp ships a labelled legend** carrying name + value — identity is never color-alone.
+
+**Rules**:
+- Past 7 categories, fold the tail into a single "Other" slice rather than inventing hues.
+- Series color belongs to marks only; values, labels and legends stay in `ink` / `dim` / `faint`.
+- Single-series charts (the monthly trend) use `primary` for the current period and `surface-container-high` for the rest — no ramp, no legend.
+- Never a second y-axis. Two measures of different scale get two charts.
+- Grid and axes stay recessive or absent; the number beside the mark does the work.
+
 ## Do's and Don'ts
 
 - Do reserve green strictly for positive semantics (income, under-budget, synced). A green primary button conflates "money" with "go" — don't.
@@ -280,11 +304,12 @@ Phone-only (no tablet layout yet). Single column at all widths. Safe-area insets
 | Gap | Canon | Current | Priority |
 |---|---|---|---|
 | Center FAB in bottom tab bar (prototype Add affordance) | FAB+ center tab | Dashboard "New entry" primary button | Med |
+| Chart ramp in dark mode | Own steps validated against the dark surface | Light steps only | Low |
 | Accounts / Ledger-detail / Currencies screens | Prototype designed | Not yet built (out of this pass) | Med |
 | Dark mode tokens | `userInterfaceStyle: automatic` set | Light-only tokens defined | Low |
 | Platform-adaptive chrome | Unified look | Unified (iOS-flavored on both) | Low |
 
 ---
 
-**Last updated**: 2026-07-28
+**Last updated**: 2026-07-31
 **How AI agents should read this**: tokens above are normative — use them verbatim. Prose is rationale — it answers "why" so judgment calls during implementation match the brand's intent. When prose and tokens disagree, tokens win.

@@ -4,7 +4,7 @@ Personal expense & budget tracker. Double-entry ledger, multi-currency, offline-
 Go (chi + oapi-codegen) backend + Expo (Router + NativeWind + TanStack Query) mobile.
 
 > Plan: `docs/plans/01-financi-ally/plan.html` (in the atlas workspace).
-> Status: **M5: budgets + M4: multi-currency + reports** — full CRUD budgets, FX rates, reports.
+> Status: **M7: polish** — charts, onboarding with opening balance, empty/loading/sync states, EAS build config.
 > See milestones + decision logs (`docs/decision_logs/`).
 
 ## Repo map
@@ -58,6 +58,29 @@ npx expo start       # needs a dev-client build (WatermelonDB is native, not in 
 
 `GET /healthz` → `{"status":"ok","db":"up"}` means the whole backend→DB chain is wired.
 
+## Builds (EAS)
+
+`mobile/eas.json` defines three profiles. The first run needs an Expo account —
+`eas init` writes the project id back into `app.json`.
+
+```bash
+cd mobile
+npx eas-cli login
+npx eas-cli init                       # one-time: links the Expo project
+npx eas-cli build --profile development --platform ios      # dev client (WatermelonDB is native)
+npx eas-cli build --profile preview --platform android      # installable APK for testers
+npx eas-cli build --profile production --platform all
+```
+
+| Profile | Distribution | `EXPO_PUBLIC_API_URL` |
+|---|---|---|
+| `development` | dev client, internal, iOS simulator | `http://localhost:8080` |
+| `preview` | internal, Android APK | `http://localhost:8080` |
+| `production` | store | placeholder — **set this to the deployed API before shipping** |
+
+The `production` URL in `eas.json` is a deliberate placeholder (`api.financially.invalid`)
+so a store build can't silently point at nothing real.
+
 ## Tests
 
 Backend integration tests hit a real Postgres; set `DATABASE_URL` or they skip.
@@ -105,7 +128,8 @@ once, run `make generate-contract`, both sides update.
 - **M4** ✅ multi-currency + FX job + reports (FX from frankfurter.app, server-normalized reports, mobile Reports tab)
 - **M5** ✅ budgets: monthly category targets + budget screen (create/edit/delete UI + dashboard summary)
 - **M6** ✅ recurring (RRULE): rules + server scheduler (idempotent per occurrence, catches up after downtime), offline sync, Recurring tab
-- **M7** polish: DESIGN.md, charts, onboarding, EAS build
+- **M7** ✅ polish: DESIGN.md, charts (donut + monthly trend), onboarding + opening balance, empty/loading/sync states, EAS build config
+  - still open: **Apple Sign-In** (needs an Apple Developer account) and running the first EAS build
 
 > Synced tables use client-generated text IDs (WatermelonDB-native); `users`
 > stays server-uuid. See `docs/decision_logs/0004-m3-sync.md`.

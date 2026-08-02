@@ -9,6 +9,9 @@
     "paths": {
       "react-native/types/*": [
         "./node_modules/react-native/types/*"
+      ],
+      "@financially/domain/*": [
+        "../shared-context/domain/*"
       ]
     }
   },

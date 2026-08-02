@@ -1,0 +1,15 @@
+{
+  "name": "@financially/domain",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Pure money logic shared by the mobile and web clients. No React, no storage, no API client.",
+  "scripts": {
+    "test": "vitest run",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

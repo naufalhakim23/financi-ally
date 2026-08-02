@@ -115,6 +115,10 @@ paths:
         The presented refresh token is revoked and a fresh access+refresh pair
         is returned. A replayed, expired, or forged token yields 401; rotation
         is atomic, so reuse is detected on the second presentation.
+
+        `refresh_token` is optional: a browser client posts `{}` and the server
+        reads the token from the httpOnly `fa_refresh` cookie instead
+        (WEB_COOKIE_AUTH). Mobile keeps sending it in the body.
       requestBody:
         required: true
         content:
@@ -264,6 +268,10 @@ paths:
       operationId: logout
       tags: [auth]
       summary: Revoke the presented refresh token
+      description: >
+        `refresh_token` is optional for the same reason as /auth/refresh — a
+        browser posts `{}` and presents the token through the httpOnly
+        `fa_refresh` cookie, which this call also clears.
       security:
         - bearerAuth: []
       requestBody:
@@ -345,6 +353,60 @@ paths:
                   $ref: '#/components/schemas/Account'
         '401':
           description: missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /accounts/{id}:
+    patch:
+      operationId: updateAccount
+      tags: [ledger]
+      summary: Rename and/or archive an account
+      description: >
+        Both fields are optional; omitting one leaves it unchanged, so rename,
+        archive and restore are the same call. At least one must be present.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/LedgerId'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAccountRequest'
+      responses:
+        '200':
+          description: the updated account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '400':
+          description: malformed body, or neither field supplied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: account not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: an account of this type with this name already exists
           content:
             application/json:
               schema:
@@ -485,6 +547,86 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Entry'
+        '401':
+          description: missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: entry not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    patch:
+      operationId: updateEntry
+      tags: [ledger]
+      summary: Relabel a posted entry
+      description: >
+        The memo is the only mutable field on a posted entry. Amounts, accounts
+        and the date *are* the posting — correcting one means deleting the entry
+        and posting a new one, which is what the clients do.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/LedgerId'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateEntryRequest'
+      responses:
+        '200':
+          description: the updated entry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entry'
+        '400':
+          description: malformed body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: entry not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      operationId: deleteEntry
+      tags: [ledger]
+      summary: Remove a posted entry from the ledger
+      description: >
+        Soft-delete: the row survives for audit, but every read path (balances,
+        reports, list, sync pull) filters it out, so the money is gone from the
+        book immediately. Idempotent — deleting twice still answers 204.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/LedgerId'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: entry deleted
         '401':
           description: missing or invalid token
           content:
@@ -1495,10 +1637,12 @@ components:
           format: password
     RefreshRequest:
       type: object
-      required: [refresh_token]
       properties:
         refresh_token:
           type: string
+          description: >
+            Omit (post `{}`) when the caller is a browser relying on the
+            httpOnly fa_refresh cookie. Mobile always sends it.
     ForgotPasswordRequest:
       type: object
       required: [email]
@@ -1581,6 +1725,25 @@ components:
         parent_id:
           type: string
           nullable: true
+    UpdateAccountRequest:
+      type: object
+      description: >
+        Every field optional; an omitted field is left unchanged. Supplying
+        neither is a 400 — an empty patch is a mistake, not a no-op.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        archived:
+          type: boolean
+    UpdateEntryRequest:
+      type: object
+      required: [memo]
+      properties:
+        memo:
+          type: string
+          maxLength: 500
     JournalLine:
       type: object
       required: [id, entry_id, account_id, dc, amount_minor, currency]

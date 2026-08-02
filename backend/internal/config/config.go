@@ -72,6 +72,18 @@ type AuthConfig struct {
 	AccessTokenTTL      time.Duration
 	RefreshTokenTTL     time.Duration
 	BaseCurrencyDefault string // ISO 4217, e.g. IDR
+
+	// WebCookieAuth mirrors the refresh token into an httpOnly cookie so the
+	// browser client can survive a reload without parking a long-lived
+	// credential in localStorage. Off by default: it is only meaningful when the
+	// SPA is served same-origin with the API, and the mobile app neither needs
+	// nor notices it.
+	WebCookieAuth bool
+	// WebCookieSecure marks that cookie Secure. Must stay false for plain-HTTP
+	// local dev — a Secure cookie is simply not stored over http:// — and is
+	// forced on in production, where a refresh token over cleartext is a
+	// credential leak, not a configuration preference.
+	WebCookieSecure bool
 }
 
 // GoogleOAuthConfig holds the server-side Google OAuth client used to exchange
@@ -102,6 +114,8 @@ func Load() (*Config, error) {
 			AccessTokenTTL:      getEnvDuration("JWT_ACCESS_TTL", 15*time.Minute),
 			RefreshTokenTTL:     getEnvDuration("REFRESH_TOKEN_TTL", 30*24*time.Hour),
 			BaseCurrencyDefault: getEnv("BASE_CURRENCY_DEFAULT", "IDR"),
+			WebCookieAuth:       getEnvBool("WEB_COOKIE_AUTH", false),
+			WebCookieSecure:     getEnvBool("WEB_COOKIE_SECURE", false),
 		},
 		Google: GoogleOAuthConfig{
 			ClientID:     getEnv("GOOGLE_OAUTH_CLIENT_ID", ""),
@@ -123,6 +137,11 @@ func Load() (*Config, error) {
 		},
 	}
 
+	// A refresh token is a bearer credential for the whole account; shipping it
+	// over cleartext in production is not a knob worth honouring.
+	if cfg.Server.Environment == "production" && cfg.Auth.WebCookieAuth {
+		cfg.Auth.WebCookieSecure = true
+	}
 	if cfg.Server.Environment == "production" && cfg.Auth.JWTSecret == devJWTSecret {
 		return nil, errors.New("JWT_SECRET must be set to a non-default value in production")
 	}

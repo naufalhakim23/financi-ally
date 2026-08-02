@@ -1,0 +1,287 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* ---------------------------------------------------------------------------
+   DESIGN.md v1.1, as CSS variables.
+
+   The same semantic names the mobile app uses (mobile/global.css), so a token
+   change lands in one vocabulary on both clients. Values are hex here rather
+   than the bare RGB channels NativeWind needs — Tailwind v4 takes colors
+   directly, so there is no <alpha-value> wrapper to feed.
+
+   shadcn/ui expects its own alias set (--background, --card, --primary,
+   --muted, --border, …). Those are mapped onto the DESIGN.md roles below
+   instead of carrying a second palette, which is what stops an imported
+   component from arriving in a different visual language.
+--------------------------------------------------------------------------- */
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* Brand — neutral primary. Green is never a brand color. */
+  --primary: #1a1f2e;
+  --primary-pressed: #2a3140;
+  --on-primary: #ffffff;
+  --secondary: #eef0f6;
+  --on-secondary: #1a1f2e;
+
+  /* Surfaces (tonal ladder, low → high) */
+  --background: #f2f3f7;
+  --surface: #ffffff;
+  --surface-container: #f0f1f6;
+  --surface-container-high: #e8eaf2;
+  --surface-pressed: #eef0f6;
+  --scrim: rgba(15, 18, 24, 0.44);
+
+  /* Text roles */
+  --ink: #1a1f2e;
+  --dim: #5a6379;
+  --faint: #737c91;
+  --disabled: #98a1b5;
+  --on-inverse: #f7f8fb;
+
+  /* Lines & low-emphasis */
+  --outline: #e2e6f0;
+  --outline-variant: #f0f1f6;
+  --outline-strong: #c0c7da;
+  --chevron: #c0c7da;
+  --focus-ring: #2563eb;
+
+  /* Status — semantic only, never decorative */
+  --success: #16a34a;
+  --success-wash: #ecfdf3;
+  --success-edge: #bbf7d0;
+  --success-strong: #15803d;
+  --on-success: #ffffff;
+  --warning: #d97706;
+  --warning-wash: #fffbeb;
+  --warning-edge: #fde68a;
+  --warning-strong: #b45309;
+  --on-warning: #ffffff;
+  --error: #dc2626;
+  --error-wash: #fef2f2;
+  --error-edge: #fecaca;
+  --error-strong: #b91c1c;
+  --on-error: #ffffff;
+  --info: #2563eb;
+  --info-wash: #eff6ff;
+  --info-edge: #bfdbfe;
+  --info-strong: #1d4ed8;
+  --on-info: #ffffff;
+
+  /* Chart ramp — fixed slots, so a category keeps its color across screens. */
+  --chart-1: #2563eb;
+  --chart-2: #16a34a;
+  --chart-3: #d97706;
+  --chart-4: #7c3aed;
+  --chart-5: #0891b2;
+  --chart-6: #db2777;
+  --chart-7: #65a30d;
+  --chart-8: #dc2626;
+
+  --radius: 0.75rem;
+}
+
+.dark {
+  --primary: #eef0f6;
+  --primary-pressed: #c0c7da;
+  --on-primary: #131722;
+  --secondary: #262c38;
+  --on-secondary: #edeff4;
+
+  --background: #0f1218;
+  --surface: #171b23;
+  --surface-container: #1e232d;
+  --surface-container-high: #262c38;
+  --surface-pressed: #20252f;
+  --scrim: rgba(0, 0, 0, 0.6);
+
+  --ink: #edeff4;
+  --dim: #a7afc0;
+  --faint: #8a93a8;
+  --disabled: #5a6379;
+  --on-inverse: #131722;
+
+  --outline: #2c3340;
+  --outline-variant: #232935;
+  --outline-strong: #3b4453;
+  --chevron: #5a6379;
+  --focus-ring: #5b9cf8;
+
+  --success: #3dbb6e;
+  --success-wash: #12271c;
+  --success-edge: #1f4530;
+  --success-strong: #3dbb6e;
+  --warning: #e8a33d;
+  --warning-wash: #2a1f10;
+  --warning-edge: #4a3618;
+  --warning-strong: #e8a33d;
+  --error: #f0666b;
+  --error-wash: #2a1416;
+  --error-edge: #4c1f23;
+  --error-strong: #f0666b;
+  --info: #5b9cf8;
+  --info-wash: #101e33;
+  --info-edge: #1e3a5f;
+  --info-strong: #5b9cf8;
+
+  --chart-1: #5b9cf8;
+  --chart-2: #3dbb6e;
+  --chart-3: #e8a33d;
+  --chart-4: #a78bfa;
+  --chart-5: #22d3ee;
+  --chart-6: #f472b6;
+  --chart-7: #a3e635;
+  --chart-8: #f0666b;
+}
+
+@theme inline {
+  /* DESIGN.md roles */
+  --color-primary: var(--primary);
+  --color-primary-pressed: var(--primary-pressed);
+  --color-on-primary: var(--on-primary);
+  --color-secondary: var(--secondary);
+  --color-on-secondary: var(--on-secondary);
+
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-container: var(--surface-container);
+  --color-surface-container-high: var(--surface-container-high);
+  --color-surface-pressed: var(--surface-pressed);
+
+  --color-ink: var(--ink);
+  --color-dim: var(--dim);
+  --color-faint: var(--faint);
+  --color-disabled: var(--disabled);
+  --color-on-inverse: var(--on-inverse);
+
+  --color-outline: var(--outline);
+  --color-outline-variant: var(--outline-variant);
+  --color-outline-strong: var(--outline-strong);
+  --color-chevron: var(--chevron);
+  --color-focus-ring: var(--focus-ring);
+
+  --color-success: var(--success);
+  --color-success-wash: var(--success-wash);
+  --color-success-edge: var(--success-edge);
+  --color-success-strong: var(--success-strong);
+  --color-on-success: var(--on-success);
+  --color-warning: var(--warning);
+  --color-warning-wash: var(--warning-wash);
+  --color-warning-edge: var(--warning-edge);
+  --color-warning-strong: var(--warning-strong);
+  --color-on-warning: var(--on-warning);
+  --color-error: var(--error);
+  --color-error-wash: var(--error-wash);
+  --color-error-edge: var(--error-edge);
+  --color-error-strong: var(--error-strong);
+  --color-on-error: var(--on-error);
+  --color-info: var(--info);
+  --color-info-wash: var(--info-wash);
+  --color-info-edge: var(--info-edge);
+  --color-info-strong: var(--info-strong);
+  --color-on-info: var(--on-info);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-6: var(--chart-6);
+  --color-chart-7: var(--chart-7);
+  --color-chart-8: var(--chart-8);
+
+  /* shadcn/ui aliases, pointed at the roles above so an imported component
+     arrives already speaking Financi-Ally. */
+  --color-foreground: var(--ink);
+  --color-card: var(--surface);
+  --color-card-foreground: var(--ink);
+  --color-popover: var(--surface);
+  --color-popover-foreground: var(--ink);
+  --color-primary-foreground: var(--on-primary);
+  --color-secondary-foreground: var(--on-secondary);
+  --color-muted: var(--surface-container);
+  --color-muted-foreground: var(--dim);
+  --color-accent: var(--surface-container-high);
+  --color-accent-foreground: var(--ink);
+  --color-destructive: var(--error);
+  --color-destructive-foreground: var(--on-error);
+  --color-border: var(--outline);
+  --color-input: var(--outline);
+  --color-ring: var(--focus-ring);
+  --color-sidebar: var(--surface);
+  --color-sidebar-foreground: var(--ink);
+  --color-sidebar-primary: var(--primary);
+  --color-sidebar-primary-foreground: var(--on-primary);
+  --color-sidebar-accent: var(--surface-container-high);
+  --color-sidebar-accent-foreground: var(--ink);
+  --color-sidebar-border: var(--outline);
+  --color-sidebar-ring: var(--focus-ring);
+
+  /* Type roles. Every numeral is IBM Plex Mono — a money column that doesn't
+     line up is a money column that gets misread. */
+  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --text-display-xl: 40px;
+  --text-display-xl--line-height: 42px;
+  --text-display-xl--letter-spacing: -0.8px;
+  --text-display: 32px;
+  --text-display--line-height: 35px;
+  --text-display--letter-spacing: -0.64px;
+  --text-title: 24px;
+  --text-title--line-height: 30px;
+  --text-title--letter-spacing: -0.24px;
+  --text-headline: 20px;
+  --text-headline--line-height: 26px;
+  --text-headline--letter-spacing: -0.2px;
+  --text-body-lg: 17px;
+  --text-body-lg--line-height: 26px;
+  --text-body: 15px;
+  --text-body--line-height: 23px;
+  --text-label: 13px;
+  --text-label--line-height: 18px;
+  --text-caption: 12px;
+  --text-caption--line-height: 16px;
+  --text-overline: 11px;
+  --text-overline--line-height: 13px;
+  --text-overline--letter-spacing: 0.88px;
+  --text-amount-hero: 34px;
+  --text-amount-hero--line-height: 34px;
+  --text-amount-hero--letter-spacing: -0.68px;
+  --text-amount-lg: 22px;
+  --text-amount-lg--line-height: 24px;
+  --text-amount-lg--letter-spacing: -0.22px;
+  --text-amount: 15px;
+  --text-amount--line-height: 21px;
+  --text-amount-sm: 13px;
+  --text-amount-sm--line-height: 18px;
+  --text-mono-meta: 11px;
+  --text-mono-meta--line-height: 15px;
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+
+  /* Depth is tonal + hairline; shadows are near-invisible by design. */
+  --shadow-card: 0 1px 4px rgba(26, 31, 46, 0.06);
+  --shadow-raised: 0 4px 12px rgba(26, 31, 46, 0.08);
+  --shadow-float: 0 8px 24px rgba(26, 31, 46, 0.14);
+}
+
+@layer base {
+  * {
+    @apply border-outline;
+  }
+
+  body {
+    @apply bg-background text-ink font-sans antialiased;
+  }
+
+  /* Every figure is tabular so columns of money line up. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}

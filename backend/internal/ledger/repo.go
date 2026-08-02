@@ -135,6 +135,27 @@ func (r *Repo) AccountsByIDs(ctx context.Context, ledgerID string, ids []string)
 	return out, rows.Err()
 }
 
+// UpdateAccount renames and/or (un)archives an account. Both fields are
+// optional; a nil leaves that column alone, so "archive" and "rename" are the
+// same call. Soft-deleted accounts are not updatable.
+func (r *Repo) UpdateAccount(ctx context.Context, ledgerID, id string, name *string, archived *bool) (*Account, error) {
+	const q = `UPDATE accounts
+		SET name = COALESCE($3, name), archived = COALESCE($4, archived), updated_at = now()
+		WHERE id = $1 AND ledger_id = $2 AND deleted_at IS NULL
+		RETURNING ` + colAccount
+	a, err := scanAccount(r.db.QueryRow(ctx, q, id, ledgerID, name, archived))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrAccountNotFound
+		}
+		if isUniqueViolation(err) {
+			return nil, ErrAccountNameExists
+		}
+		return nil, fmt.Errorf("update account: %w", err)
+	}
+	return a, nil
+}
+
 // AccountTotals sums debit and credit across an account's posted lines. The
 // service signs the result by account type. Returns zero/zero for a pocket with
 // no activity yet.
@@ -279,6 +300,49 @@ func (r *Repo) GetEntry(ctx context.Context, ledgerID, id string) (*Entry, error
 		return nil, err
 	}
 	return attached[0], nil
+}
+
+// UpdateEntryMemo rewrites an entry's memo. Deliberately the only mutable field
+// on a posted entry: the memo is a label, whereas amounts, accounts and dates
+// are the posting itself — changing those is a new entry, not an edit.
+func (r *Repo) UpdateEntryMemo(ctx context.Context, ledgerID, id, memo string) (*Entry, error) {
+	e := &Entry{}
+	err := r.db.QueryRow(ctx,
+		`UPDATE entries SET memo = $3, updated_at = now()
+		  WHERE id = $1 AND ledger_id = $2 AND deleted_at IS NULL
+		  RETURNING `+colEntry, id, ledgerID, memo).
+		Scan(&e.ID, &e.LedgerID, &e.CreatedByUserID, &e.TxnDate, &e.Status, &e.Currency, &e.FXRate, &e.Source, &e.Memo, &e.CreatedAt, &e.UpdatedAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrEntryNotFound
+		}
+		return nil, fmt.Errorf("update entry memo: %w", err)
+	}
+	attached, err := r.attachLines(ctx, []*Entry{e})
+	if err != nil {
+		return nil, err
+	}
+	return attached[0], nil
+}
+
+// SoftDeleteEntry marks an entry deleted. The lines are left in place: every
+// read path (balances, reports, list, sync pull) joins entries and filters on
+// deleted_at, so one flag removes the entry from the ledger everywhere, and the
+// row survives for audit. Deleting twice is not an error.
+func (r *Repo) SoftDeleteEntry(ctx context.Context, ledgerID, id string) error {
+	// COALESCE keeps the original deletion timestamp on a repeat call, so a sync
+	// replay can't shift the row into a later pull window. Only a genuinely
+	// unknown id reports zero rows.
+	tag, err := r.db.Exec(ctx,
+		`UPDATE entries SET deleted_at = COALESCE(deleted_at, now()), updated_at = now()
+		  WHERE id = $1 AND ledger_id = $2`, id, ledgerID)
+	if err != nil {
+		return fmt.Errorf("delete entry: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrEntryNotFound
+	}
+	return nil
 }
 
 // attachLines loads lines for the given entries in one query and groups them.

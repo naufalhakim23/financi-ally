@@ -31,7 +31,10 @@ export function EntryRow({
   // A local write the server has not acknowledged yet. It outranks the flow
   // line in the subtitle slot: which accounts it touched is on the detail
   // screen anyway, whereas "this only exists on your phone" is not.
-  const unsynced = v.entry.syncStatus !== "synced";
+  // `syncStatus` is WatermelonDB's own column, not part of the shared domain
+  // record — the online-only web client has no such state — so it is read off
+  // the model here rather than declared in shared-context/domain/types.ts.
+  const unsynced = (v.entry as { syncStatus?: string }).syncStatus !== "synced";
 
   return (
     <ListRow

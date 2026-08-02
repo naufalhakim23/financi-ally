@@ -1,38 +1,14 @@
 import { createContext, createElement, useContext, useEffect, useMemo, useState } from "react";
 
+import { term, type TermKey, type Wording } from "@financially/domain/wording";
 import { database } from "./db";
 
-// Wording mode. The same data and the same screens; only the vocabulary moves
-// between plain English and ledger English. Double-entry is a mode here, not a
-// default — see the 31 Jul 2026 design-system changelog.
-//
-// Persisted through WatermelonDB's own key/value store so the choice survives a
-// restart without adding a storage dependency.
+// The mobile wording provider. The vocabulary itself lives in
+// shared-context/domain/wording.ts and is shared with web; only persistence and
+// the React context are per-client — WatermelonDB's key/value store keeps the
+// choice across restarts without adding a storage dependency.
 
-export type Wording = "normal" | "finance";
-
-const TERMS = {
-  totalMoney: { normal: "Total money", finance: "Net worth" },
-  history: { normal: "History", finance: "Journal" },
-  buckets: { normal: "Buckets", finance: "Accounts" },
-  addEntry: { normal: "Add money move", finance: "New entry" },
-  outOf: { normal: "Out of", finance: "Credit" },
-  into: { normal: "Into", finance: "Debit" },
-  safeToSpend: { normal: "Safe to spend", finance: "Unallocated" },
-} as const;
-
-export type TermKey = keyof typeof TERMS;
-
-/** The full mapping, in the order the Wording screen presents it. */
-export const TERM_ROWS = (Object.keys(TERMS) as TermKey[]).map((key) => ({
-  key,
-  normal: TERMS[key].normal,
-  finance: TERMS[key].finance,
-}));
-
-export function term(key: TermKey, mode: Wording): string {
-  return TERMS[key][mode];
-}
+export * from "@financially/domain/wording";
 
 const MODE_KEY = "wording_mode";
 const SIDES_KEY = "wording_show_sides";

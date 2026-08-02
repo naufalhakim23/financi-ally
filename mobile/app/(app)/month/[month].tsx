@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { ScrollView, Share, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 
@@ -9,6 +9,7 @@ import { database } from "../../../src/lib/db";
 import {
   buildEntryViews,
   groupByDay,
+  monthCsv,
   monthLabel,
   signedAmount,
   viewsInMonth,
@@ -101,6 +102,21 @@ export default function MonthDetail() {
         title={key ? monthLabel(key) : "Month"}
         backLabel={t("history")}
         onBack={() => router.back()}
+        actionLabel={inMonth.length > 0 ? "Export" : undefined}
+        onAction={
+          inMonth.length > 0
+            ? () =>
+                // The OS share sheet is the export target: no file system
+                // permission, no new dependency, and the user picks where it
+                // lands (Files, mail, a spreadsheet app).
+                Share.share({
+                  title: `${monthLabel(key)}.csv`,
+                  message: monthCsv(inMonth),
+                }).catch(() => {
+                  // Dismissing the share sheet rejects on some platforms.
+                })
+            : undefined
+        }
       />
 
       <ScrollView
@@ -110,9 +126,13 @@ export default function MonthDetail() {
       >
         <Card>
           <View className="flex-row items-stretch" style={{ gap: 12 }}>
-            <Figure label="in" value={`+${formatGrouped(base, income)}`} tone="text-success" />
+            <Figure label="in" value={`+${formatGrouped(base, income)}`} tone="text-success-strong" />
             <View className="w-px bg-outline-variant" />
-            <Figure label="out" value={`−${formatGrouped(base, expense)}`} tone="text-error" />
+            <Figure
+              label="out"
+              value={`−${formatGrouped(base, expense)}`}
+              tone="text-error-strong"
+            />
             <View className="w-px bg-outline-variant" />
             <Figure
               label="net"

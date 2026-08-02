@@ -9,7 +9,7 @@ import "time"
 // Budget is a monthly target on an expense account (a category).
 type Budget struct {
 	ID          string
-	UserID      string
+	LedgerID    string
 	AccountID   string
 	PeriodMonth time.Time // first day of the month
 	TargetMinor int64

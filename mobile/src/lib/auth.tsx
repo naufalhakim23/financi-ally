@@ -11,6 +11,7 @@ import { makeRedirectUri, useAuthRequest } from "expo-auth-session";
 
 import { api, HTTPError, type AuthResponse, type User } from "./api";
 import { setAuthAccessors } from "./authBridge";
+import { clearActiveLedger, hydrateLedger } from "./ledgerStore";
 import { clearTokens, getTokens, setTokens } from "./tokenStore";
 
 // Google OIDC endpoints (stable). The client runs the authorization request
@@ -54,7 +55,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     accessRef.current = null;
     refreshRef.current = null;
     setUser(null);
-    await clearTokens();
+    // Drop the book choice too: the next person to sign in on this device is
+    // almost certainly not a member of it, and every request would 403.
+    await Promise.all([clearTokens(), clearActiveLedger()]);
   }, []);
 
   // Refresh-on-401: rotate tokens, update refs, return the new access token
@@ -92,6 +95,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      // Restore the active book before any authed call, so the first request
+      // after a cold start already carries the right X-Ledger-Id.
+      await hydrateLedger();
       const { access, refresh } = await getTokens();
       if (access) {
         try {

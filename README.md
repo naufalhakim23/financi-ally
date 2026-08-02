@@ -4,7 +4,9 @@ Personal expense & budget tracker. Double-entry ledger, multi-currency, offline-
 Go (chi + oapi-codegen) backend + Expo (Router + NativeWind + TanStack Query) mobile.
 
 > Plan: `docs/plans/01-financi-ally/plan.html` (in the atlas workspace).
-> Status: **M7: polish** — charts, onboarding with opening balance, empty/loading/sync states, EAS build config.
+> Status: **M8: shared ledgers** — books, membership, join codes. Money is scoped
+> to a *ledger* (a book of accounts), not a user: everyone has a personal book and
+> can create or join household books. M9 adds Splitwise-style splitting on top.
 > See milestones + decision logs (`docs/decision_logs/`).
 
 ## Repo map
@@ -17,7 +19,7 @@ financi-ally/
 ├─ backend/               Go service (chi + oapi-codegen + pgx)
 │  ├─ cmd/server/         entrypoint
 │  ├─ api/                oapi-codegen cfg + generated.go (regen from shared contract)
-│  └─ internal/           config · db · handler · auth · ledger · budget · sync · pkg/{ctxkey,money}
+│  └─ internal/           config · db · handler · auth · household · ledger · budget · sync · pkg/{ctxkey,money}
 └─ mobile/                Expo app (Router + NativeWind + WatermelonDB)
    ├─ app/                routes (auth screens + (app) tab group)
    └─ src/                lib (api-types.ts generated) · model (WatermelonDB) · components
@@ -57,6 +59,25 @@ npx expo start       # needs a dev-client build (WatermelonDB is native, not in 
 > `http://localhost:8080`).
 
 `GET /healthz` → `{"status":"ok","db":"up"}` means the whole backend→DB chain is wired.
+
+## Books (ledgers)
+
+Every money endpoint reads and writes one *book*. Which one is chosen by the
+`X-Ledger-Id` request header; omitting it means the caller's personal book, which
+is created on first use. A book the caller is not a member of returns `403`.
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /ledgers` | books this user can open, personal first |
+| `POST /ledgers` | create a shared household book (caller becomes owner) |
+| `POST /ledgers/{id}/invite` | owner-only; issues a join code, revoking any previous one |
+| `POST /ledgers/join` | redeem a code |
+| `GET /ledgers/{id}/members` | who is in the book |
+| `DELETE /ledgers/{id}/members/{userId}` | remove someone, or leave; the last owner cannot |
+
+On mobile, switching books **wipes and re-pulls the local database** — the
+WatermelonDB schema deliberately has no ledger column. The switch pushes pending
+writes first and refuses to proceed if any are still unsynced.
 
 ## Builds (EAS)
 

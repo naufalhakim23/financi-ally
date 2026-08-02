@@ -31,7 +31,7 @@ func NewService(repo *Repo, led *ledger.Service) *Service { return &Service{repo
 // Set creates or updates a budget for (account, month). id is the client id
 // (sync) or empty → server uuid (REST). The account must be an owned expense
 // account whose currency matches; the period must be month-start.
-func (s *Service) Set(ctx context.Context, userID, id, accountID string, period time.Time, target int64) (*Budget, error) {
+func (s *Service) Set(ctx context.Context, ledgerID, id, accountID string, period time.Time, target int64) (*Budget, error) {
 	if accountID == "" {
 		return nil, ErrInvalidInput
 	}
@@ -48,26 +48,26 @@ func (s *Service) Set(ctx context.Context, userID, id, accountID string, period 
 		return nil, ErrInvalidInput
 	}
 
-	a, err := s.led.GetAccount(ctx, userID, accountID)
+	a, err := s.led.GetAccount(ctx, ledgerID, accountID)
 	if err != nil {
 		return nil, ErrInvalidInput
 	}
 	if a.Type != ledger.AccountTypeExpense {
 		return nil, ErrInvalidInput
 	}
-	return s.repo.Upsert(ctx, id, userID, accountID, period, a.Currency, target)
+	return s.repo.Upsert(ctx, id, ledgerID, accountID, period, a.Currency, target)
 }
 
 // List returns a month's budgets with live spent totals.
-func (s *Service) List(ctx context.Context, userID string, period time.Time) ([]*BudgetWithSpent, error) {
-	bs, err := s.repo.List(ctx, userID, period)
+func (s *Service) List(ctx context.Context, ledgerID string, period time.Time) ([]*BudgetWithSpent, error) {
+	bs, err := s.repo.List(ctx, ledgerID, period)
 	if err != nil {
 		return nil, err
 	}
 	end := period.AddDate(0, 1, 0) // exclusive month end
 	out := make([]*BudgetWithSpent, 0, len(bs))
 	for _, b := range bs {
-		spent, err := s.repo.SpentForAccount(ctx, userID, b.AccountID, period, end)
+		spent, err := s.repo.SpentForAccount(ctx, ledgerID, b.AccountID, period, end)
 		if err != nil {
 			return nil, err
 		}
@@ -77,20 +77,20 @@ func (s *Service) List(ctx context.Context, userID string, period time.Time) ([]
 }
 
 // UpdateTarget changes a budget's target. Validates ownership via Get.
-func (s *Service) UpdateTarget(ctx context.Context, userID, id string, target int64) (*Budget, error) {
+func (s *Service) UpdateTarget(ctx context.Context, ledgerID, id string, target int64) (*Budget, error) {
 	if target < 0 {
 		return nil, ErrInvalidInput
 	}
 	if id == "" {
 		return nil, ErrBudgetNotFound
 	}
-	return s.repo.UpdateTarget(ctx, userID, id, target)
+	return s.repo.UpdateTarget(ctx, ledgerID, id, target)
 }
 
 // Delete removes a budget (idempotent).
-func (s *Service) Delete(ctx context.Context, userID, id string) error {
+func (s *Service) Delete(ctx context.Context, ledgerID, id string) error {
 	if id == "" {
 		return ErrBudgetNotFound
 	}
-	return s.repo.Delete(ctx, userID, id)
+	return s.repo.Delete(ctx, ledgerID, id)
 }

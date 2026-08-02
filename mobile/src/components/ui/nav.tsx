@@ -3,7 +3,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChevronLeft, Plus } from "lucide-react-native";
 
 import { usePressed } from "./core";
-import { C, ELEVATION, type Glyph } from "./tokens";
+import { useTheme, type Glyph } from "./tokens";
 
 // ─── Navigation chrome (direction 2a) ───────────────────────────────────────
 // Five slots with the centre add affordance breaking the top edge. The FAB is
@@ -53,6 +53,7 @@ export function TabBar({
 }
 
 function TabItem({ slot, active, onPress }: { slot: TabSlot; active: boolean; onPress: () => void }) {
+  const { C } = useTheme();
   const { glyph: G, label } = slot;
   return (
     <Pressable
@@ -73,6 +74,7 @@ function TabItem({ slot, active, onPress }: { slot: TabSlot; active: boolean; on
 }
 
 function Fab({ onPress, label }: { onPress: () => void; label: string }) {
+  const { C, ELEVATION } = useTheme();
   const { pressed, handlers } = usePressed();
   return (
     <Pressable
@@ -108,6 +110,7 @@ export function ScreenHeader({
   actionLabel?: string;
   onAction?: () => void;
 }) {
+  const { C } = useTheme();
   return (
     <View className="flex-row items-center justify-between px-4 pt-2 pb-3" style={{ gap: 8 }}>
       <View className="flex-1 items-start">
@@ -170,6 +173,7 @@ export function IconButton({
   label: string;
   onPress: () => void;
 }) {
+  const { C, ELEVATION } = useTheme();
   const { pressed, handlers } = usePressed();
   return (
     <Pressable

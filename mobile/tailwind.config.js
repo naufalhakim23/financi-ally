@@ -3,57 +3,70 @@
 // as bg-*/text-*/border-*/font-* utilities. When DESIGN.md changes, change it
 // here. Only SEMANTIC names live here — the raw ramps stay in DESIGN.md and in
 // src/components/ui/tokens.ts for the few places that need JS values.
+//
+// Every color resolves through a CSS variable declared in global.css, where the
+// light set lives on :root and the dark set re-points the same names. That is
+// why no screen carries a `dark:` variant: switching the scheme swaps the
+// variables underneath the same utility classes. The variables hold bare RGB
+// channels, not hex, so `<alpha-value>` still works — the form NativeWind
+// documents and tests for `darkMode: "class"`.
 module.exports = {
   content: ["./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
   presets: [require("nativewind/preset")],
+  darkMode: "class",
   theme: {
     extend: {
       colors: {
-        // Brand — neutral primary; green is positive-only (see DESIGN.md)
-        primary: "#1A1F2E",
-        "primary-pressed": "#2A3140",
-        "on-primary": "#FFFFFF",
-        secondary: "#EEF0F6",
-        "on-secondary": "#1A1F2E",
+        // Brand — neutral primary in light, near-white in dark (see global.css)
+        primary: "rgb(var(--primary) / <alpha-value>)",
+        "primary-pressed": "rgb(var(--primary-pressed) / <alpha-value>)",
+        "on-primary": "rgb(var(--on-primary) / <alpha-value>)",
+        secondary: "rgb(var(--secondary) / <alpha-value>)",
+        "on-secondary": "rgb(var(--on-secondary) / <alpha-value>)",
 
         // Surfaces (tonal ladder, low → high)
-        background: "#F2F3F7",
-        surface: "#FFFFFF",
-        "surface-container": "#F0F1F6",
-        "surface-container-high": "#E8EAF2",
-        "surface-pressed": "#EEF0F6",
+        background: "rgb(var(--background) / <alpha-value>)",
+        surface: "rgb(var(--surface) / <alpha-value>)",
+        "surface-container": "rgb(var(--surface-container) / <alpha-value>)",
+        "surface-container-high": "rgb(var(--surface-container-high) / <alpha-value>)",
+        "surface-pressed": "rgb(var(--surface-pressed) / <alpha-value>)",
 
         // Text roles
-        ink: "#1A1F2E",
-        dim: "#5A6379",
-        faint: "#737C91",
-        disabled: "#98A1B5",
-        "on-inverse": "#F7F8FB",
+        ink: "rgb(var(--ink) / <alpha-value>)",
+        dim: "rgb(var(--dim) / <alpha-value>)",
+        faint: "rgb(var(--faint) / <alpha-value>)",
+        disabled: "rgb(var(--disabled) / <alpha-value>)",
+        "on-inverse": "rgb(var(--on-inverse) / <alpha-value>)",
 
         // Lines & low-emphasis
-        outline: "#E2E6F0",
-        "outline-variant": "#F0F1F6",
-        "outline-strong": "#C0C7DA",
-        chevron: "#C0C7DA",
-        "focus-ring": "#2563EB",
+        outline: "rgb(var(--outline) / <alpha-value>)",
+        "outline-variant": "rgb(var(--outline-variant) / <alpha-value>)",
+        "outline-strong": "rgb(var(--outline-strong) / <alpha-value>)",
+        chevron: "rgb(var(--chevron) / <alpha-value>)",
+        "focus-ring": "rgb(var(--focus-ring) / <alpha-value>)",
 
-        // Status — semantic only. Each hue is base / wash (fill) / edge (border).
-        success: "#16A34A",
-        "success-wash": "#ECFDF3",
-        "success-edge": "#BBF7D0",
-        "on-success": "#FFFFFF",
-        warning: "#D97706",
-        "warning-wash": "#FFFBEB",
-        "warning-edge": "#FDE68A",
-        "on-warning": "#FFFFFF",
-        error: "#DC2626",
-        "error-wash": "#FEF2F2",
-        "error-edge": "#FECACA",
-        "on-error": "#FFFFFF",
-        info: "#2563EB",
-        "info-wash": "#EFF6FF",
-        "info-edge": "#BFDBFE",
-        "on-info": "#FFFFFF",
+        // Status — semantic only. Each hue is base / wash (fill) / edge (border)
+        // / strong (the text-on-surface variant, darker in light, same in dark).
+        success: "rgb(var(--success) / <alpha-value>)",
+        "success-wash": "rgb(var(--success-wash) / <alpha-value>)",
+        "success-edge": "rgb(var(--success-edge) / <alpha-value>)",
+        "success-strong": "rgb(var(--success-strong) / <alpha-value>)",
+        "on-success": "rgb(var(--on-success) / <alpha-value>)",
+        warning: "rgb(var(--warning) / <alpha-value>)",
+        "warning-wash": "rgb(var(--warning-wash) / <alpha-value>)",
+        "warning-edge": "rgb(var(--warning-edge) / <alpha-value>)",
+        "warning-strong": "rgb(var(--warning-strong) / <alpha-value>)",
+        "on-warning": "rgb(var(--on-warning) / <alpha-value>)",
+        error: "rgb(var(--error) / <alpha-value>)",
+        "error-wash": "rgb(var(--error-wash) / <alpha-value>)",
+        "error-edge": "rgb(var(--error-edge) / <alpha-value>)",
+        "error-strong": "rgb(var(--error-strong) / <alpha-value>)",
+        "on-error": "rgb(var(--on-error) / <alpha-value>)",
+        info: "rgb(var(--info) / <alpha-value>)",
+        "info-wash": "rgb(var(--info-wash) / <alpha-value>)",
+        "info-edge": "rgb(var(--info-edge) / <alpha-value>)",
+        "info-strong": "rgb(var(--info-strong) / <alpha-value>)",
+        "on-info": "rgb(var(--on-info) / <alpha-value>)",
       },
       // Type roles carry size + line-height + tracking. Weight comes from the
       // font family (font-sans-semibold etc.) so the loaded Outfit/JetBrains

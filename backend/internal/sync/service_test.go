@@ -11,6 +11,7 @@ import (
 	"github.com/naufalhakim23/financi-ally/backend/internal/auth"
 	"github.com/naufalhakim23/financi-ally/backend/internal/budget"
 	"github.com/naufalhakim23/financi-ally/backend/internal/db"
+	"github.com/naufalhakim23/financi-ally/backend/internal/household"
 	"github.com/naufalhakim23/financi-ally/backend/internal/ledger"
 	"github.com/naufalhakim23/financi-ally/backend/internal/recurring"
 )
@@ -31,7 +32,7 @@ func newTestService(t *testing.T) (*Service, string, func()) {
 		t.Fatalf("open pool: %v", err)
 	}
 	if _, err := pool.Exec(context.Background(),
-		`TRUNCATE TABLE recurring_rules, oauth_identities, refresh_tokens, journal_lines, entries, accounts, budgets, users RESTART IDENTITY CASCADE`); err != nil {
+		`TRUNCATE TABLE recurring_rules, ledger_invites, ledger_members, ledgers, oauth_identities, refresh_tokens, journal_lines, entries, accounts, budgets, users RESTART IDENTITY CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
 	}
 	authRepo := auth.NewRepo(pool)
@@ -45,14 +46,14 @@ func newTestService(t *testing.T) (*Service, string, func()) {
 	budSvc := budget.NewService(budget.NewRepo(pool), ledSvc)
 	recSvc := recurring.NewService(recurring.NewRepo(pool), ledSvc, time.UTC)
 	svc := NewService(NewRepo(pool), ledSvc, budSvc, recSvc)
-	return svc, user.User.ID, func() { pool.Close() }
+	return svc, personalLedger(t, pool, user.User.ID), func() { pool.Close() }
 }
 
 // TestPushThenPull posts a client entry via push, then pulls and expects it
 // back — proving the offline write path round-trips and the balance invariant
 // is enforced on push.
 func TestPushThenPull(t *testing.T) {
-	svc, userID, cleanup := newTestService(t)
+	svc, ledgerID, cleanup := newTestService(t)
 	defer cleanup()
 	ctx := context.Background()
 
@@ -64,7 +65,7 @@ func TestPushThenPull(t *testing.T) {
 	lineC := "wmb-line-c"
 
 	// Push: one account pair + a balanced entry (debit Groceries, credit BCA).
-	_, err := svc.Push(ctx, userID, PushRequest{Changes: ChangeSet{
+	_, err := svc.Push(ctx, ledgerID, "", PushRequest{Changes: ChangeSet{
 		"accounts": {Created: []map[string]any{
 			{"id": bcaID, "type": "asset", "currency": "IDR", "name": "BCA", "archived": false},
 			{"id": foodID, "type": "expense", "currency": "IDR", "name": "Groceries", "archived": false},
@@ -82,7 +83,7 @@ func TestPushThenPull(t *testing.T) {
 	}
 
 	// First pull (watermark 0) returns everything as created.
-	pull, err := svc.Pull(ctx, userID, 0)
+	pull, err := svc.Pull(ctx, ledgerID, 0)
 	if err != nil {
 		t.Fatalf("pull: %v", err)
 	}
@@ -97,7 +98,7 @@ func TestPushThenPull(t *testing.T) {
 	}
 
 	// Incremental pull at the returned watermark returns nothing new.
-	pull2, err := svc.Pull(ctx, userID, pull.Timestamp)
+	pull2, err := svc.Pull(ctx, ledgerID, pull.Timestamp)
 	if err != nil {
 		t.Fatalf("pull2: %v", err)
 	}
@@ -109,21 +110,21 @@ func TestPushThenPull(t *testing.T) {
 // TestPushUnbalancedReported pushes an unbalanced entry; it must land in
 // errors keyed by client id, never silently dropped.
 func TestPushUnbalancedReported(t *testing.T) {
-	svc, userID, cleanup := newTestService(t)
+	svc, ledgerID, cleanup := newTestService(t)
 	defer cleanup()
 	ctx := context.Background()
 
 	bcaID := "wmb-bca-002"
 	foodID := "wmb-food-002"
 	// Set the accounts up first so the entry's only failure is balance.
-	_, _ = svc.Push(ctx, userID, PushRequest{Changes: ChangeSet{
+	_, _ = svc.Push(ctx, ledgerID, "", PushRequest{Changes: ChangeSet{
 		"accounts": {Created: []map[string]any{
 			{"id": bcaID, "type": "asset", "currency": "IDR", "name": "BCA2", "archived": false},
 			{"id": foodID, "type": "expense", "currency": "IDR", "name": "Food2", "archived": false},
 		}},
 	}})
 
-	resp, err := svc.Push(ctx, userID, PushRequest{Changes: ChangeSet{
+	resp, err := svc.Push(ctx, ledgerID, "", PushRequest{Changes: ChangeSet{
 		"entries": {Created: []map[string]any{
 			{"id": "bad-entry", "currency": "IDR", "txn_date": "2026-07-26"},
 		}},
@@ -145,7 +146,7 @@ func TestPushUnbalancedReported(t *testing.T) {
 // come back on the next pull with its template as a JSON string, which is the
 // only shape a WatermelonDB column can hold.
 func TestPushPullRecurringRule(t *testing.T) {
-	svc, userID, cleanup := newTestService(t)
+	svc, ledgerID, cleanup := newTestService(t)
 	defer cleanup()
 	ctx := context.Background()
 
@@ -156,7 +157,7 @@ func TestPushPullRecurringRule(t *testing.T) {
 		`{"account_id":"` + rentID + `","dc":"debit","amount_minor":2000000},` +
 		`{"account_id":"` + bcaID + `","dc":"credit","amount_minor":2000000}]}`
 
-	resp, err := svc.Push(ctx, userID, PushRequest{Changes: ChangeSet{
+	resp, err := svc.Push(ctx, ledgerID, "", PushRequest{Changes: ChangeSet{
 		"accounts": {Created: []map[string]any{
 			{"id": bcaID, "type": "asset", "currency": "IDR", "name": "BCA3", "archived": false},
 			{"id": rentID, "type": "expense", "currency": "IDR", "name": "Rent3", "archived": false},
@@ -172,7 +173,7 @@ func TestPushPullRecurringRule(t *testing.T) {
 		t.Fatalf("expected no push errors, got %+v", resp.Errors)
 	}
 
-	pull, err := svc.Pull(ctx, userID, 0)
+	pull, err := svc.Pull(ctx, ledgerID, 0)
 	if err != nil {
 		t.Fatalf("pull: %v", err)
 	}
@@ -195,7 +196,7 @@ func TestPushPullRecurringRule(t *testing.T) {
 	bad := `{"currency":"IDR","lines":[` +
 		`{"account_id":"` + rentID + `","dc":"debit","amount_minor":100},` +
 		`{"account_id":"` + bcaID + `","dc":"credit","amount_minor":90}]}`
-	resp, err = svc.Push(ctx, userID, PushRequest{Changes: ChangeSet{
+	resp, err = svc.Push(ctx, ledgerID, "", PushRequest{Changes: ChangeSet{
 		"recurring_rules": {Created: []map[string]any{
 			{"id": "wmb-rule-bad", "rrule": "FREQ=MONTHLY", "template": bad, "active": true},
 		}},
@@ -206,4 +207,16 @@ func TestPushPullRecurringRule(t *testing.T) {
 	if _, ok := resp.Errors["wmb-rule-bad"]; !ok {
 		t.Fatalf("expected wmb-rule-bad in errors, got %+v", resp.Errors)
 	}
+}
+
+// personalLedger resolves the user's personal book, creating it the same way a
+// first request would. Every service under test is scoped to a ledger id, not a
+// user id, so this is what the tests must pass down.
+func personalLedger(t *testing.T, pool *pgxpool.Pool, userID string) string {
+	t.Helper()
+	scope, err := household.NewService(household.NewRepo(pool)).Resolve(context.Background(), userID, "")
+	if err != nil {
+		t.Fatalf("resolve personal ledger: %v", err)
+	}
+	return scope.LedgerID
 }

@@ -45,7 +45,7 @@ func (d DC) Valid() bool { return d == DCDebit || d == DCCredit }
 // ParentID is a forward-compat tree hook, not traversed in M2.
 type Account struct {
 	ID        string
-	UserID    string
+	LedgerID  string
 	Type      AccountType
 	Currency  string
 	Name      string
@@ -70,17 +70,20 @@ type JournalLine struct {
 // Entry is the journal header plus its lines. Posted entries are immutable —
 // corrections are reversing entries, which keeps offline sync conflict-free.
 type Entry struct {
-	ID        string
-	UserID    string
-	TxnDate   time.Time
-	Status    string
-	Currency  string
-	FXRate    *string // numeric, as string; nil for single-currency entries (M4)
-	Source    string
-	Memo      string
-	Lines     []JournalLine
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID       string
+	LedgerID string
+	// CreatedByUserID is who logged this entry. Nil for entries the recurring
+	// scheduler materialized, which have no human author.
+	CreatedByUserID *string
+	TxnDate         time.Time
+	Status          string
+	Currency        string
+	FXRate          *string // numeric, as string; nil for single-currency entries (M4)
+	Source          string
+	Memo            string
+	Lines           []JournalLine
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 }
 
 // LineInput is one leg supplied to Post. Currency defaults to the entry's

@@ -12,6 +12,7 @@ import (
 
 	"github.com/naufalhakim23/financi-ally/backend/internal/auth"
 	"github.com/naufalhakim23/financi-ally/backend/internal/db"
+	"github.com/naufalhakim23/financi-ally/backend/internal/household"
 	"github.com/naufalhakim23/financi-ally/backend/internal/ledger"
 )
 
@@ -19,11 +20,11 @@ import (
 // wired to the same pool, so tests can assert on the ledger the scheduler wrote
 // to as well as on the rule itself.
 type fixture struct {
-	svc    *Service
-	pool   *pgxpool.Pool
-	userID string
-	food   *ledger.Account
-	bca    *ledger.Account
+	svc      *Service
+	pool     *pgxpool.Pool
+	ledgerID string
+	food     *ledger.Account
+	bca      *ledger.Account
 }
 
 // newTestService builds a recurring Service against a real Postgres plus a
@@ -42,13 +43,13 @@ func newTestService(t *testing.T) (*fixture, func()) {
 		t.Fatalf("open pool: %v", err)
 	}
 	if _, err := pool.Exec(context.Background(),
-		`TRUNCATE TABLE recurring_rules, oauth_identities, refresh_tokens, journal_lines, entries, accounts, budgets, users RESTART IDENTITY CASCADE`); err != nil {
+		`TRUNCATE TABLE recurring_rules, ledger_invites, ledger_members, ledgers, oauth_identities, refresh_tokens, journal_lines, entries, accounts, budgets, users RESTART IDENTITY CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
 	}
 
 	f := &fixture{pool: pool}
 	f.svc = NewService(NewRepo(pool), ledger.NewService(ledger.NewRepo(pool)), time.UTC)
-	f.userID, f.food, f.bca = seedUser(t, pool, "recurring@example.com")
+	f.ledgerID, f.food, f.bca = seedUser(t, pool, "recurring@example.com")
 	return f, func() { pool.Close() }
 }
 
@@ -62,16 +63,17 @@ func seedUser(t *testing.T, pool *pgxpool.Pool, email string) (string, *ledger.A
 	if err != nil {
 		t.Fatalf("register %s: %v", email, err)
 	}
+	ledgerID := personalLedger(t, pool, user.User.ID)
 	ledSvc := ledger.NewService(ledger.NewRepo(pool))
-	food, err := ledSvc.CreateAccount(ctx, user.User.ID, "", "expense", "IDR", "Food", nil)
+	food, err := ledSvc.CreateAccount(ctx, ledgerID, "", "expense", "IDR", "Food", nil)
 	if err != nil {
 		t.Fatalf("create food account: %v", err)
 	}
-	bca, err := ledSvc.CreateAccount(ctx, user.User.ID, "", "asset", "IDR", "BCA", nil)
+	bca, err := ledSvc.CreateAccount(ctx, ledgerID, "", "asset", "IDR", "BCA", nil)
 	if err != nil {
 		t.Fatalf("create BCA account: %v", err)
 	}
-	return user.User.ID, food, bca
+	return ledgerID, food, bca
 }
 
 // tmpl builds a balanced rent-style template against the fixture's accounts.
@@ -130,7 +132,7 @@ func TestCreateRecurringRule(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	rule, err := f.svc.Create(ctx, f.userID, "", "FREQ=MONTHLY;BYMONTHDAY=15", f.tmpl(), true)
+	rule, err := f.svc.Create(ctx, f.ledgerID, "", "FREQ=MONTHLY;BYMONTHDAY=15", f.tmpl(), true)
 	if err != nil {
 		t.Fatalf("create rule: %v", err)
 	}
@@ -150,7 +152,7 @@ func TestCreateRecurringRule(t *testing.T) {
 		t.Fatal("expected active=true")
 	}
 
-	rules, err := f.svc.List(ctx, f.userID)
+	rules, err := f.svc.List(ctx, f.ledgerID)
 	if err != nil {
 		t.Fatalf("list rules: %v", err)
 	}
@@ -196,7 +198,7 @@ func TestCreateRecurringRuleInvalidInput(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := f.svc.Create(ctx, f.userID, "", tt.rrule, tt.tmpl, true)
+			_, err := f.svc.Create(ctx, f.ledgerID, "", tt.rrule, tt.tmpl, true)
 			if !errors.Is(err, tt.want) {
 				t.Fatalf("expected %v, got %v", tt.want, err)
 			}
@@ -210,25 +212,25 @@ func TestDeleteRecurringRule(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	rule, err := f.svc.Create(ctx, f.userID, "", "FREQ=MONTHLY;BYMONTHDAY=1", f.tmpl(), true)
+	rule, err := f.svc.Create(ctx, f.ledgerID, "", "FREQ=MONTHLY;BYMONTHDAY=1", f.tmpl(), true)
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	if err := f.svc.Delete(ctx, f.userID, rule.ID); err != nil {
+	if err := f.svc.Delete(ctx, f.ledgerID, rule.ID); err != nil {
 		t.Fatalf("delete: %v", err)
 	}
-	if err := f.svc.Delete(ctx, f.userID, rule.ID); err != nil {
+	if err := f.svc.Delete(ctx, f.ledgerID, rule.ID); err != nil {
 		t.Fatalf("delete again: %v", err)
 	}
 
-	rules, err := f.svc.List(ctx, f.userID)
+	rules, err := f.svc.List(ctx, f.ledgerID)
 	if err != nil {
 		t.Fatalf("list: %v", err)
 	}
 	if len(rules) != 0 {
 		t.Fatalf("expected 0 rules after delete, got %d", len(rules))
 	}
-	if _, err := f.svc.Get(ctx, f.userID, rule.ID); !errors.Is(err, ErrRuleNotFound) {
+	if _, err := f.svc.Get(ctx, f.ledgerID, rule.ID); !errors.Is(err, ErrRuleNotFound) {
 		t.Fatalf("expected ErrRuleNotFound, got %v", err)
 	}
 }
@@ -241,7 +243,7 @@ func TestMaterializeDue(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	rule, err := f.svc.Create(ctx, f.userID, "", "FREQ=DAILY", f.tmpl(), true)
+	rule, err := f.svc.Create(ctx, f.ledgerID, "", "FREQ=DAILY", f.tmpl(), true)
 	if err != nil {
 		t.Fatalf("create daily rule: %v", err)
 	}
@@ -262,7 +264,7 @@ func TestMaterializeDue(t *testing.T) {
 		t.Fatalf("expected exactly one entry dated today (%s), got %v", today(), dates)
 	}
 
-	updated, err := f.svc.Get(ctx, f.userID, rule.ID)
+	updated, err := f.svc.Get(ctx, f.ledgerID, rule.ID)
 	if err != nil {
 		t.Fatalf("get updated rule: %v", err)
 	}
@@ -297,7 +299,7 @@ func TestMaterializeIsIdempotentPerOccurrence(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	rule, err := f.svc.Create(ctx, f.userID, "", "FREQ=DAILY", f.tmpl(), true)
+	rule, err := f.svc.Create(ctx, f.ledgerID, "", "FREQ=DAILY", f.tmpl(), true)
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -332,7 +334,7 @@ func TestMaterializeCatchesUpMissedOccurrences(t *testing.T) {
 
 	start := today().AddDate(0, 0, -3)
 	rrule := fmt.Sprintf("DTSTART:%s\nRRULE:FREQ=DAILY", start.Format("20060102T150405Z"))
-	rule, err := f.svc.Create(ctx, f.userID, "", rrule, f.tmpl(), true)
+	rule, err := f.svc.Create(ctx, f.ledgerID, "", rrule, f.tmpl(), true)
 	if err != nil {
 		t.Fatalf("create backdated rule: %v", err)
 	}
@@ -360,7 +362,7 @@ func TestMaterializeCatchesUpMissedOccurrences(t *testing.T) {
 			t.Fatalf("entry %d: expected %s, got %s", i, want, d)
 		}
 	}
-	updated, err := f.svc.Get(ctx, f.userID, rule.ID)
+	updated, err := f.svc.Get(ctx, f.ledgerID, rule.ID)
 	if err != nil {
 		t.Fatalf("get: %v", err)
 	}
@@ -369,14 +371,14 @@ func TestMaterializeCatchesUpMissedOccurrences(t *testing.T) {
 	}
 }
 
-// TestMaterializeDueForUserIsScoped verifies the manual trigger can't post into
+// TestMaterializeDueForLedgerIsScoped verifies the manual trigger can't post into
 // another tenant's ledger.
-func TestMaterializeDueForUserIsScoped(t *testing.T) {
+func TestMaterializeDueForLedgerIsScoped(t *testing.T) {
 	f, cleanup := newTestService(t)
 	defer cleanup()
 	ctx := context.Background()
 
-	mine, err := f.svc.Create(ctx, f.userID, "", "FREQ=DAILY", f.tmpl(), true)
+	mine, err := f.svc.Create(ctx, f.ledgerID, "", "FREQ=DAILY", f.tmpl(), true)
 	if err != nil {
 		t.Fatalf("create own rule: %v", err)
 	}
@@ -391,7 +393,7 @@ func TestMaterializeDueForUserIsScoped(t *testing.T) {
 		t.Fatalf("create other rule: %v", err)
 	}
 
-	count, err := f.svc.MaterializeDueForUser(ctx, f.userID)
+	count, err := f.svc.MaterializeDueForLedger(ctx, f.ledgerID)
 	if err != nil {
 		t.Fatalf("scoped materialize: %v", err)
 	}
@@ -413,7 +415,7 @@ func TestMaterializeRecordsFailure(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	rule, err := f.svc.Create(ctx, f.userID, "", "FREQ=DAILY", f.tmpl(), true)
+	rule, err := f.svc.Create(ctx, f.ledgerID, "", "FREQ=DAILY", f.tmpl(), true)
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -431,7 +433,7 @@ func TestMaterializeRecordsFailure(t *testing.T) {
 		t.Fatalf("expected 0 entries posted, got %d", count)
 	}
 
-	updated, err := f.svc.Get(ctx, f.userID, rule.ID)
+	updated, err := f.svc.Get(ctx, f.ledgerID, rule.ID)
 	if err != nil {
 		t.Fatalf("get: %v", err)
 	}
@@ -454,7 +456,7 @@ func TestUpdateRecurringRule(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	rule, err := f.svc.Create(ctx, f.userID, "", "FREQ=DAILY", f.tmpl(), true)
+	rule, err := f.svc.Create(ctx, f.ledgerID, "", "FREQ=DAILY", f.tmpl(), true)
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -464,7 +466,7 @@ func TestUpdateRecurringRule(t *testing.T) {
 
 	tmpl := f.tmpl()
 	tmpl.Memo = "Rent (updated)"
-	updated, err := f.svc.Update(ctx, f.userID, rule.ID, "FREQ=DAILY", tmpl, true)
+	updated, err := f.svc.Update(ctx, f.ledgerID, rule.ID, "FREQ=DAILY", tmpl, true)
 	if err != nil {
 		t.Fatalf("update: %v", err)
 	}
@@ -483,4 +485,16 @@ func TestUpdateRecurringRule(t *testing.T) {
 	if count != 0 {
 		t.Fatalf("expected no re-post of today's occurrence, got %d", count)
 	}
+}
+
+// personalLedger resolves the user's personal book, creating it the same way a
+// first request would. Every service under test is scoped to a ledger id, not a
+// user id, so this is what the tests must pass down.
+func personalLedger(t *testing.T, pool *pgxpool.Pool, userID string) string {
+	t.Helper()
+	scope, err := household.NewService(household.NewRepo(pool)).Resolve(context.Background(), userID, "")
+	if err != nil {
+		t.Fatalf("resolve personal ledger: %v", err)
+	}
+	return scope.LedgerID
 }

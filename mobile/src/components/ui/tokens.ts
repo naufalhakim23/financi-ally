@@ -1,7 +1,9 @@
 import type { ComponentType } from "react";
+import { useColorScheme } from "nativewind";
 import {
   ArrowLeftRight,
   Banknote,
+  BookOpen,
   BarChart3,
   Bus,
   Car,
@@ -20,18 +22,22 @@ import {
   Smartphone,
   Tag,
   Target,
+  Users,
   Utensils,
   Wallet,
   Zap,
 } from "lucide-react-native";
 
 // ─── JS-side tokens ─────────────────────────────────────────────────────────
-// NativeWind covers colors/type/radii as utilities. These are the values that
-// can only be passed as props or style objects: shadows, placeholder colors,
-// navigation chrome, and chart marks. DESIGN.md v1.0 is the source of truth.
+// NativeWind covers colors/type/radii as utilities via the CSS variables in
+// global.css. These are the values that can only be passed as props or style
+// objects: shadows, placeholder colors, navigation chrome, and chart marks.
+// They have to be duplicated in JS because a Lucide `color` prop or a
+// `shadowOpacity` cannot read a CSS variable — keep them in step with
+// global.css. DESIGN.md is the human-readable source of truth for both.
 
 /** Semantic colors needed as raw values (props, not className). */
-export const C = {
+const LIGHT = {
   primary: "#1A1F2E",
   primaryPressed: "#2A3140",
   onPrimary: "#FFFFFF",
@@ -52,11 +58,38 @@ export const C = {
   error: "#DC2626",
   info: "#2563EB",
   scrim: "rgba(15,18,24,0.44)",
-} as const;
+};
+
+const DARK: typeof LIGHT = {
+  primary: "#EEF0F6",
+  primaryPressed: "#C0C7DA",
+  onPrimary: "#131722",
+  background: "#0F1218",
+  surface: "#171B23",
+  surfaceContainer: "#1E232D",
+  surfaceContainerHigh: "#262C38",
+  ink: "#EDEFF4",
+  dim: "#A7AFC0",
+  faint: "#8A93A8",
+  disabled: "#5A6379",
+  outline: "#2C3340",
+  outlineVariant: "#232935",
+  outlineStrong: "#3B4453",
+  chevron: "#5A6379",
+  success: "#3DBB6E",
+  warning: "#E8A33D",
+  error: "#F0666B",
+  info: "#5B9CF8",
+  scrim: "rgba(0,0,0,0.6)",
+};
+
+export type Palette = typeof LIGHT;
 
 // Depth is tonal + hairline; shadows are near-invisible by design. Only the FAB
-// and sheets genuinely float (see DESIGN.md → Elevation & depth).
-export const ELEVATION = {
+// and sheets genuinely float (see DESIGN.md → Elevation & depth). On dark a
+// shadow reads as mud, so card/raised go inert and the tonal ladder plus the
+// outline hairline carry the depth instead.
+const LIGHT_ELEVATION = {
   card: {
     shadowColor: "#1A1F2E",
     shadowOffset: { width: 0, height: 1 },
@@ -78,7 +111,37 @@ export const ELEVATION = {
     shadowOpacity: 0.14,
     elevation: 8,
   },
-} as const;
+};
+
+const DARK_ELEVATION: typeof LIGHT_ELEVATION = {
+  card: { ...LIGHT_ELEVATION.card, shadowOpacity: 0, elevation: 0 },
+  raised: { ...LIGHT_ELEVATION.raised, shadowOpacity: 0, elevation: 0 },
+  float: {
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowRadius: 24,
+    shadowOpacity: 0.5,
+    elevation: 8,
+  },
+};
+
+export type Elevation = typeof LIGHT_ELEVATION;
+
+/**
+ * The active palette and shadow set for the device color scheme.
+ *
+ * A hook rather than a constant because these are read during render — a module
+ * constant would freeze whichever scheme was active when the bundle loaded.
+ */
+export function useTheme(): { C: Palette; ELEVATION: Elevation; dark: boolean } {
+  const { colorScheme } = useColorScheme();
+  const dark = colorScheme === "dark";
+  return {
+    C: dark ? DARK : LIGHT,
+    ELEVATION: dark ? DARK_ELEVATION : LIGHT_ELEVATION,
+    dark,
+  };
+}
 
 // Motion. RN has no CSS easing tokens, so only the durations travel; press
 // feedback uses opacity/tone rather than a timing curve.
@@ -188,4 +251,4 @@ export function accountGlyph(name: string, type?: string): Glyph {
   return (type && TYPE_FALLBACK[type]) || Tag;
 }
 
-export { Receipt, Repeat, Target, Wallet, BarChart3 };
+export { BookOpen, Receipt, Repeat, Target, Users, Wallet, BarChart3 };

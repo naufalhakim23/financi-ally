@@ -28,9 +28,19 @@ type RefreshToken struct {
 
 // Principal is the authenticated identity placed in the request context by the
 // auth middleware. It carries only what handlers need without re-hitting the DB.
+//
+// The Ledger* fields are the active book for this request, filled in by the
+// ledger-scope middleware after the token is verified. They are plain strings
+// rather than a household.Scope so that auth, the lowest layer, stays free of
+// upward dependencies. LedgerID is the tenancy key every money query filters
+// on; LedgerCurrency is the book's reporting currency, which reports read
+// instead of re-fetching the user row.
 type Principal struct {
-	UserID string
-	Email  string
+	UserID         string
+	Email          string
+	LedgerID       string
+	LedgerCurrency string
+	LedgerRole     string
 }
 
 // Session is what register/login/refresh/google return: a fresh access JWT,

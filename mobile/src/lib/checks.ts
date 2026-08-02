@@ -18,7 +18,7 @@ const assert = {
 };
 
 import { convert, rateCaption, rateFor, type RateTable } from "./fx";
-import { buildEntryViews, groupByDay, monthKey, signedAmount } from "./ledger";
+import { buildEntryViews, groupByDay, monthCsv, monthKey, signedAmount } from "./ledger";
 import { buildBuckets, daysLeftInMonth, safeToSpend, spendingForMonth } from "./buckets";
 import { applyKey } from "./keypad";
 
@@ -179,6 +179,30 @@ assert.equal(safeToSpend(spending), 1_955_000, "safe to spend is plan less spend
 assert.equal(safeToSpend([{ ...spending[0], spent: 9_000_000 }]), 0, "overspend floors at zero");
 assert.equal(daysLeftInMonth(new Date(2026, 6, 31)), 1, "the last day still counts");
 assert.equal(daysLeftInMonth(new Date(2026, 6, 1)), 31, "a full July");
+
+// ── csv export ──────────────────────────────────────────────────────────────
+
+const csv = monthCsv(views);
+const csvLines = csv.split("\n");
+assert.equal(
+  csvLines[0],
+  '"date","description","out of","into","amount_minor","currency"',
+  "header names the columns a spreadsheet needs",
+);
+assert.equal(csvLines.length, views.length + 1, "one line per entry plus the header");
+assert.ok(
+  csvLines.slice(1).every((l) => l.split('","').length === 6),
+  "every row has six quoted fields",
+);
+assert.equal(
+  monthCsv([]),
+  '"date","description","out of","into","amount_minor","currency"',
+  "an empty month is a header and nothing else",
+);
+assert.ok(
+  csv.includes('"-45000"') || csv.includes('"45000"'),
+  "amounts stay signed minor units, not a formatted string",
+);
 
 // ── keypad ──────────────────────────────────────────────────────────────────
 

@@ -31,7 +31,7 @@ type TemplateLine struct {
 // the server log; it is cleared on the next successful post.
 type RecurringRule struct {
 	ID          string
-	UserID      string
+	LedgerID    string
 	RRule       string
 	Template    Template
 	NextRun     *time.Time

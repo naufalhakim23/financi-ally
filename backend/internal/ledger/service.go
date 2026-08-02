@@ -28,7 +28,7 @@ func NewService(repo *Repo) *Service { return &Service{repo: repo} }
 
 // CreateAccount validates and persists a pocket or category. id is the client
 // (WatermelonDB) id when supplied; empty → server uuid (REST path).
-func (s *Service) CreateAccount(ctx context.Context, userID, id, typeStr, currency, name string, parentID *string) (*Account, error) {
+func (s *Service) CreateAccount(ctx context.Context, ledgerID, id, typeStr, currency, name string, parentID *string) (*Account, error) {
 	t := AccountType(strings.ToLower(strings.TrimSpace(typeStr)))
 	if !validAccountTypes[t] {
 		return nil, ErrInvalidInput
@@ -53,35 +53,35 @@ func (s *Service) CreateAccount(ctx context.Context, userID, id, typeStr, curren
 	} else if !validID(id) {
 		return nil, ErrInvalidInput
 	}
-	return s.repo.CreateAccount(ctx, id, userID, t, currency, name, parent)
+	return s.repo.CreateAccount(ctx, id, ledgerID, t, currency, name, parent)
 }
 
-// ListAccounts returns a user's accounts, optionally filtered by type string.
+// ListAccounts returns a ledger's accounts, optionally filtered by type string.
 // An empty/invalid filter returns all types.
-func (s *Service) ListAccounts(ctx context.Context, userID, typeFilter string) ([]*Account, error) {
+func (s *Service) ListAccounts(ctx context.Context, ledgerID, typeFilter string) ([]*Account, error) {
 	var tf *AccountType
 	if t := AccountType(strings.ToLower(strings.TrimSpace(typeFilter))); validAccountTypes[t] {
 		tf = &t
 	}
-	return s.repo.ListAccounts(ctx, userID, tf)
+	return s.repo.ListAccounts(ctx, ledgerID, tf)
 }
 
-// GetAccount returns one account, user-scoped.
-func (s *Service) GetAccount(ctx context.Context, userID, id string) (*Account, error) {
+// GetAccount returns one account, ledger-scoped.
+func (s *Service) GetAccount(ctx context.Context, ledgerID, id string) (*Account, error) {
 	if !validID(id) {
 		return nil, ErrAccountNotFound
 	}
-	return s.repo.GetAccount(ctx, userID, id)
+	return s.repo.GetAccount(ctx, ledgerID, id)
 }
 
 // Balance returns an account's debit/credit totals and the normal-balance-signed
 // amount (asset/expense: debit−credit; liability/income/equity: credit−debit).
-func (s *Service) Balance(ctx context.Context, userID, accountID string) (*Balance, error) {
-	a, err := s.GetAccount(ctx, userID, accountID)
+func (s *Service) Balance(ctx context.Context, ledgerID, accountID string) (*Balance, error) {
+	a, err := s.GetAccount(ctx, ledgerID, accountID)
 	if err != nil {
 		return nil, err
 	}
-	debit, credit, err := s.repo.AccountTotals(ctx, userID, accountID)
+	debit, credit, err := s.repo.AccountTotals(ctx, ledgerID, accountID)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +104,7 @@ func (s *Service) Balance(ctx context.Context, userID, accountID string) (*Balan
 // Cross-currency entries (M4) accept per-line currencies and an fx_rate; when
 // fx_rate is set the balance invariant is checked in-app by converting all
 // amounts to the entry currency, and the DB trigger is relaxed for that entry.
-func (s *Service) Post(ctx context.Context, userID string, in EntryInput) (*Entry, error) {
+func (s *Service) Post(ctx context.Context, ledgerID, createdByUserID string, in EntryInput) (*Entry, error) {
 	in.Currency = strings.ToUpper(strings.TrimSpace(in.Currency))
 	if !money.IsAlpha3(in.Currency) {
 		return nil, ErrInvalidInput
@@ -210,7 +210,7 @@ func (s *Service) Post(ctx context.Context, userID string, in EntryInput) (*Entr
 
 	// Fetch every referenced account in one pass; assert ownership, not-archived.
 	// For single-currency entries also assert account currency matches.
-	owned, err := s.repo.AccountsByIDs(ctx, userID, ids)
+	owned, err := s.repo.AccountsByIDs(ctx, ledgerID, ids)
 	if err != nil {
 		return nil, err
 	}
@@ -226,7 +226,7 @@ func (s *Service) Post(ctx context.Context, userID string, in EntryInput) (*Entr
 		}
 	}
 
-	return s.repo.PostEntry(ctx, userID, in)
+	return s.repo.PostEntry(ctx, ledgerID, createdByUserID, in)
 }
 
 // validRate checks that a decimal string parses as a positive number.
@@ -243,17 +243,17 @@ func validRate(s string) bool {
 	return true
 }
 
-// ListEntries returns a user's posted entries within an optional date range.
-func (s *Service) ListEntries(ctx context.Context, userID string, from, to *time.Time) ([]*Entry, error) {
-	return s.repo.ListEntries(ctx, userID, from, to)
+// ListEntries returns a ledger's posted entries within an optional date range.
+func (s *Service) ListEntries(ctx context.Context, ledgerID string, from, to *time.Time) ([]*Entry, error) {
+	return s.repo.ListEntries(ctx, ledgerID, from, to)
 }
 
-// GetEntry returns one entry with its lines, user-scoped.
-func (s *Service) GetEntry(ctx context.Context, userID, id string) (*Entry, error) {
+// GetEntry returns one entry with its lines, ledger-scoped.
+func (s *Service) GetEntry(ctx context.Context, ledgerID, id string) (*Entry, error) {
 	if !validID(id) {
 		return nil, ErrEntryNotFound
 	}
-	return s.repo.GetEntry(ctx, userID, id)
+	return s.repo.GetEntry(ctx, ledgerID, id)
 }
 
 // validID accepts a client (WatermelonDB) id or a uuid — any non-empty string

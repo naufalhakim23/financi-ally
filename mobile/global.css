@@ -1,3 +1,104 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Semantic color tokens, mirrored from the Claude Design system's
+   tokens/colors.css. Light lives on :root, dark re-points the same names on
+   .dark:root — NativeWind swaps the active set from the device color scheme, so
+   no screen needs a `dark:` variant. Values are bare RGB channels rather than
+   hex so tailwind.config.js can wrap them as rgb(var(--name) / <alpha-value>) —
+   the form NativeWind documents for darkMode: "class". DESIGN.md stays the
+   human-readable source of truth. */
+@layer base {
+  :root {
+    --primary: 26 31 46;
+    --primary-pressed: 42 49 64;
+    --on-primary: 255 255 255;
+    --secondary: 238 240 246;
+    --on-secondary: 26 31 46;
+
+    --background: 242 243 247;
+    --surface: 255 255 255;
+    --surface-container: 240 241 246;
+    --surface-container-high: 232 234 242;
+    --surface-pressed: 238 240 246;
+
+    --ink: 26 31 46;
+    --dim: 90 99 121;
+    --faint: 115 124 145;
+    --disabled: 152 161 181;
+    --on-inverse: 247 248 251;
+
+    --outline: 226 230 240;
+    --outline-variant: 240 241 246;
+    --outline-strong: 192 199 218;
+    --chevron: 192 199 218;
+    --focus-ring: 37 99 235;
+
+    --success: 22 163 74;
+    --success-wash: 236 253 243;
+    --success-edge: 187 247 208;
+    --success-strong: 21 128 61;
+    --on-success: 255 255 255;
+    --warning: 217 119 6;
+    --warning-wash: 255 251 235;
+    --warning-edge: 253 230 138;
+    --warning-strong: 180 83 9;
+    --on-warning: 255 255 255;
+    --error: 220 38 38;
+    --error-wash: 254 242 242;
+    --error-edge: 254 202 202;
+    --error-strong: 185 28 28;
+    --on-error: 255 255 255;
+    --info: 37 99 235;
+    --info-wash: 239 246 255;
+    --info-edge: 191 219 254;
+    --info-strong: 29 78 216;
+    --on-info: 255 255 255;
+  }
+
+  /* Dark theme — same semantic names, re-pointed. Shadows go inert (see
+     ELEVATION in tokens.ts); depth comes from the tonal ladder + outline. */
+  .dark:root {
+    --primary: 238 240 246;
+    --primary-pressed: 192 199 218;
+    --on-primary: 19 23 34;
+    --secondary: 38 44 56;
+    --on-secondary: 237 239 244;
+
+    --background: 15 18 24;
+    --surface: 23 27 35;
+    --surface-container: 30 35 45;
+    --surface-container-high: 38 44 56;
+    --surface-pressed: 32 37 47;
+
+    --ink: 237 239 244;
+    --dim: 167 175 192;
+    --faint: 138 147 168;
+    --disabled: 90 99 121;
+    --on-inverse: 19 23 34;
+
+    --outline: 44 51 64;
+    --outline-variant: 35 41 53;
+    --outline-strong: 59 68 83;
+    --chevron: 90 99 121;
+    --focus-ring: 91 156 248;
+
+    --success: 61 187 110;
+    --success-wash: 18 39 28;
+    --success-edge: 31 69 48;
+    --success-strong: 61 187 110;
+    --warning: 232 163 61;
+    --warning-wash: 42 31 16;
+    --warning-edge: 74 54 24;
+    --warning-strong: 232 163 61;
+    --error: 240 102 107;
+    --error-wash: 42 20 22;
+    --error-edge: 76 31 35;
+    --error-strong: 240 102 107;
+    --info: 91 156 248;
+    --info-wash: 16 30 51;
+    --info-edge: 30 58 95;
+    --info-strong: 91 156 248;
+  }
+}

@@ -14,11 +14,11 @@ import (
 
 // Data-origin sentinel errors. The service layer maps these to HTTP statuses.
 var (
-	// ErrAccountNotFound: no account matched the lookup for this user.
+	// ErrAccountNotFound: no account matched the lookup in this ledger.
 	ErrAccountNotFound = errors.New("account not found")
-	// ErrAccountNameExists: create hit the (user_id, type, name) unique constraint.
+	// ErrAccountNameExists: create hit the (ledger_id, type, name) unique constraint.
 	ErrAccountNameExists = errors.New("account name already exists")
-	// ErrEntryNotFound: no entry matched the lookup for this user.
+	// ErrEntryNotFound: no entry matched the lookup in this ledger.
 	ErrEntryNotFound = errors.New("entry not found")
 	// ErrUnbalancedEntry: the entry's debit total ≠ credit total per currency.
 	// Surfaced either by the application assert or by the Postgres balance trigger.
@@ -40,14 +40,14 @@ type Repo struct {
 func NewRepo(pool *pgxpool.Pool) *Repo { return &Repo{db: pool} }
 
 const (
-	colAccount = "id, user_id, type, currency, name, parent_id, archived, created_at, updated_at, deleted_at"
-	colEntry   = "id, user_id, txn_date, status, currency, fx_rate, source, memo, created_at, updated_at"
+	colAccount = "id, ledger_id, type, currency, name, parent_id, archived, created_at, updated_at, deleted_at"
+	colEntry   = "id, ledger_id, created_by_user_id, txn_date, status, currency, fx_rate, source, memo, created_at, updated_at"
 	colLine    = "id, entry_id, account_id, dc, amount_minor, currency"
 )
 
 func scanAccount(row pgx.Row) (*Account, error) {
 	a := &Account{}
-	if err := row.Scan(&a.ID, &a.UserID, &a.Type, &a.Currency, &a.Name, &a.ParentID,
+	if err := row.Scan(&a.ID, &a.LedgerID, &a.Type, &a.Currency, &a.Name, &a.ParentID,
 		&a.Archived, &a.CreatedAt, &a.UpdatedAt, &a.DeletedAt); err != nil {
 		return nil, err
 	}
@@ -55,13 +55,13 @@ func scanAccount(row pgx.Row) (*Account, error) {
 }
 
 // CreateAccount inserts a pocket/category with an explicit id (client or server
-// generated). A colliding (user_id,type,name) maps to ErrAccountNameExists so
+// generated). A colliding (ledger_id,type,name) maps to ErrAccountNameExists so
 // callers return 409, not 500.
-func (r *Repo) CreateAccount(ctx context.Context, id, userID string, t AccountType, currency, name string, parentID *string) (*Account, error) {
-	const q = `INSERT INTO accounts (id, user_id, type, currency, name, parent_id)
+func (r *Repo) CreateAccount(ctx context.Context, id, ledgerID string, t AccountType, currency, name string, parentID *string) (*Account, error) {
+	const q = `INSERT INTO accounts (id, ledger_id, type, currency, name, parent_id)
 		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING ` + colAccount
-	a, err := scanAccount(r.db.QueryRow(ctx, q, id, userID, t, currency, name, parentID))
+	a, err := scanAccount(r.db.QueryRow(ctx, q, id, ledgerID, t, currency, name, parentID))
 	if err != nil {
 		if isUniqueViolation(err) {
 			return nil, ErrAccountNameExists
@@ -71,11 +71,11 @@ func (r *Repo) CreateAccount(ctx context.Context, id, userID string, t AccountTy
 	return a, nil
 }
 
-// ListAccounts returns a user's accounts, optionally filtered by type. Archived
+// ListAccounts returns a ledger's accounts, optionally filtered by type. Archived
 // accounts are included (the UI dims them); soft-deleted are excluded.
-func (r *Repo) ListAccounts(ctx context.Context, userID string, typeFilter *AccountType) ([]*Account, error) {
-	q := `SELECT ` + colAccount + ` FROM accounts WHERE user_id = $1 AND deleted_at IS NULL`
-	args := []any{userID}
+func (r *Repo) ListAccounts(ctx context.Context, ledgerID string, typeFilter *AccountType) ([]*Account, error) {
+	q := `SELECT ` + colAccount + ` FROM accounts WHERE ledger_id = $1 AND deleted_at IS NULL`
+	args := []any{ledgerID}
 	if typeFilter != nil {
 		args = append(args, *typeFilter)
 		q += fmt.Sprintf(` AND type = $%d`, len(args))
@@ -97,10 +97,10 @@ func (r *Repo) ListAccounts(ctx context.Context, userID string, typeFilter *Acco
 	return out, rows.Err()
 }
 
-// GetAccount fetches by id, scoped to the user so a cross-user id can't leak.
-func (r *Repo) GetAccount(ctx context.Context, userID, id string) (*Account, error) {
+// GetAccount fetches by id, scoped to the ledger so an id from another book can't leak.
+func (r *Repo) GetAccount(ctx context.Context, ledgerID, id string) (*Account, error) {
 	a, err := scanAccount(r.db.QueryRow(ctx,
-		`SELECT `+colAccount+` FROM accounts WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL`, id, userID))
+		`SELECT `+colAccount+` FROM accounts WHERE id = $1 AND ledger_id = $2 AND deleted_at IS NULL`, id, ledgerID))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrAccountNotFound
@@ -110,16 +110,16 @@ func (r *Repo) GetAccount(ctx context.Context, userID, id string) (*Account, err
 	return a, nil
 }
 
-// AccountsByIDs fetches a set of accounts scoped to the user, returning a map
+// AccountsByIDs fetches a set of accounts scoped to the ledger, returning a map
 // keyed by id. Used by Post to validate that every line references an owned,
 // matching-currency, non-archived account in one query rather than per-line.
-func (r *Repo) AccountsByIDs(ctx context.Context, userID string, ids []string) (map[string]*Account, error) {
+func (r *Repo) AccountsByIDs(ctx context.Context, ledgerID string, ids []string) (map[string]*Account, error) {
 	if len(ids) == 0 {
 		return map[string]*Account{}, nil
 	}
 	rows, err := r.db.Query(ctx,
-		`SELECT `+colAccount+` FROM accounts WHERE user_id = $1 AND id = ANY($2) AND deleted_at IS NULL`,
-		userID, ids)
+		`SELECT `+colAccount+` FROM accounts WHERE ledger_id = $1 AND id = ANY($2) AND deleted_at IS NULL`,
+		ledgerID, ids)
 	if err != nil {
 		return nil, fmt.Errorf("accounts by ids: %w", err)
 	}
@@ -138,14 +138,14 @@ func (r *Repo) AccountsByIDs(ctx context.Context, userID string, ids []string) (
 // AccountTotals sums debit and credit across an account's posted lines. The
 // service signs the result by account type. Returns zero/zero for a pocket with
 // no activity yet.
-func (r *Repo) AccountTotals(ctx context.Context, userID, accountID string) (debit, credit int64, err error) {
+func (r *Repo) AccountTotals(ctx context.Context, ledgerID, accountID string) (debit, credit int64, err error) {
 	const q = `SELECT
 			COALESCE(SUM(jl.amount_minor) FILTER (WHERE jl.dc = 'debit'), 0),
 			COALESCE(SUM(jl.amount_minor) FILTER (WHERE jl.dc = 'credit'), 0)
 		FROM journal_lines jl
 		JOIN entries e ON e.id = jl.entry_id
-		WHERE jl.account_id = $1 AND e.user_id = $2 AND e.status = 'posted' AND e.deleted_at IS NULL`
-	if err = r.db.QueryRow(ctx, q, accountID, userID).Scan(&debit, &credit); err != nil {
+		WHERE jl.account_id = $1 AND e.ledger_id = $2 AND e.status = 'posted' AND e.deleted_at IS NULL`
+	if err = r.db.QueryRow(ctx, q, accountID, ledgerID).Scan(&debit, &credit); err != nil {
 		return 0, 0, fmt.Errorf("account totals: %w", err)
 	}
 	return debit, credit, nil
@@ -156,20 +156,27 @@ func (r *Repo) AccountTotals(ctx context.Context, userID, accountID string) (deb
 // full set). The service validates ownership and balance before calling; the
 // trigger is the server-side backstop and its check_violation maps to
 // ErrUnbalancedEntry. fx_rate is set for cross-currency entries (M4).
-func (r *Repo) PostEntry(ctx context.Context, userID string, in EntryInput) (*Entry, error) {
+// createdByUserID records who logged the entry; in a shared book that is not
+// derivable from the ledger itself. Empty for scheduler posts, which have no
+// human author.
+func (r *Repo) PostEntry(ctx context.Context, ledgerID, createdByUserID string, in EntryInput) (*Entry, error) {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("begin post tx: %w", err)
 	}
 	defer tx.Rollback(ctx) // noop after commit
 
+	var author any
+	if createdByUserID != "" {
+		author = createdByUserID
+	}
 	e := &Entry{}
 	err = tx.QueryRow(ctx, `
-		INSERT INTO entries (id, user_id, txn_date, status, currency, fx_rate, source, memo, recurring_rule_id)
-		VALUES ($1, $2, $3, 'posted', $4, $5, $6, $7, $8)
+		INSERT INTO entries (id, ledger_id, created_by_user_id, txn_date, status, currency, fx_rate, source, memo, recurring_rule_id)
+		VALUES ($1, $2, $3, $4, 'posted', $5, $6, $7, $8, $9)
 		RETURNING `+colEntry,
-		in.ID, userID, in.TxnDate, in.Currency, in.FXRate, defaultSource(in.Source), in.Memo, in.RecurringRuleID).
-		Scan(&e.ID, &e.UserID, &e.TxnDate, &e.Status, &e.Currency, &e.FXRate, &e.Source, &e.Memo, &e.CreatedAt, &e.UpdatedAt)
+		in.ID, ledgerID, author, in.TxnDate, in.Currency, in.FXRate, defaultSource(in.Source), in.Memo, in.RecurringRuleID).
+		Scan(&e.ID, &e.LedgerID, &e.CreatedByUserID, &e.TxnDate, &e.Status, &e.Currency, &e.FXRate, &e.Source, &e.Memo, &e.CreatedAt, &e.UpdatedAt)
 	if err != nil {
 		// Either the entry id collided or the (rule, occurrence) idempotency
 		// index fired — both mean "this entry is already posted".
@@ -229,11 +236,11 @@ func (r *Repo) PostEntry(ctx context.Context, userID string, in EntryInput) (*En
 	return e, nil
 }
 
-// ListEntries returns a user's posted entries newest-first within an optional
+// ListEntries returns a ledger's posted entries newest-first within an optional
 // date range, each with its lines attached.
-func (r *Repo) ListEntries(ctx context.Context, userID string, from, to *time.Time) ([]*Entry, error) {
-	q := `SELECT ` + colEntry + ` FROM entries WHERE user_id = $1 AND status = 'posted' AND deleted_at IS NULL`
-	args := []any{userID}
+func (r *Repo) ListEntries(ctx context.Context, ledgerID string, from, to *time.Time) ([]*Entry, error) {
+	q := `SELECT ` + colEntry + ` FROM entries WHERE ledger_id = $1 AND status = 'posted' AND deleted_at IS NULL`
+	args := []any{ledgerID}
 	if from != nil {
 		args = append(args, *from)
 		q += fmt.Sprintf(` AND txn_date >= $%d`, len(args))
@@ -255,12 +262,12 @@ func (r *Repo) ListEntries(ctx context.Context, userID string, from, to *time.Ti
 	return r.attachLines(ctx, entries)
 }
 
-// GetEntry fetches one entry with its lines, scoped to the user.
-func (r *Repo) GetEntry(ctx context.Context, userID, id string) (*Entry, error) {
+// GetEntry fetches one entry with its lines, scoped to the ledger.
+func (r *Repo) GetEntry(ctx context.Context, ledgerID, id string) (*Entry, error) {
 	e := &Entry{}
 	err := r.db.QueryRow(ctx,
-		`SELECT `+colEntry+` FROM entries WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL`, id, userID).
-		Scan(&e.ID, &e.UserID, &e.TxnDate, &e.Status, &e.Currency, &e.FXRate, &e.Source, &e.Memo, &e.CreatedAt, &e.UpdatedAt)
+		`SELECT `+colEntry+` FROM entries WHERE id = $1 AND ledger_id = $2 AND deleted_at IS NULL`, id, ledgerID).
+		Scan(&e.ID, &e.LedgerID, &e.CreatedByUserID, &e.TxnDate, &e.Status, &e.Currency, &e.FXRate, &e.Source, &e.Memo, &e.CreatedAt, &e.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrEntryNotFound
@@ -310,7 +317,7 @@ func scanEntries(rows pgx.Rows) ([]*Entry, error) {
 	var out []*Entry
 	for rows.Next() {
 		e := &Entry{}
-		if err := rows.Scan(&e.ID, &e.UserID, &e.TxnDate, &e.Status, &e.Currency, &e.FXRate, &e.Source, &e.Memo, &e.CreatedAt, &e.UpdatedAt); err != nil {
+		if err := rows.Scan(&e.ID, &e.LedgerID, &e.CreatedByUserID, &e.TxnDate, &e.Status, &e.Currency, &e.FXRate, &e.Source, &e.Memo, &e.CreatedAt, &e.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan entry: %w", err)
 		}
 		out = append(out, e)

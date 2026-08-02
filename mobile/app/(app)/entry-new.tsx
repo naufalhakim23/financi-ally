@@ -2,14 +2,19 @@ import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
+import { useQuery } from "@tanstack/react-query";
 import { Calendar, ChevronRight, Plus } from "lucide-react-native";
 
+import { authedApi } from "../../src/lib/api";
 import { useAuth } from "../../src/lib/auth";
+import { accountSigned } from "../../src/lib/balances";
+import { spendingForMonth } from "../../src/lib/buckets";
 import { database } from "../../src/lib/db";
+import { EMPTY_RATES, convert, type RateTable } from "../../src/lib/fx";
 import { syncDatabase } from "../../src/lib/sync";
 import { useObservable } from "../../src/lib/useObserve";
 import { useWording } from "../../src/lib/wording";
-import { Account } from "../../src/model/models";
+import { Account, Budget, Entry, JournalLine } from "../../src/model/models";
 import {
   AmountWell,
   Button,
@@ -25,6 +30,7 @@ import {
   applyKey,
   categorySlot,
   formatGrouped,
+  useTheme,
 } from "../../src/components/ui";
 
 type Mode = "out" | "in" | "move";
@@ -42,6 +48,7 @@ export default function EntryNew() {
   const { user } = useAuth();
   const base = user?.base_currency ?? "IDR";
   const { t, showSides } = useWording();
+  const { C } = useTheme();
 
   const [mode, setMode] = useState<Mode>(
     params.mode === "in" || params.mode === "move" ? params.mode : "out",
@@ -59,8 +66,64 @@ export default function EntryNew() {
   const [err, setErr] = useState<string | null>(null);
 
   const accountsObs = useMemo(() => database.get<Account>("accounts").query().observe(), []);
+  const linesObs = useMemo(() => database.get<JournalLine>("journal_lines").query().observe(), []);
+  const entriesObs = useMemo(
+    () => database.get<Entry>("entries").query().observeWithColumns(["txn_date"]),
+    [],
+  );
+  const budgetsObs = useMemo(() => database.get<Budget>("budgets").query().observe(), []);
   const accounts = useObservable(accountsObs, [] as Account[]);
+  const lines = useObservable(linesObs, [] as JournalLine[]);
+  const entries = useObservable(entriesObs, [] as Entry[]);
+  const budgets = useObservable(budgetsObs, [] as Budget[]);
   const active = accounts.filter((a) => !a.archived);
+
+  // Rates are display-only here — the entry posts in the source account's own
+  // currency either way, so a failed fetch just drops the conversion line.
+  const ratesQuery = useQuery({
+    queryKey: ["fx-rates"],
+    queryFn: () => authedApi.listFxRates(),
+    staleTime: 30 * 60 * 1000,
+  });
+  const rates: RateTable = ratesQuery.data
+    ? { rates: ratesQuery.data.rates ?? [], asOf: ratesQuery.data.as_of ?? null }
+    : EMPTY_RATES;
+
+  // This month's spend per category, so a destination row can say how much of
+  // its plan is already gone before the user commits to another entry.
+  const spending = useMemo(() => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const idsInMonth = new Set(
+      entries
+        .filter((e) => {
+          const d = new Date(e.txnDate);
+          return d >= start && d < end;
+        })
+        .map((e) => e.id),
+    );
+    return spendingForMonth(accounts, lines, idsInMonth, budgets, base);
+  }, [accounts, lines, entries, budgets, base]);
+
+  /**
+   * What a picker row says beneath the account name. A pocket states what is
+   * left in it; a category states how much of this month's plan it has used —
+   * both are the figure that decides whether this entry is a good idea.
+   */
+  function subtitleFor(a: Account): string {
+    if (a.type === "expense") {
+      const row = spending.find((r) => r.account.id === a.id);
+      const spent = formatGrouped(base, row?.spent ?? 0);
+      return row?.target != null
+        ? `${spent} of ${formatGrouped(base, row.target)} this month`
+        : `${spent} this month`;
+    }
+    if (a.type === "asset" || a.type === "liability") {
+      return `${formatGrouped(a.currency, accountSigned(a, lines))} left`;
+    }
+    return a.currency;
+  }
 
   const fromOptions = active.filter((a) => SIDES[mode].from.includes(a.type));
   const toOptions = active.filter((a) => SIDES[mode].to.includes(a.type));
@@ -138,11 +201,21 @@ export default function EntryNew() {
     }
   }
 
+  // Only worth saying when the entry is not already in the base currency.
+  const converted = useMemo(() => {
+    const minor = Number(digits || "0");
+    if (currency === base || minor <= 0) return null;
+    const inBase = convert(minor, currency, base, rates);
+    return inBase == null
+      ? null
+      : `≈ ${formatGrouped(base, inBase)} ${base} · converted at today's rate`;
+  }, [digits, currency, base, rates]);
+
   const pickOptions = picking === "from" ? fromOptions : toOptions;
   const empty = fromOptions.length === 0 || toOptions.length === 0;
 
   return (
-    <SafeAreaView edges={["top", "bottom"]} className="flex-1 bg-surface">
+    <SafeAreaView edges={["bottom"]} className="flex-1 bg-surface">
       <View className="flex-row items-center justify-between px-4 py-3">
         <Pressable onPress={() => router.back()} accessibilityRole="button" className="min-h-touch justify-center">
           <Text className="text-body-strong font-sans-semibold text-dim">Cancel</Text>
@@ -187,13 +260,14 @@ export default function EntryNew() {
         <AmountWell
           currency={currency}
           display={digits ? formatGrouped(currency, Number(digits)) : ""}
-          helper={err ?? undefined}
+          helper={err ?? converted ?? undefined}
         />
 
         <View className="border border-outline rounded-lg overflow-hidden">
           <PickerRow
             label={mode === "in" ? "from" : t("outOf").toLowerCase()}
             account={from}
+            subtitle={from ? subtitleFor(from) : undefined}
             placeholder="Choose"
             onPress={() => setPicking("from")}
           />
@@ -201,6 +275,7 @@ export default function EntryNew() {
           <PickerRow
             label={t("into").toLowerCase()}
             account={to}
+            subtitle={to ? subtitleFor(to) : undefined}
             placeholder="Choose"
             onPress={() => setPicking("to")}
           />
@@ -239,7 +314,7 @@ export default function EntryNew() {
             glyph={accountGlyph(a.name, a.type)}
             slot={categorySlot(a.id)}
             title={a.name}
-            subtitle={a.currency}
+            subtitle={subtitleFor(a)}
             onPress={() => {
               if (picking === "from") setFromId(a.id);
               else setToId(a.id);
@@ -254,7 +329,7 @@ export default function EntryNew() {
           value={memo}
           onChangeText={setMemo}
           placeholder="What was this for?"
-          placeholderTextColor="#98A1B5"
+          placeholderTextColor={C.disabled}
           autoFocus
           className="bg-surface-container rounded-lg px-4 py-3 min-h-touch text-body font-sans-medium text-ink"
         />
@@ -269,14 +344,17 @@ export default function EntryNew() {
 function PickerRow({
   label,
   account,
+  subtitle,
   placeholder,
   onPress,
 }: {
   label: string;
   account: Account | null;
+  subtitle?: string;
   placeholder: string;
   onPress: () => void;
 }) {
+  const { C } = useTheme();
   return (
     <Pressable
       onPress={onPress}
@@ -300,11 +378,13 @@ function PickerRow({
         >
           {account?.name ?? placeholder}
         </Text>
-        {account && (
-          <Text className="text-caption font-sans-medium text-faint">{account.currency}</Text>
+        {account && !!subtitle && (
+          <Text className="text-caption font-sans-medium text-faint" numberOfLines={1}>
+            {subtitle}
+          </Text>
         )}
       </View>
-      <ChevronRight size={18} color="#C0C7DA" strokeWidth={1.75} />
+      <ChevronRight size={18} color={C.chevron} strokeWidth={1.75} />
     </Pressable>
   );
 }
@@ -320,6 +400,7 @@ function MetaChip({
   active?: boolean;
   onPress?: () => void;
 }) {
+  const { C } = useTheme();
   return (
     <Pressable
       onPress={onPress}
@@ -328,7 +409,7 @@ function MetaChip({
       className="flex-row items-center bg-surface-container rounded-full px-3.5 py-2"
       style={{ gap: 6 }}
     >
-      <G size={14} color={active ? "#1A1F2E" : "#5A6379"} strokeWidth={1.75} />
+      <G size={14} color={active ? C.ink : C.dim} strokeWidth={1.75} />
       <Text className={`text-label font-sans-semibold ${active ? "text-ink" : "text-dim"}`}>
         {label}
       </Text>

@@ -498,10 +498,160 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/ledgers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the books this user can open
+         * @description The personal book comes first and is created on first use, so this
+         *     never returns an empty list for an authenticated user.
+         */
+        get: operations["listLedgers"];
+        put?: never;
+        /** Create a shared household book */
+        post: operations["createLedger"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ledgers/{id}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List a book's members */
+        get: operations["listLedgerMembers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ledgers/{id}/members/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a member, or leave the book yourself
+         * @description Owners may remove anyone; members may remove only themselves. The last
+         *     owner cannot be removed — a book with no owner could never be managed
+         *     again. Idempotent: removing a non-member returns 204.
+         */
+        delete: operations["removeLedgerMember"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ledgers/{id}/invite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Issue a join code for a household book
+         * @description Owner-only. Issuing a code revokes any previous one for the book, so
+         *     there is exactly one live code at a time.
+         */
+        post: operations["createLedgerInvite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ledgers/join": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Join a book with a code */
+        post: operations["joinLedger"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        Ledger: {
+            id: string;
+            name: string;
+            /**
+             * @description the book's reporting currency; reports normalize to it
+             * @example IDR
+             */
+            base_currency: string;
+            /** @enum {string} */
+            kind: "personal" | "household";
+            /** Format: date-time */
+            created_at: string;
+        };
+        LedgerMembership: {
+            ledger: components["schemas"]["Ledger"];
+            role: components["schemas"]["LedgerRole"];
+        };
+        /**
+         * @description owners manage membership and invites; members do everything else
+         * @enum {string}
+         */
+        LedgerRole: "owner" | "member";
+        LedgerMember: {
+            user_id: string;
+            /** Format: email */
+            email: string;
+            role: components["schemas"]["LedgerRole"];
+            /** Format: date-time */
+            joined_at: string;
+        };
+        LedgerInvite: {
+            /**
+             * @description short human-typeable join code
+             * @example K7M2QX9B
+             */
+            code: string;
+            ledger_id: string;
+            /** Format: date-time */
+            expires_at: string;
+        };
+        NewLedgerRequest: {
+            name: string;
+            /**
+             * @description defaults to the creator's own base currency
+             * @example IDR
+             */
+            base_currency?: string;
+        };
+        JoinLedgerRequest: {
+            code: string;
+        };
         HealthStatus: {
             /**
              * @description process liveness
@@ -854,7 +1004,7 @@ export interface components {
         };
         RecurringRule: {
             id: string;
-            user_id: string;
+            ledger_id: string;
             /**
              * @description iCalendar RRULE string (e.g. "FREQ=MONTHLY;BYMONTHDAY=1")
              * @example FREQ=MONTHLY;BYMONTHDAY=1
@@ -924,7 +1074,13 @@ export interface components {
         };
     };
     responses: never;
-    parameters: never;
+    parameters: {
+        /**
+         * @description Which book this request reads and writes. Omit for the caller's personal
+         *     ledger. A ledger the caller is not a member of is rejected with 403.
+         */
+        LedgerId: string;
+    };
     requestBodies: never;
     headers: never;
     pathItems: never;
@@ -1184,7 +1340,13 @@ export interface operations {
             query?: {
                 type?: components["schemas"]["AccountType"];
             };
-            header?: never;
+            header?: {
+                /**
+                 * @description Which book this request reads and writes. Omit for the caller's personal
+                 *     ledger. A ledger the caller is not a member of is rejected with 403.
+                 */
+                "X-Ledger-Id"?: components["parameters"]["LedgerId"];
+            };
             path?: never;
             cookie?: never;
         };
@@ -1213,7 +1375,13 @@ export interface operations {
     createAccount: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /**
+                 * @description Which book this request reads and writes. Omit for the caller's personal
+                 *     ledger. A ledger the caller is not a member of is rejected with 403.
+                 */
+                "X-Ledger-Id"?: components["parameters"]["LedgerId"];
+            };
             path?: never;
             cookie?: never;
         };
@@ -1264,7 +1432,13 @@ export interface operations {
     getAccountBalance: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /**
+                 * @description Which book this request reads and writes. Omit for the caller's personal
+                 *     ledger. A ledger the caller is not a member of is rejected with 403.
+                 */
+                "X-Ledger-Id"?: components["parameters"]["LedgerId"];
+            };
             path: {
                 id: string;
             };
@@ -1307,7 +1481,13 @@ export interface operations {
                 from?: string;
                 to?: string;
             };
-            header?: never;
+            header?: {
+                /**
+                 * @description Which book this request reads and writes. Omit for the caller's personal
+                 *     ledger. A ledger the caller is not a member of is rejected with 403.
+                 */
+                "X-Ledger-Id"?: components["parameters"]["LedgerId"];
+            };
             path?: never;
             cookie?: never;
         };
@@ -1336,7 +1516,13 @@ export interface operations {
     postEntry: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /**
+                 * @description Which book this request reads and writes. Omit for the caller's personal
+                 *     ledger. A ledger the caller is not a member of is rejected with 403.
+                 */
+                "X-Ledger-Id"?: components["parameters"]["LedgerId"];
+            };
             path?: never;
             cookie?: never;
         };
@@ -1387,7 +1573,13 @@ export interface operations {
     getEntry: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /**
+                 * @description Which book this request reads and writes. Omit for the caller's personal
+                 *     ledger. A ledger the caller is not a member of is rejected with 403.
+                 */
+                "X-Ledger-Id"?: components["parameters"]["LedgerId"];
+            };
             path: {
                 id: string;
             };
@@ -1430,7 +1622,13 @@ export interface operations {
                 /** @description first day of the month (YYYY-MM-01) */
                 period: string;
             };
-            header?: never;
+            header?: {
+                /**
+                 * @description Which book this request reads and writes. Omit for the caller's personal
+                 *     ledger. A ledger the caller is not a member of is rejected with 403.
+                 */
+                "X-Ledger-Id"?: components["parameters"]["LedgerId"];
+            };
             path?: never;
             cookie?: never;
         };
@@ -1468,7 +1666,13 @@ export interface operations {
     setBudget: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /**
+                 * @description Which book this request reads and writes. Omit for the caller's personal
+                 *     ledger. A ledger the caller is not a member of is rejected with 403.
+                 */
+                "X-Ledger-Id"?: components["parameters"]["LedgerId"];
+            };
             path?: never;
             cookie?: never;
         };
@@ -1510,7 +1714,13 @@ export interface operations {
     updateBudget: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /**
+                 * @description Which book this request reads and writes. Omit for the caller's personal
+                 *     ledger. A ledger the caller is not a member of is rejected with 403.
+                 */
+                "X-Ledger-Id"?: components["parameters"]["LedgerId"];
+            };
             path: {
                 id: string;
             };
@@ -1557,7 +1767,13 @@ export interface operations {
     deleteBudget: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /**
+                 * @description Which book this request reads and writes. Omit for the caller's personal
+                 *     ledger. A ledger the caller is not a member of is rejected with 403.
+                 */
+                "X-Ledger-Id"?: components["parameters"]["LedgerId"];
+            };
             path: {
                 id: string;
             };
@@ -1588,7 +1804,13 @@ export interface operations {
             query?: {
                 last_pulled_at?: number;
             };
-            header?: never;
+            header?: {
+                /**
+                 * @description Which book this request reads and writes. Omit for the caller's personal
+                 *     ledger. A ledger the caller is not a member of is rejected with 403.
+                 */
+                "X-Ledger-Id"?: components["parameters"]["LedgerId"];
+            };
             path?: never;
             cookie?: never;
         };
@@ -1617,7 +1839,13 @@ export interface operations {
     syncPush: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /**
+                 * @description Which book this request reads and writes. Omit for the caller's personal
+                 *     ledger. A ledger the caller is not a member of is rejected with 403.
+                 */
+                "X-Ledger-Id"?: components["parameters"]["LedgerId"];
+            };
             path?: never;
             cookie?: never;
         };
@@ -1650,7 +1878,13 @@ export interface operations {
     listFxRates: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /**
+                 * @description Which book this request reads and writes. Omit for the caller's personal
+                 *     ledger. A ledger the caller is not a member of is rejected with 403.
+                 */
+                "X-Ledger-Id"?: components["parameters"]["LedgerId"];
+            };
             path?: never;
             cookie?: never;
         };
@@ -1679,7 +1913,13 @@ export interface operations {
     refreshFxRates: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /**
+                 * @description Which book this request reads and writes. Omit for the caller's personal
+                 *     ledger. A ledger the caller is not a member of is rejected with 403.
+                 */
+                "X-Ledger-Id"?: components["parameters"]["LedgerId"];
+            };
             path?: never;
             cookie?: never;
         };
@@ -1711,7 +1951,13 @@ export interface operations {
                 /** @description optional as-of date (defaults to today) */
                 as_of?: string;
             };
-            header?: never;
+            header?: {
+                /**
+                 * @description Which book this request reads and writes. Omit for the caller's personal
+                 *     ledger. A ledger the caller is not a member of is rejected with 403.
+                 */
+                "X-Ledger-Id"?: components["parameters"]["LedgerId"];
+            };
             path: {
                 /** @description ISO 4217 base currency */
                 base: string;
@@ -1754,7 +2000,13 @@ export interface operations {
     getNetWorth: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /**
+                 * @description Which book this request reads and writes. Omit for the caller's personal
+                 *     ledger. A ledger the caller is not a member of is rejected with 403.
+                 */
+                "X-Ledger-Id"?: components["parameters"]["LedgerId"];
+            };
             path?: never;
             cookie?: never;
         };
@@ -1786,7 +2038,13 @@ export interface operations {
                 from: string;
                 to: string;
             };
-            header?: never;
+            header?: {
+                /**
+                 * @description Which book this request reads and writes. Omit for the caller's personal
+                 *     ledger. A ledger the caller is not a member of is rejected with 403.
+                 */
+                "X-Ledger-Id"?: components["parameters"]["LedgerId"];
+            };
             path?: never;
             cookie?: never;
         };
@@ -1827,7 +2085,13 @@ export interface operations {
                 from: string;
                 to: string;
             };
-            header?: never;
+            header?: {
+                /**
+                 * @description Which book this request reads and writes. Omit for the caller's personal
+                 *     ledger. A ledger the caller is not a member of is rejected with 403.
+                 */
+                "X-Ledger-Id"?: components["parameters"]["LedgerId"];
+            };
             path?: never;
             cookie?: never;
         };
@@ -1867,7 +2131,13 @@ export interface operations {
             query?: {
                 months?: number;
             };
-            header?: never;
+            header?: {
+                /**
+                 * @description Which book this request reads and writes. Omit for the caller's personal
+                 *     ledger. A ledger the caller is not a member of is rejected with 403.
+                 */
+                "X-Ledger-Id"?: components["parameters"]["LedgerId"];
+            };
             path?: never;
             cookie?: never;
         };
@@ -1905,7 +2175,13 @@ export interface operations {
     listRecurring: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /**
+                 * @description Which book this request reads and writes. Omit for the caller's personal
+                 *     ledger. A ledger the caller is not a member of is rejected with 403.
+                 */
+                "X-Ledger-Id"?: components["parameters"]["LedgerId"];
+            };
             path?: never;
             cookie?: never;
         };
@@ -1934,7 +2210,13 @@ export interface operations {
     createRecurring: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /**
+                 * @description Which book this request reads and writes. Omit for the caller's personal
+                 *     ledger. A ledger the caller is not a member of is rejected with 403.
+                 */
+                "X-Ledger-Id"?: components["parameters"]["LedgerId"];
+            };
             path?: never;
             cookie?: never;
         };
@@ -1976,7 +2258,13 @@ export interface operations {
     getRecurring: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /**
+                 * @description Which book this request reads and writes. Omit for the caller's personal
+                 *     ledger. A ledger the caller is not a member of is rejected with 403.
+                 */
+                "X-Ledger-Id"?: components["parameters"]["LedgerId"];
+            };
             path: {
                 id: string;
             };
@@ -2016,7 +2304,13 @@ export interface operations {
     updateRecurring: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /**
+                 * @description Which book this request reads and writes. Omit for the caller's personal
+                 *     ledger. A ledger the caller is not a member of is rejected with 403.
+                 */
+                "X-Ledger-Id"?: components["parameters"]["LedgerId"];
+            };
             path: {
                 id: string;
             };
@@ -2069,7 +2363,13 @@ export interface operations {
     deleteRecurring: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /**
+                 * @description Which book this request reads and writes. Omit for the caller's personal
+                 *     ledger. A ledger the caller is not a member of is rejected with 403.
+                 */
+                "X-Ledger-Id"?: components["parameters"]["LedgerId"];
+            };
             path: {
                 id: string;
             };
@@ -2098,7 +2398,13 @@ export interface operations {
     triggerRecurring: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /**
+                 * @description Which book this request reads and writes. Omit for the caller's personal
+                 *     ledger. A ledger the caller is not a member of is rejected with 403.
+                 */
+                "X-Ledger-Id"?: components["parameters"]["LedgerId"];
+            };
             path?: never;
             cookie?: never;
         };
@@ -2115,6 +2421,238 @@ export interface operations {
             };
             /** @description missing or invalid token */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listLedgers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ledgers with the caller's role in each */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LedgerMembership"][];
+                };
+            };
+            /** @description missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createLedger: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewLedgerRequest"];
+            };
+        };
+        responses: {
+            /** @description ledger created, caller is its owner */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ledger"];
+                };
+            };
+            /** @description invalid name or currency */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listLedgerMembers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description members, owners first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LedgerMember"][];
+                };
+            };
+            /** @description missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description not a member of this ledger */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    removeLedgerMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description member removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description owner role required, or removing the last owner */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createLedgerInvite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description join code issued */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LedgerInvite"];
+                };
+            };
+            /** @description missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description owner role required, or the book is personal */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    joinLedger: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JoinLedgerRequest"];
+            };
+        };
+        responses: {
+            /** @description joined; the ledger is now selectable */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ledger"];
+                };
+            };
+            /** @description missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description unknown, expired, or revoked code */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

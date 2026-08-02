@@ -15,6 +15,7 @@ import (
 	"github.com/naufalhakim23/financi-ally/backend/internal/budget"
 	"github.com/naufalhakim23/financi-ally/backend/internal/db"
 	"github.com/naufalhakim23/financi-ally/backend/internal/fx"
+	"github.com/naufalhakim23/financi-ally/backend/internal/household"
 	"github.com/naufalhakim23/financi-ally/backend/internal/ledger"
 	"github.com/naufalhakim23/financi-ally/backend/internal/recurring"
 	"github.com/naufalhakim23/financi-ally/backend/internal/reporting"
@@ -31,11 +32,12 @@ type ServerImpl struct {
 	fxSvc     *fx.Service
 	reportSvc *reporting.Service
 	recSvc    *recurring.Service
+	household *household.Service
 }
 
 // NewServerImpl wires the handler with its dependencies.
-func NewServerImpl(pool *db.Pool, svc *auth.Service, led *ledger.Service, bud *budget.Service, syn *syncpkg.Service, fxSvc *fx.Service, reportSvc *reporting.Service, recSvc *recurring.Service) *ServerImpl {
-	return &ServerImpl{db: pool, svc: svc, ledger: led, budget: bud, syncSvc: syn, fxSvc: fxSvc, reportSvc: reportSvc, recSvc: recSvc}
+func NewServerImpl(pool *db.Pool, svc *auth.Service, led *ledger.Service, bud *budget.Service, syn *syncpkg.Service, fxSvc *fx.Service, reportSvc *reporting.Service, recSvc *recurring.Service, hs *household.Service) *ServerImpl {
+	return &ServerImpl{db: pool, svc: svc, ledger: led, budget: bud, syncSvc: syn, fxSvc: fxSvc, reportSvc: reportSvc, recSvc: recSvc, household: hs}
 }
 
 // Compile-time interface satisfaction; breaks at build if the generated
@@ -201,7 +203,7 @@ func (s *ServerImpl) CreateAccount(ctx context.Context, req api.CreateAccountReq
 	if req.Body.Id != nil {
 		id = *req.Body.Id
 	}
-	a, err := s.ledger.CreateAccount(ctx, p.UserID, id, string(req.Body.Type), req.Body.Currency, req.Body.Name, req.Body.ParentId)
+	a, err := s.ledger.CreateAccount(ctx, p.LedgerID, id, string(req.Body.Type), req.Body.Currency, req.Body.Name, req.Body.ParentId)
 	switch {
 	case errors.Is(err, ledger.ErrInvalidInput):
 		return api.CreateAccount400JSONResponse(api.Error{Code: "invalid_input", Message: "invalid type, currency, or name"}), nil
@@ -213,7 +215,7 @@ func (s *ServerImpl) CreateAccount(ctx context.Context, req api.CreateAccountReq
 	return api.CreateAccount201JSONResponse(toAPIAccount(a)), nil
 }
 
-// ListAccounts returns the user's accounts, optionally filtered by type.
+// ListAccounts returns the active book's accounts, optionally filtered by type.
 func (s *ServerImpl) ListAccounts(ctx context.Context, req api.ListAccountsRequestObject) (api.ListAccountsResponseObject, error) {
 	p, ok := PrincipalFrom(ctx)
 	if !ok {
@@ -223,7 +225,7 @@ func (s *ServerImpl) ListAccounts(ctx context.Context, req api.ListAccountsReque
 	if req.Params.Type != nil {
 		typeFilter = string(*req.Params.Type)
 	}
-	accounts, err := s.ledger.ListAccounts(ctx, p.UserID, typeFilter)
+	accounts, err := s.ledger.ListAccounts(ctx, p.LedgerID, typeFilter)
 	if err != nil {
 		return nil, err
 	}
@@ -240,7 +242,7 @@ func (s *ServerImpl) GetAccountBalance(ctx context.Context, req api.GetAccountBa
 	if !ok {
 		return api.GetAccountBalance401JSONResponse(api.Error{Code: "unauthenticated", Message: "missing or invalid token"}), nil
 	}
-	bal, err := s.ledger.Balance(ctx, p.UserID, req.Id)
+	bal, err := s.ledger.Balance(ctx, p.LedgerID, req.Id)
 	if errors.Is(err, ledger.ErrAccountNotFound) {
 		return api.GetAccountBalance404JSONResponse(api.Error{Code: "not_found", Message: "account not found"}), nil
 	}
@@ -295,7 +297,7 @@ func (s *ServerImpl) PostEntry(ctx context.Context, req api.PostEntryRequestObje
 		}
 		in.Lines = append(in.Lines, line)
 	}
-	e, err := s.ledger.Post(ctx, p.UserID, in)
+	e, err := s.ledger.Post(ctx, p.LedgerID, p.UserID, in)
 	switch {
 	case errors.Is(err, ledger.ErrInvalidInput):
 		return api.PostEntry400JSONResponse(api.Error{Code: "invalid_input", Message: "invalid entry: check currency, line amounts, and account ownership"}), nil
@@ -322,7 +324,7 @@ func (s *ServerImpl) ListEntries(ctx context.Context, req api.ListEntriesRequest
 		t := req.Params.To.Time
 		to = &t
 	}
-	entries, err := s.ledger.ListEntries(ctx, p.UserID, from, to)
+	entries, err := s.ledger.ListEntries(ctx, p.LedgerID, from, to)
 	if err != nil {
 		return nil, err
 	}
@@ -339,7 +341,7 @@ func (s *ServerImpl) GetEntry(ctx context.Context, req api.GetEntryRequestObject
 	if !ok {
 		return api.GetEntry401JSONResponse(api.Error{Code: "unauthenticated", Message: "missing or invalid token"}), nil
 	}
-	e, err := s.ledger.GetEntry(ctx, p.UserID, req.Id)
+	e, err := s.ledger.GetEntry(ctx, p.LedgerID, req.Id)
 	if errors.Is(err, ledger.ErrEntryNotFound) {
 		return api.GetEntry404JSONResponse(api.Error{Code: "not_found", Message: "entry not found"}), nil
 	}
@@ -361,7 +363,7 @@ func (s *ServerImpl) SetBudget(ctx context.Context, req api.SetBudgetRequestObje
 	if req.Body.Id != nil {
 		id = *req.Body.Id
 	}
-	b, err := s.budget.Set(ctx, p.UserID, id, req.Body.AccountId, req.Body.PeriodMonth.Time, req.Body.TargetMinor)
+	b, err := s.budget.Set(ctx, p.LedgerID, id, req.Body.AccountId, req.Body.PeriodMonth.Time, req.Body.TargetMinor)
 	if errors.Is(err, budget.ErrInvalidInput) {
 		return api.SetBudget400JSONResponse(api.Error{Code: "invalid_input", Message: "account must be an owned expense account; period must be month-start"}), nil
 	}
@@ -380,7 +382,7 @@ func (s *ServerImpl) ListBudgets(ctx context.Context, req api.ListBudgetsRequest
 	if req.Params.Period.Time.IsZero() {
 		return api.ListBudgets400JSONResponse(api.Error{Code: "invalid_input", Message: "period query param is required (YYYY-MM-01)"}), nil
 	}
-	bs, err := s.budget.List(ctx, p.UserID, req.Params.Period.Time)
+	bs, err := s.budget.List(ctx, p.LedgerID, req.Params.Period.Time)
 	if errors.Is(err, budget.ErrInvalidInput) {
 		return api.ListBudgets400JSONResponse(api.Error{Code: "invalid_input", Message: "period must be a valid month-start date"}), nil
 	}
@@ -409,7 +411,7 @@ func (s *ServerImpl) UpdateBudget(ctx context.Context, req api.UpdateBudgetReque
 	if !ok {
 		return api.UpdateBudget401JSONResponse(api.Error{Code: "unauthenticated", Message: "missing or invalid token"}), nil
 	}
-	b, err := s.budget.UpdateTarget(ctx, p.UserID, req.Id, req.Body.TargetMinor)
+	b, err := s.budget.UpdateTarget(ctx, p.LedgerID, req.Id, req.Body.TargetMinor)
 	if errors.Is(err, budget.ErrBudgetNotFound) || errors.Is(err, budget.ErrInvalidInput) {
 		return api.UpdateBudget404JSONResponse(api.Error{Code: "not_found", Message: "budget not found"}), nil
 	}
@@ -425,7 +427,7 @@ func (s *ServerImpl) DeleteBudget(ctx context.Context, req api.DeleteBudgetReque
 	if !ok {
 		return api.DeleteBudget401JSONResponse(api.Error{Code: "unauthenticated", Message: "missing or invalid token"}), nil
 	}
-	if err := s.budget.Delete(ctx, p.UserID, req.Id); err != nil {
+	if err := s.budget.Delete(ctx, p.LedgerID, req.Id); err != nil {
 		return nil, err
 	}
 	return api.DeleteBudget204Response{}, nil
@@ -443,7 +445,7 @@ func (s *ServerImpl) SyncPull(ctx context.Context, req api.SyncPullRequestObject
 	if req.Params.LastPulledAt != nil {
 		since = *req.Params.LastPulledAt
 	}
-	resp, err := s.syncSvc.Pull(ctx, p.UserID, since)
+	resp, err := s.syncSvc.Pull(ctx, p.LedgerID, since)
 	if err != nil {
 		return nil, err
 	}
@@ -459,7 +461,7 @@ func (s *ServerImpl) SyncPush(ctx context.Context, req api.SyncPushRequestObject
 	if !ok {
 		return api.SyncPush401JSONResponse(api.Error{Code: "unauthenticated", Message: "missing or invalid token"}), nil
 	}
-	resp, err := s.syncSvc.Push(ctx, p.UserID, syncpkg.PushRequest{Changes: fromAPIChanges(req.Body.Changes)})
+	resp, err := s.syncSvc.Push(ctx, p.LedgerID, p.UserID, syncpkg.PushRequest{Changes: fromAPIChanges(req.Body.Changes)})
 	if err != nil {
 		return nil, err
 	}
@@ -560,11 +562,7 @@ func (s *ServerImpl) GetNetWorth(ctx context.Context, _ api.GetNetWorthRequestOb
 	if !ok {
 		return api.GetNetWorth401JSONResponse(api.Error{Code: "unauthenticated", Message: "missing or invalid token"}), nil
 	}
-	user, err := s.svc.Me(ctx, p.UserID)
-	if err != nil {
-		return api.GetNetWorth401JSONResponse(api.Error{Code: "unauthenticated", Message: "user not found"}), nil
-	}
-	nw, err := s.reportSvc.NetWorth(ctx, p.UserID, user.BaseCurrency)
+	nw, err := s.reportSvc.NetWorth(ctx, p.LedgerID, p.LedgerCurrency)
 	if err != nil {
 		return nil, err
 	}
@@ -591,14 +589,10 @@ func (s *ServerImpl) GetSpending(ctx context.Context, req api.GetSpendingRequest
 	if !ok {
 		return api.GetSpending401JSONResponse(api.Error{Code: "unauthenticated", Message: "missing or invalid token"}), nil
 	}
-	user, err := s.svc.Me(ctx, p.UserID)
-	if err != nil {
-		return api.GetSpending401JSONResponse(api.Error{Code: "unauthenticated", Message: "user not found"}), nil
-	}
 	if req.Params.From.Time.IsZero() || req.Params.To.Time.IsZero() {
 		return api.GetSpending400JSONResponse(api.Error{Code: "invalid_input", Message: "from and to are required"}), nil
 	}
-	spending, err := s.reportSvc.SpendingByCategory(ctx, p.UserID, user.BaseCurrency, req.Params.From.Time, req.Params.To.Time)
+	spending, err := s.reportSvc.SpendingByCategory(ctx, p.LedgerID, p.LedgerCurrency, req.Params.From.Time, req.Params.To.Time)
 	if err != nil {
 		return nil, err
 	}
@@ -621,14 +615,10 @@ func (s *ServerImpl) GetCashFlow(ctx context.Context, req api.GetCashFlowRequest
 	if !ok {
 		return api.GetCashFlow401JSONResponse(api.Error{Code: "unauthenticated", Message: "missing or invalid token"}), nil
 	}
-	user, err := s.svc.Me(ctx, p.UserID)
-	if err != nil {
-		return api.GetCashFlow401JSONResponse(api.Error{Code: "unauthenticated", Message: "user not found"}), nil
-	}
 	if req.Params.From.Time.IsZero() || req.Params.To.Time.IsZero() {
 		return api.GetCashFlow400JSONResponse(api.Error{Code: "invalid_input", Message: "from and to are required"}), nil
 	}
-	cf, err := s.reportSvc.CashFlow(ctx, p.UserID, user.BaseCurrency, req.Params.From.Time, req.Params.To.Time)
+	cf, err := s.reportSvc.CashFlow(ctx, p.LedgerID, p.LedgerCurrency, req.Params.From.Time, req.Params.To.Time)
 	if err != nil {
 		return nil, err
 	}
@@ -656,10 +646,6 @@ func (s *ServerImpl) GetMonthlySeries(ctx context.Context, req api.GetMonthlySer
 	if !ok {
 		return api.GetMonthlySeries401JSONResponse(api.Error{Code: "unauthenticated", Message: "missing or invalid token"}), nil
 	}
-	user, err := s.svc.Me(ctx, p.UserID)
-	if err != nil {
-		return api.GetMonthlySeries401JSONResponse(api.Error{Code: "unauthenticated", Message: "user not found"}), nil
-	}
 	months := 6
 	if req.Params.Months != nil {
 		months = *req.Params.Months
@@ -667,7 +653,7 @@ func (s *ServerImpl) GetMonthlySeries(ctx context.Context, req api.GetMonthlySer
 	if months < 1 || months > 24 {
 		return api.GetMonthlySeries400JSONResponse(api.Error{Code: "invalid_input", Message: "months must be between 1 and 24"}), nil
 	}
-	points, err := s.reportSvc.MonthlySeries(ctx, p.UserID, user.BaseCurrency, months)
+	points, err := s.reportSvc.MonthlySeries(ctx, p.LedgerID, p.LedgerCurrency, months)
 	if err != nil {
 		return nil, err
 	}
@@ -681,20 +667,20 @@ func (s *ServerImpl) GetMonthlySeries(ctx context.Context, req api.GetMonthlySer
 		})
 	}
 	return api.GetMonthlySeries200JSONResponse(api.MonthlySeries{
-		BaseCurrency: user.BaseCurrency,
+		BaseCurrency: p.LedgerCurrency,
 		Points:       out,
 	}), nil
 }
 
 // --- recurring handlers ----------------------------------------------------
 
-// ListRecurring returns the user's recurring transaction rules.
+// ListRecurring returns the active book's recurring transaction rules.
 func (s *ServerImpl) ListRecurring(ctx context.Context, _ api.ListRecurringRequestObject) (api.ListRecurringResponseObject, error) {
 	p, ok := PrincipalFrom(ctx)
 	if !ok {
 		return api.ListRecurring401JSONResponse(api.Error{Code: "unauthenticated", Message: "missing or invalid token"}), nil
 	}
-	rules, err := s.recSvc.List(ctx, p.UserID)
+	rules, err := s.recSvc.List(ctx, p.LedgerID)
 	if err != nil {
 		return nil, err
 	}
@@ -719,7 +705,7 @@ func (s *ServerImpl) CreateRecurring(ctx context.Context, req api.CreateRecurrin
 	if req.Body.Active != nil {
 		active = *req.Body.Active
 	}
-	rule, err := s.recSvc.Create(ctx, p.UserID, id, req.Body.Rrule, fromAPITemplate(req.Body.Template), active)
+	rule, err := s.recSvc.Create(ctx, p.LedgerID, id, req.Body.Rrule, fromAPITemplate(req.Body.Template), active)
 	if code, msg, bad := recurringInputError(err); bad {
 		return api.CreateRecurring400JSONResponse(api.Error{Code: code, Message: msg}), nil
 	}
@@ -735,7 +721,7 @@ func (s *ServerImpl) GetRecurring(ctx context.Context, req api.GetRecurringReque
 	if !ok {
 		return api.GetRecurring401JSONResponse(api.Error{Code: "unauthenticated", Message: "missing or invalid token"}), nil
 	}
-	rule, err := s.recSvc.Get(ctx, p.UserID, req.Id)
+	rule, err := s.recSvc.Get(ctx, p.LedgerID, req.Id)
 	if errors.Is(err, recurring.ErrRuleNotFound) {
 		return api.GetRecurring404JSONResponse(api.Error{Code: "not_found", Message: "recurring rule not found"}), nil
 	}
@@ -755,7 +741,7 @@ func (s *ServerImpl) UpdateRecurring(ctx context.Context, req api.UpdateRecurrin
 	if req.Body.Active != nil {
 		active = *req.Body.Active
 	}
-	rule, err := s.recSvc.Update(ctx, p.UserID, req.Id, req.Body.Rrule, fromAPITemplate(req.Body.Template), active)
+	rule, err := s.recSvc.Update(ctx, p.LedgerID, req.Id, req.Body.Rrule, fromAPITemplate(req.Body.Template), active)
 	if errors.Is(err, recurring.ErrRuleNotFound) {
 		return api.UpdateRecurring404JSONResponse(api.Error{Code: "not_found", Message: "recurring rule not found"}), nil
 	}
@@ -774,7 +760,7 @@ func (s *ServerImpl) DeleteRecurring(ctx context.Context, req api.DeleteRecurrin
 	if !ok {
 		return api.DeleteRecurring401JSONResponse(api.Error{Code: "unauthenticated", Message: "missing or invalid token"}), nil
 	}
-	if err := s.recSvc.Delete(ctx, p.UserID, req.Id); err != nil {
+	if err := s.recSvc.Delete(ctx, p.LedgerID, req.Id); err != nil {
 		return nil, err
 	}
 	return api.DeleteRecurring204Response{}, nil
@@ -786,9 +772,9 @@ func (s *ServerImpl) TriggerRecurring(ctx context.Context, _ api.TriggerRecurrin
 	if !ok {
 		return api.TriggerRecurring401JSONResponse(api.Error{Code: "unauthenticated", Message: "missing or invalid token"}), nil
 	}
-	// Scoped to the caller: a manual trigger must never post entries into
+	// Scoped to the active book: a manual trigger must never post entries into
 	// another tenant's ledger.
-	count, err := s.recSvc.MaterializeDueForUser(ctx, p.UserID)
+	count, err := s.recSvc.MaterializeDueForLedger(ctx, p.LedgerID)
 	if err != nil {
 		return nil, err
 	}
@@ -887,7 +873,7 @@ func toAPIChanges(c syncpkg.ChangeSet) api.SyncChanges {
 func toAPIRecurringRule(r *recurring.RecurringRule) api.RecurringRule {
 	out := api.RecurringRule{
 		Id:        r.ID,
-		UserId:    r.UserID,
+		LedgerId:  r.LedgerID,
 		Rrule:     r.RRule,
 		Template:  toAPITemplate(r.Template),
 		Active:    r.Active,

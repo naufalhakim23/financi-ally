@@ -1,7 +1,7 @@
 import { Modal, Pressable, ScrollView, Text, View } from "react-native";
 
 import { Button } from "./core";
-import { ELEVATION } from "./tokens";
+import { useTheme } from "./tokens";
 
 // ─── Overlays (DESIGN.md v1.0 → Bottom sheets & dialogs) ────────────────────
 // Sheets and the FAB are the only elements that genuinely float.
@@ -22,9 +22,10 @@ export function Sheet({
   title?: string;
   children: React.ReactNode;
 }) {
+  const { C, ELEVATION } = useTheme();
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View className="flex-1 justify-end" style={{ backgroundColor: "rgba(15,18,24,0.44)" }}>
+      <View className="flex-1 justify-end" style={{ backgroundColor: C.scrim }}>
         <Pressable className="flex-1" onPress={onClose} accessibilityLabel="Dismiss" />
         <View
           className="bg-surface rounded-t-2xl pb-10"
@@ -73,11 +74,12 @@ export function Dialog({
   onCancel: () => void;
   busy?: boolean;
 }) {
+  const { C, ELEVATION } = useTheme();
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
       <View
         className="flex-1 items-center justify-center px-6"
-        style={{ backgroundColor: "rgba(15,18,24,0.44)" }}
+        style={{ backgroundColor: C.scrim }}
       >
         <View
           className="w-full bg-surface rounded-2xl p-6"

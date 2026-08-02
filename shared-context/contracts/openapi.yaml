@@ -27,6 +27,8 @@ tags:
     description: Aggregated financial reports
   - name: recurring
     description: RRULE-based recurring transaction rules
+  - name: ledgers
+    description: Books of accounts, membership, and join codes
 paths:
   /healthz:
     get:
@@ -224,6 +226,8 @@ paths:
       summary: Create a pocket or category (chart-of-accounts entry)
       security:
         - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/LedgerId'
       requestBody:
         required: true
         content:
@@ -262,6 +266,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
+        - $ref: '#/components/parameters/LedgerId'
         - name: type
           in: query
           required: false
@@ -290,6 +295,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
+        - $ref: '#/components/parameters/LedgerId'
         - name: id
           in: path
           required: true
@@ -328,6 +334,8 @@ paths:
         cross-currency (FX) entries land in M4.
       security:
         - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/LedgerId'
       requestBody:
         required: true
         content:
@@ -366,6 +374,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
+        - $ref: '#/components/parameters/LedgerId'
         - name: from
           in: query
           required: false
@@ -401,6 +410,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
+        - $ref: '#/components/parameters/LedgerId'
         - name: id
           in: path
           required: true
@@ -432,6 +442,8 @@ paths:
       summary: Create or update a monthly category budget
       security:
         - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/LedgerId'
       requestBody:
         required: true
         content:
@@ -464,6 +476,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
+        - $ref: '#/components/parameters/LedgerId'
         - name: period
           in: query
           required: true
@@ -500,6 +513,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
+        - $ref: '#/components/parameters/LedgerId'
         - name: id
           in: path
           required: true
@@ -543,6 +557,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
+        - $ref: '#/components/parameters/LedgerId'
         - name: id
           in: path
           required: true
@@ -570,6 +585,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
+        - $ref: '#/components/parameters/LedgerId'
         - name: last_pulled_at
           in: query
           required: false
@@ -602,6 +618,8 @@ paths:
         Accepted records get a server updated_at; LWW on metadata mutables.
       security:
         - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/LedgerId'
       requestBody:
         required: true
         content:
@@ -631,6 +649,8 @@ paths:
         The mobile calls this to check whether the local rate cache is stale.
       security:
         - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/LedgerId'
       responses:
         '200':
           description: available FX rate bases
@@ -654,6 +674,8 @@ paths:
         Returns the number of rates inserted or updated.
       security:
         - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/LedgerId'
       responses:
         '200':
           description: rates refreshed
@@ -673,6 +695,7 @@ paths:
       tags: [fx]
       summary: Get the most recent rate for a currency pair
       parameters:
+        - $ref: '#/components/parameters/LedgerId'
         - name: base
           in: path
           required: true
@@ -723,6 +746,8 @@ paths:
         user's base currency using the most recent available FX rate.
       security:
         - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/LedgerId'
       responses:
         '200':
           description: net worth breakdown
@@ -742,6 +767,7 @@ paths:
       tags: [reports]
       summary: Spending by category for a period
       parameters:
+        - $ref: '#/components/parameters/LedgerId'
         - name: from
           in: query
           required: true
@@ -783,6 +809,7 @@ paths:
       tags: [reports]
       summary: Income vs expense for a period, in base currency
       parameters:
+        - $ref: '#/components/parameters/LedgerId'
         - name: from
           in: query
           required: true
@@ -826,6 +853,7 @@ paths:
         is normalized to the user's base currency. Drives the monthly trend
         chart on the reports screen.
       parameters:
+        - $ref: '#/components/parameters/LedgerId'
         - name: months
           in: query
           required: false
@@ -862,6 +890,8 @@ paths:
       summary: List the user's recurring transaction rules
       security:
         - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/LedgerId'
       responses:
         '200':
           description: recurring rules
@@ -883,6 +913,8 @@ paths:
       summary: Create a recurring transaction rule
       security:
         - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/LedgerId'
       requestBody:
         required: true
         content:
@@ -916,6 +948,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
+        - $ref: '#/components/parameters/LedgerId'
         - name: id
           in: path
           required: true
@@ -947,6 +980,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
+        - $ref: '#/components/parameters/LedgerId'
         - name: id
           in: path
           required: true
@@ -990,6 +1024,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
+        - $ref: '#/components/parameters/LedgerId'
         - name: id
           in: path
           required: true
@@ -1017,6 +1052,8 @@ paths:
         count of entries actually created.
       security:
         - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/LedgerId'
       responses:
         '200':
           description: materialization complete
@@ -1030,13 +1067,291 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /ledgers:
+    get:
+      operationId: listLedgers
+      tags: [ledgers]
+      summary: List the books this user can open
+      description: |
+        The personal book comes first and is created on first use, so this
+        never returns an empty list for an authenticated user.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: ledgers with the caller's role in each
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LedgerMembership'
+        '401':
+          description: missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      operationId: createLedger
+      tags: [ledgers]
+      summary: Create a shared household book
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewLedgerRequest'
+      responses:
+        '201':
+          description: ledger created, caller is its owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ledger'
+        '400':
+          description: invalid name or currency
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /ledgers/{id}/members:
+    get:
+      operationId: listLedgerMembers
+      tags: [ledgers]
+      summary: List a book's members
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: members, owners first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LedgerMember'
+        '401':
+          description: missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: not a member of this ledger
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /ledgers/{id}/members/{userId}:
+    delete:
+      operationId: removeLedgerMember
+      tags: [ledgers]
+      summary: Remove a member, or leave the book yourself
+      description: |
+        Owners may remove anyone; members may remove only themselves. The last
+        owner cannot be removed: a book with no owner could never be managed
+        again. Idempotent: removing a non-member returns 204.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: member removed
+        '401':
+          description: missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: owner role required, or removing the last owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /ledgers/{id}/invite:
+    post:
+      operationId: createLedgerInvite
+      tags: [ledgers]
+      summary: Issue a join code for a household book
+      description: |
+        Owner-only. Issuing a code revokes any previous one for the book, so
+        there is exactly one live code at a time.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: join code issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LedgerInvite'
+        '401':
+          description: missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: owner role required, or the book is personal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /ledgers/join:
+    post:
+      operationId: joinLedger
+      tags: [ledgers]
+      summary: Join a book with a code
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JoinLedgerRequest'
+      responses:
+        '200':
+          description: joined; the ledger is now selectable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ledger'
+        '401':
+          description: missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: unknown, expired, or revoked code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 components:
+  parameters:
+    LedgerId:
+      name: X-Ledger-Id
+      in: header
+      required: false
+      description: |
+        Which book this request reads and writes. Omit for the caller's personal
+        ledger. A ledger the caller is not a member of is rejected with 403.
+      schema:
+        type: string
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
   schemas:
+    Ledger:
+      type: object
+      required: [id, name, base_currency, kind, created_at]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        base_currency:
+          type: string
+          description: the book's reporting currency; reports normalize to it
+          example: IDR
+        kind:
+          type: string
+          enum: [personal, household]
+        created_at:
+          type: string
+          format: date-time
+    LedgerMembership:
+      type: object
+      required: [ledger, role]
+      properties:
+        ledger:
+          $ref: '#/components/schemas/Ledger'
+        role:
+          $ref: '#/components/schemas/LedgerRole'
+    LedgerRole:
+      type: string
+      enum: [owner, member]
+      description: owners manage membership and invites; members do everything else
+    LedgerMember:
+      type: object
+      required: [user_id, email, role, joined_at]
+      properties:
+        user_id:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          $ref: '#/components/schemas/LedgerRole'
+        joined_at:
+          type: string
+          format: date-time
+    LedgerInvite:
+      type: object
+      required: [code, ledger_id, expires_at]
+      properties:
+        code:
+          type: string
+          description: short human-typeable join code
+          example: K7M2QX9B
+        ledger_id:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+    NewLedgerRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          maxLength: 80
+        base_currency:
+          type: string
+          description: defaults to the creator's own base currency
+          example: IDR
+    JoinLedgerRequest:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
     HealthStatus:
       type: object
       required: [status, db]
@@ -1550,11 +1865,11 @@ components:
           format: int64
     RecurringRule:
       type: object
-      required: [id, user_id, rrule, template, active, created_at, updated_at]
+      required: [id, ledger_id, rrule, template, active, created_at, updated_at]
       properties:
         id:
           type: string
-        user_id:
+        ledger_id:
           type: string
         rrule:
           type: string

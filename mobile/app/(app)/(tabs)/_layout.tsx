@@ -1,7 +1,7 @@
 import { Tabs, router } from "expo-router";
 import { Home, LayoutGrid, LineChart, MoreHorizontal } from "lucide-react-native";
 
-import { TabBar, type TabSlot } from "../../../src/components/ui";
+import { TabBar, type TabSlot, useTheme } from "../../../src/components/ui";
 import { useWording } from "../../../src/lib/wording";
 
 // Four destinations around the centre add affordance. The FAB is not a route —
@@ -9,6 +9,7 @@ import { useWording } from "../../../src/lib/wording";
 // rendered from the navigator's descriptors.
 export default function TabsLayout() {
   const { t } = useWording();
+  const { C } = useTheme();
 
   const slots: TabSlot[] = [
     { name: "index", label: "Home", glyph: Home },
@@ -19,7 +20,7 @@ export default function TabsLayout() {
 
   return (
     <Tabs
-      screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: "#F2F3F7" } }}
+      screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: C.background } }}
       tabBar={({ state, navigation }) => (
         <TabBar
           slots={slots}

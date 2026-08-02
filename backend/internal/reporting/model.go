@@ -1,12 +1,12 @@
 // Package reporting generates aggregate views from the immutable ledger:
 // net worth, cash flow, spending by category, with currency normalization
-// to the user's base currency via the fx_rates table.
+// to the ledger's base currency via the fx_rates table.
 package reporting
 
 import "time"
 
 // NetWorth is the total of all asset accounts minus all liability accounts,
-// normalized to the user's base currency.
+// normalized to the ledger's base currency.
 type NetWorth struct {
 	BaseCurrency   string           `json:"base_currency"`
 	AsOfDate       time.Time        `json:"as_of_date"`
@@ -15,7 +15,7 @@ type NetWorth struct {
 	NetMinor       int64            `json:"net_minor"`
 }
 
-// CategorySpend is a category's spending over a period in the user's base
+// CategorySpend is a category's spending over a period in the ledger's base
 // currency.
 type CategorySpend struct {
 	AccountID   string `json:"account_id"`

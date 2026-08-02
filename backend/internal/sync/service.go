@@ -31,20 +31,20 @@ func NewService(repo *Repo, led *ledger.Service, bud *budget.Service, rec *recur
 
 // Pull returns all changes since the client's watermark (ms epoch). The
 // watermark 0 means "everything" (first sync).
-func (s *Service) Pull(ctx context.Context, userID string, lastPulledAtMs int64) (PullResponse, error) {
+func (s *Service) Pull(ctx context.Context, ledgerID string, lastPulledAtMs int64) (PullResponse, error) {
 	asOf := time.Now()                      // snapshot bound so the next pull isn't racy
 	since := time.UnixMilli(lastPulledAtMs) // zero-time if 0 → matches all "created > since"
 	changes := ChangeSet{}
 	for _, table := range syncedTables {
-		created, err := s.repo.PullCreated(ctx, userID, table, since, asOf)
+		created, err := s.repo.PullCreated(ctx, ledgerID, table, since, asOf)
 		if err != nil {
 			return PullResponse{}, err
 		}
-		updated, err := s.repo.PullUpdated(ctx, userID, table, since, asOf)
+		updated, err := s.repo.PullUpdated(ctx, ledgerID, table, since, asOf)
 		if err != nil {
 			return PullResponse{}, err
 		}
-		deleted, err := s.repo.PullDeleted(ctx, userID, table, since, asOf)
+		deleted, err := s.repo.PullDeleted(ctx, ledgerID, table, since, asOf)
 		if err != nil {
 			return PullResponse{}, err
 		}
@@ -58,7 +58,7 @@ func (s *Service) Pull(ctx context.Context, userID string, lastPulledAtMs int64)
 // Push applies client changes table by table in dependency order. Invalid
 // records (unbalanced entry, bad account, etc.) are reported in Errors keyed by
 // client id; the rest apply.
-func (s *Service) Push(ctx context.Context, userID string, req PushRequest) (PushResponse, error) {
+func (s *Service) Push(ctx context.Context, ledgerID, userID string, req PushRequest) (PushResponse, error) {
 	errs := map[string]string{}
 	changes := req.Changes
 
@@ -66,12 +66,12 @@ func (s *Service) Push(ctx context.Context, userID string, req PushRequest) (Pus
 	if tc, ok := changes["accounts"]; ok {
 		for _, rec := range append(tc.Created, tc.Updated...) {
 			id := strID(rec, "id")
-			if err := s.pushAccount(ctx, userID, id, rec); err != nil {
+			if err := s.pushAccount(ctx, ledgerID, id, rec); err != nil {
 				errs[id] = err.Error()
 			}
 		}
 		for _, id := range tc.Deleted {
-			if err := s.repo.SoftDelete(ctx, "accounts", userID, id); err != nil {
+			if err := s.repo.SoftDelete(ctx, "accounts", ledgerID, id); err != nil {
 				errs[id] = err.Error()
 			}
 		}
@@ -81,12 +81,12 @@ func (s *Service) Push(ctx context.Context, userID string, req PushRequest) (Pus
 	if tc, ok := changes["budgets"]; ok {
 		for _, rec := range append(tc.Created, tc.Updated...) {
 			id := strID(rec, "id")
-			if err := s.pushBudget(ctx, userID, id, rec); err != nil {
+			if err := s.pushBudget(ctx, ledgerID, id, rec); err != nil {
 				errs[id] = err.Error()
 			}
 		}
 		for _, id := range tc.Deleted {
-			if err := s.repo.SoftDelete(ctx, "budgets", userID, id); err != nil {
+			if err := s.repo.SoftDelete(ctx, "budgets", ledgerID, id); err != nil {
 				errs[id] = err.Error()
 			}
 		}
@@ -97,12 +97,12 @@ func (s *Service) Push(ctx context.Context, userID string, req PushRequest) (Pus
 	if tc, ok := changes["recurring_rules"]; ok {
 		for _, rec := range append(tc.Created, tc.Updated...) {
 			id := strID(rec, "id")
-			if err := s.pushRecurring(ctx, userID, id, rec); err != nil {
+			if err := s.pushRecurring(ctx, ledgerID, id, rec); err != nil {
 				errs[id] = err.Error()
 			}
 		}
 		for _, id := range tc.Deleted {
-			if err := s.rec.Delete(ctx, userID, id); err != nil {
+			if err := s.rec.Delete(ctx, ledgerID, id); err != nil {
 				errs[id] = err.Error()
 			}
 		}
@@ -114,7 +114,7 @@ func (s *Service) Push(ctx context.Context, userID string, req PushRequest) (Pus
 	if tc, ok := changes["entries"]; ok {
 		for _, rec := range tc.Created {
 			id := strID(rec, "id")
-			if err := s.pushEntry(ctx, userID, id, rec, linesByEntry[id]); err != nil {
+			if err := s.pushEntry(ctx, ledgerID, userID, id, rec, linesByEntry[id]); err != nil {
 				errs[id] = err.Error()
 			}
 		}
@@ -130,7 +130,7 @@ func (s *Service) Push(ctx context.Context, userID string, req PushRequest) (Pus
 }
 
 // pushAccount validates and upserts one account record.
-func (s *Service) pushAccount(ctx context.Context, userID, id string, rec map[string]any) error {
+func (s *Service) pushAccount(ctx context.Context, ledgerID, id string, rec map[string]any) error {
 	if id == "" {
 		return fmt.Errorf("missing id")
 	}
@@ -153,19 +153,19 @@ func (s *Service) pushAccount(ctx context.Context, userID, id string, rec map[st
 		parentID = &p
 	}
 	archived, _ := rec["archived"].(bool)
-	return s.repo.UpsertAccount(ctx, id, userID, string(t), currency, name, parentID, archived)
+	return s.repo.UpsertAccount(ctx, id, ledgerID, string(t), currency, name, parentID, archived)
 }
 
 // pushBudget validates and upserts one budget record via the budget service
 // (which checks the account is an owned expense account).
-func (s *Service) pushBudget(ctx context.Context, userID, id string, rec map[string]any) error {
+func (s *Service) pushBudget(ctx context.Context, ledgerID, id string, rec map[string]any) error {
 	if id == "" {
 		return fmt.Errorf("missing id")
 	}
 	accountID := strOr(rec, "account_id")
 	target, _ := toInt64(rec["target_minor"])
 	period := toTime(rec["period_month"])
-	if _, err := s.bud.Set(ctx, userID, id, accountID, period, target); err != nil {
+	if _, err := s.bud.Set(ctx, ledgerID, id, accountID, period, target); err != nil {
 		return err
 	}
 	return nil
@@ -176,7 +176,7 @@ func (s *Service) pushBudget(ctx context.Context, userID, id string, rec map[str
 // the REST path. Create-vs-update is decided by what the server already has:
 // WatermelonDB replays a record as "created" after a failed push, and the client
 // can also edit a rule the server already knows.
-func (s *Service) pushRecurring(ctx context.Context, userID, id string, rec map[string]any) error {
+func (s *Service) pushRecurring(ctx context.Context, ledgerID, id string, rec map[string]any) error {
 	if id == "" {
 		return fmt.Errorf("missing id")
 	}
@@ -187,20 +187,20 @@ func (s *Service) pushRecurring(ctx context.Context, userID, id string, rec map[
 	rrule := strOr(rec, "rrule")
 	active := toBoolOr(rec["active"], true)
 
-	if _, err := s.rec.Get(ctx, userID, id); err == nil {
-		_, err = s.rec.Update(ctx, userID, id, rrule, tmpl, active)
+	if _, err := s.rec.Get(ctx, ledgerID, id); err == nil {
+		_, err = s.rec.Update(ctx, ledgerID, id, rrule, tmpl, active)
 		return err
 	} else if !errors.Is(err, recurring.ErrRuleNotFound) {
 		return err
 	}
-	_, err = s.rec.Create(ctx, userID, id, rrule, tmpl, active)
+	_, err = s.rec.Create(ctx, ledgerID, id, rrule, tmpl, active)
 	return err
 }
 
 // pushEntry assembles an entry + its lines and Posts through the ledger, so the
 // balance invariant, account ownership, and currency match all apply identically
 // to the REST path.
-func (s *Service) pushEntry(ctx context.Context, userID, id string, rec map[string]any, lines []map[string]any) error {
+func (s *Service) pushEntry(ctx context.Context, ledgerID, userID, id string, rec map[string]any, lines []map[string]any) error {
 	if id == "" {
 		return fmt.Errorf("missing id")
 	}
@@ -227,7 +227,7 @@ func (s *Service) pushEntry(ctx context.Context, userID, id string, rec map[stri
 		}
 		in.Lines = append(in.Lines, line)
 	}
-	if _, err := s.led.Post(ctx, userID, in); err != nil {
+	if _, err := s.led.Post(ctx, ledgerID, userID, in); err != nil {
 		return err
 	}
 	return nil

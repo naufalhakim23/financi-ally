@@ -29,6 +29,8 @@ tags:
     description: RRULE-based recurring transaction rules
   - name: ledgers
     description: Books of accounts, membership, and join codes
+  - name: scan
+    description: Receipt photo extraction and stored receipt images
 paths:
   /healthz:
     get:
@@ -493,6 +495,120 @@ paths:
                 $ref: '#/components/schemas/Error'
         '404':
           description: entry not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /entries/{id}/attachment:
+    get:
+      operationId: getEntryAttachment
+      tags: [scan]
+      summary: Fetch the receipt image stored against an entry
+      description: |
+        Returns the image bytes with their own content type. Images are
+        deliberately outside the WatermelonDB sync payload — the client fetches
+        one on demand when the user opens an entry, rather than replicating
+        binaries through pull/push.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/LedgerId'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: the stored receipt image
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        '401':
+          description: missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: no attachment for this entry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /scan/receipt:
+    post:
+      operationId: scanReceipt
+      tags: [scan]
+      summary: Extract a draft entry from a receipt photo
+      description: |
+        Reads the photo with a vision model and returns a *proposal*. Nothing is
+        posted: the client prefills the normal entry screen with the draft, the
+        user corrects and confirms, and the confirmed entry goes through
+        `POST /entries` like any other — carrying `attachment_id` so the photo is
+        filed against it.
+
+        The image is stored immediately, before confirmation, because that is
+        when it is in hand. An upload whose draft is never confirmed is deleted
+        automatically after `SCAN_REAP_AFTER` (7 days by default — long enough to
+        outlast the gap between scanning offline and the next successful sync).
+
+        Each call costs a vision-model request, so scans are capped per user per
+        UTC day (`SCAN_DAILY_LIMIT`). Over the cap the endpoint returns 429 and
+        no model call is made.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/LedgerId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image:
+                  type: string
+                  format: binary
+                  description: JPEG, PNG, or WebP, up to 8 MiB. The declared content type is ignored; the bytes are sniffed.
+      responses:
+        '200':
+          description: a draft proposal for the user to confirm
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReceiptDraft'
+        '400':
+          description: missing, oversized, or unsupported image
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: the image could not be read as a receipt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: daily scan cap reached for this user
           content:
             application/json:
               schema:
@@ -1646,7 +1762,7 @@ components:
           description: cross-currency rate (M4); null for single-currency entries
         source:
           type: string
-          enum: [manual, recurring, import]
+          enum: [manual, recurring, import, receipt_scan]
         memo:
           type: string
         lines:
@@ -1681,12 +1797,52 @@ components:
           type: string
         source:
           type: string
-          enum: [manual, recurring, import]
+          enum: [manual, recurring, import, receipt_scan]
+        attachment_id:
+          type: string
+          description: |
+            Optional. The id returned by `POST /scan/receipt`, filing that photo
+            against this entry. Ignored unless the attachment belongs to this
+            ledger and is not already linked to another entry.
         lines:
           type: array
           minItems: 2
           items:
             $ref: '#/components/schemas/LineInput'
+    ReceiptDraft:
+      type: object
+      required: [attachment_id, merchant, txn_date, currency, amount_minor, confidence]
+      description: |
+        A proposal, not an entry. Nothing in the journal corresponds to this yet
+        and nothing will until the user confirms it through `POST /entries`.
+      properties:
+        attachment_id:
+          type: string
+          description: pass back on POST /entries to file the photo against the confirmed entry
+        merchant:
+          type: string
+          description: may be empty when unreadable; the client uses it as the memo
+        txn_date:
+          type: string
+          format: date
+          description: the receipt's date, or today when the receipt does not print one
+        currency:
+          type: string
+          example: IDR
+        amount_minor:
+          type: integer
+          format: int64
+          description: the total paid, in this currency's minor units
+        category_id:
+          type: string
+          nullable: true
+          description: |
+            An expense account in this ledger, or null. Null means the model was
+            unsure — the client must make the user choose rather than defaulting.
+        confidence:
+          type: number
+          format: float
+          description: 0–1, how sure the model is of the total and currency
     AccountBalance:
       type: object
       required: [account_id, currency, debit_minor, credit_minor, signed_minor]

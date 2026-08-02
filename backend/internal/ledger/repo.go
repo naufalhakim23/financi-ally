@@ -325,6 +325,18 @@ func scanEntries(rows pgx.Rows) ([]*Entry, error) {
 	return out, rows.Err()
 }
 
+// ClientSource whitelists the origins a client may claim, at either door — a
+// sync push or POST /entries. "recurring" and "import" are server-owned
+// provenance, so anything unrecognized becomes "manual".
+func ClientSource(s string) string {
+	switch strings.TrimSpace(strings.ToLower(s)) {
+	case "receipt_scan":
+		return "receipt_scan"
+	default:
+		return "manual"
+	}
+}
+
 func defaultSource(s string) string {
 	if s == "" {
 		return "manual"

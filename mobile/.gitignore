@@ -42,3 +42,6 @@ yarn-error.*
 /ios
 /android
 .check/
+
+# Local dev builds
+*.apk

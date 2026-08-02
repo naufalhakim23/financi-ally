@@ -6,6 +6,15 @@ import { schemaMigrations, addColumns, createTable } from "@nozbe/watermelondb/S
 export default schemaMigrations({
   migrations: [
     {
+      toVersion: 4,
+      steps: [
+        addColumns({
+          table: "entries",
+          columns: [{ name: "attachment_id", type: "string", isOptional: true }],
+        }),
+      ],
+    },
+    {
       toVersion: 3,
       steps: [
         addColumns({

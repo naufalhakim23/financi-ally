@@ -19,6 +19,7 @@ import (
 	"github.com/naufalhakim23/financi-ally/backend/internal/ledger"
 	"github.com/naufalhakim23/financi-ally/backend/internal/recurring"
 	"github.com/naufalhakim23/financi-ally/backend/internal/reporting"
+	"github.com/naufalhakim23/financi-ally/backend/internal/scan"
 	syncpkg "github.com/naufalhakim23/financi-ally/backend/internal/sync"
 )
 
@@ -33,11 +34,12 @@ type ServerImpl struct {
 	reportSvc *reporting.Service
 	recSvc    *recurring.Service
 	household *household.Service
+	scan      *scan.Service
 }
 
 // NewServerImpl wires the handler with its dependencies.
-func NewServerImpl(pool *db.Pool, svc *auth.Service, led *ledger.Service, bud *budget.Service, syn *syncpkg.Service, fxSvc *fx.Service, reportSvc *reporting.Service, recSvc *recurring.Service, hs *household.Service) *ServerImpl {
-	return &ServerImpl{db: pool, svc: svc, ledger: led, budget: bud, syncSvc: syn, fxSvc: fxSvc, reportSvc: reportSvc, recSvc: recSvc, household: hs}
+func NewServerImpl(pool *db.Pool, svc *auth.Service, led *ledger.Service, bud *budget.Service, syn *syncpkg.Service, fxSvc *fx.Service, reportSvc *reporting.Service, recSvc *recurring.Service, hs *household.Service, scanSvc *scan.Service) *ServerImpl {
+	return &ServerImpl{db: pool, svc: svc, ledger: led, budget: bud, syncSvc: syn, fxSvc: fxSvc, reportSvc: reportSvc, recSvc: recSvc, household: hs, scan: scanSvc}
 }
 
 // Compile-time interface satisfaction; breaks at build if the generated
@@ -311,7 +313,8 @@ func (s *ServerImpl) PostEntry(ctx context.Context, req api.PostEntryRequestObje
 		in.Memo = *req.Body.Memo
 	}
 	if req.Body.Source != nil {
-		in.Source = string(*req.Body.Source)
+		// Same whitelist the sync push uses.
+		in.Source = ledger.ClientSource(string(*req.Body.Source))
 	}
 	for _, ln := range req.Body.Lines {
 		lid := ""
@@ -337,6 +340,11 @@ func (s *ServerImpl) PostEntry(ctx context.Context, req api.PostEntryRequestObje
 		return api.PostEntry422JSONResponse(api.Error{Code: "unbalanced", Message: "entry debits do not equal credits"}), nil
 	case err != nil:
 		return nil, err
+	}
+	// File the scanned photo against the entry it produced. Deliberately after
+	// the post and deliberately non-fatal — see linkAttachment.
+	if req.Body.AttachmentId != nil && *req.Body.AttachmentId != "" {
+		s.linkAttachment(ctx, p.LedgerID, *req.Body.AttachmentId, e.ID)
 	}
 	return api.PostEntry201JSONResponse(toAPIEntry(e)), nil
 }

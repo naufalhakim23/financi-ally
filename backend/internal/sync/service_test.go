@@ -45,7 +45,7 @@ func newTestService(t *testing.T) (*Service, string, func()) {
 	ledSvc := ledger.NewService(ledger.NewRepo(pool))
 	budSvc := budget.NewService(budget.NewRepo(pool), ledSvc)
 	recSvc := recurring.NewService(recurring.NewRepo(pool), ledSvc, time.UTC)
-	svc := NewService(NewRepo(pool), ledSvc, budSvc, recSvc)
+	svc := NewService(NewRepo(pool), ledSvc, budSvc, recSvc, nil)
 	return svc, personalLedger(t, pool, user.User.ID), func() { pool.Close() }
 }
 

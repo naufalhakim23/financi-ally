@@ -267,6 +267,62 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/entries/{id}/attachment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Fetch the receipt image stored against an entry
+         * @description Returns the image bytes with their own content type. Images are
+         *     deliberately outside the WatermelonDB sync payload — the client fetches
+         *     one on demand when the user opens an entry, rather than replicating
+         *     binaries through pull/push.
+         */
+        get: operations["getEntryAttachment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/scan/receipt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Extract a draft entry from a receipt photo
+         * @description Reads the photo with a vision model and returns a *proposal*. Nothing is
+         *     posted: the client prefills the normal entry screen with the draft, the
+         *     user corrects and confirms, and the confirmed entry goes through
+         *     `POST /entries` like any other — carrying `attachment_id` so the photo is
+         *     filed against it.
+         *
+         *     The image is stored immediately, before confirmation, because that is
+         *     when it is in hand. An upload whose draft is never confirmed is deleted
+         *     automatically after `SCAN_REAP_AFTER` (7 days by default — long enough to
+         *     outlast the gap between scanning offline and the next successful sync).
+         *
+         *     Each call costs a vision-model request, so scans are capped per user per
+         *     UTC day (`SCAN_DAILY_LIMIT`). Over the cap the endpoint returns 429 and
+         *     no model call is made.
+         */
+        post: operations["scanReceipt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/budgets": {
         parameters: {
             query?: never;
@@ -860,7 +916,7 @@ export interface components {
             /** @description cross-currency rate (M4); null for single-currency entries */
             fx_rate?: string | null;
             /** @enum {string} */
-            source: "manual" | "recurring" | "import";
+            source: "manual" | "recurring" | "import" | "receipt_scan";
             memo: string;
             lines: components["schemas"]["JournalLine"][];
             /** Format: date-time */
@@ -885,8 +941,46 @@ export interface components {
             fx_rate?: string;
             memo?: string;
             /** @enum {string} */
-            source?: "manual" | "recurring" | "import";
+            source?: "manual" | "recurring" | "import" | "receipt_scan";
+            /**
+             * @description Optional. The id returned by `POST /scan/receipt`, filing that photo
+             *     against this entry. Ignored unless the attachment belongs to this
+             *     ledger and is not already linked to another entry.
+             */
+            attachment_id?: string;
             lines: components["schemas"]["LineInput"][];
+        };
+        /**
+         * @description A proposal, not an entry. Nothing in the journal corresponds to this yet
+         *     and nothing will until the user confirms it through `POST /entries`.
+         */
+        ReceiptDraft: {
+            /** @description pass back on POST /entries to file the photo against the confirmed entry */
+            attachment_id: string;
+            /** @description may be empty when unreadable; the client uses it as the memo */
+            merchant: string;
+            /**
+             * Format: date
+             * @description the receipt's date, or today when the receipt does not print one
+             */
+            txn_date: string;
+            /** @example IDR */
+            currency: string;
+            /**
+             * Format: int64
+             * @description the total paid, in this currency's minor units
+             */
+            amount_minor: number;
+            /**
+             * @description An expense account in this ledger, or null. Null means the model was
+             *     unsure — the client must make the user choose rather than defaulting.
+             */
+            category_id?: string | null;
+            /**
+             * Format: float
+             * @description 0–1, how sure the model is of the total and currency
+             */
+            confidence: number;
         };
         AccountBalance: {
             account_id: string;
@@ -1740,6 +1834,126 @@ export interface operations {
             };
             /** @description entry not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getEntryAttachment: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description Which book this request reads and writes. Omit for the caller's personal
+                 *     ledger. A ledger the caller is not a member of is rejected with 403.
+                 */
+                "X-Ledger-Id"?: components["parameters"]["LedgerId"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the stored receipt image */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                    "image/png": string;
+                    "image/webp": string;
+                };
+            };
+            /** @description missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description no attachment for this entry */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    scanReceipt: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description Which book this request reads and writes. Omit for the caller's personal
+                 *     ledger. A ledger the caller is not a member of is rejected with 403.
+                 */
+                "X-Ledger-Id"?: components["parameters"]["LedgerId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /**
+                     * Format: binary
+                     * @description JPEG, PNG, or WebP, up to 8 MiB. The declared content type is ignored; the bytes are sniffed.
+                     */
+                    image: string;
+                };
+            };
+        };
+        responses: {
+            /** @description a draft proposal for the user to confirm */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReceiptDraft"];
+                };
+            };
+            /** @description missing, oversized, or unsupported image */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description the image could not be read as a receipt */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description daily scan cap reached for this user */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };

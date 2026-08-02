@@ -4,7 +4,7 @@ import { appSchema, tableSchema } from "@nozbe/watermelondb";
 // are WatermelonDB-managed and never declared. Timestamps from the server
 // (txn_date, period_month) arrive as ms epoch and are stored as numbers.
 export default appSchema({
-  version: 3,
+  version: 4,
   tables: [
     tableSchema({
       name: "accounts",
@@ -28,6 +28,11 @@ export default appSchema({
         { name: "fx_rate", type: "string", isOptional: true },
         { name: "source", type: "string" },
         { name: "memo", type: "string", isOptional: true },
+        // Set locally by a receipt scan and carried out on the next push, which
+        // is when the server can file the photo against the posted entry. /sync/pull
+        // never sends it back — by then the link already exists server-side, so
+        // this column is write-only and transient by design.
+        { name: "attachment_id", type: "string", isOptional: true },
       ],
     }),
     tableSchema({

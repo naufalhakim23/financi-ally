@@ -32,7 +32,10 @@ func NewService(repo *Repo, led *ledger.Service, bud *budget.Service, rec *recur
 // Pull returns all changes since the client's watermark (ms epoch). The
 // watermark 0 means "everything" (first sync).
 func (s *Service) Pull(ctx context.Context, ledgerID string, lastPulledAtMs int64) (PullResponse, error) {
-	asOf := time.Now()                      // snapshot bound so the next pull isn't racy
+	asOf, err := s.repo.Now(ctx) // snapshot bound so the next pull isn't racy
+	if err != nil {
+		return PullResponse{}, err
+	}
 	since := time.UnixMilli(lastPulledAtMs) // zero-time if 0 → matches all "created > since"
 	changes := ChangeSet{}
 	for _, table := range syncedTables {
@@ -118,9 +121,38 @@ func (s *Service) Push(ctx context.Context, ledgerID, userID string, req PushReq
 				errs[id] = err.Error()
 			}
 		}
-		// entries are immutable once posted; client "updated" on a posted entry
-		// is ignored (corrections are reversing entries). Don't error — WMB may
-		// resend an updated record after a local field change we don't model.
+		// A posted entry's amounts, accounts and date are immutable; the memo is
+		// the one label the client may relabel. Anything else in an "updated"
+		// record is ignored rather than erroring — WMB resends a whole record
+		// after any local field change, including ones we don't model.
+		for _, rec := range tc.Updated {
+			id := strID(rec, "id")
+			if id == "" {
+				continue
+			}
+			// A record with no `memo` key at all carries no opinion about the
+			// memo; writing "" for it would erase a label the user never
+			// touched. Only a field that is actually present is a relabel.
+			if _, has := rec["memo"]; !has {
+				continue
+			}
+			if _, err := s.led.UpdateEntryMemo(ctx, ledgerID, id, strOr(rec, "memo")); err != nil {
+				// An entry the server has never seen is not an error here: WMB
+				// can report a locally-created record as updated, and the
+				// created branch above already covers it.
+				if !errors.Is(err, ledger.ErrEntryNotFound) {
+					errs[id] = err.Error()
+				}
+			}
+		}
+		// Deleting an entry is the one destructive money action, and until now
+		// the push dropped it silently — a client delete resurrected on the next
+		// pull. It soft-deletes through the ledger service, same as REST.
+		for _, id := range tc.Deleted {
+			if err := s.led.DeleteEntry(ctx, ledgerID, id); err != nil && !errors.Is(err, ledger.ErrEntryNotFound) {
+				errs[id] = err.Error()
+			}
+		}
 	}
 
 	if len(errs) == 0 {

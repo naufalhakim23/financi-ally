@@ -96,9 +96,8 @@ const TIMEOUT_MS = 15_000;
 
 // 15s ceiling so a stalled network can't leave the UI spinning forever.
 // `Request.signal` is never null, so guarding on it would disable the timeout
-// entirely. Compose instead: whichever fires first wins, so a caller's own
-// signal (the health poll) still cancels. Done by hand rather than with
-// AbortSignal.any, which Hermes does not ship.
+// entirely — compose instead, so a caller's own signal still cancels. By hand
+// rather than AbortSignal.any, which Hermes does not ship.
 const client = createClient<paths>({
   baseUrl: BASE_URL,
   fetch: (req: Request) => {

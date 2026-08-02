@@ -103,7 +103,7 @@ export default function EntryNew() {
         })
         .map((e) => e.id),
     );
-    return spendingForMonth(accounts, lines, idsInMonth, budgets, base);
+    return spendingForMonth(accounts, lines, idsInMonth, budgets, base, start);
   }, [accounts, lines, entries, budgets, base]);
 
   /**
@@ -148,6 +148,12 @@ export default function EntryNew() {
     }
     if (fromId === toId) {
       setErr("Pick two different accounts");
+      return;
+    }
+    // Both legs post in the source currency; cross-currency needs an fx_rate
+    // this screen does not collect yet, and the server rejects the entry.
+    if (from && to && from.currency !== to.currency) {
+      setErr(`Both sides must use the same currency — ${from.name} is ${from.currency}, ${to.name} is ${to.currency}`);
       return;
     }
     const minor = Number(digits || "0");

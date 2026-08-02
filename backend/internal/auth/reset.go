@@ -150,13 +150,19 @@ func resetEmailHTML(code string) string {
 // in one transaction so the two can never both be live.
 //
 // Returns errResetThrottled when a live code was issued less than
-// resetMinInterval ago. FOR UPDATE, so concurrent requests can't both pass.
+// resetMinInterval ago. Serialized per user, so concurrent requests can't both pass.
 func (r *Repo) CreatePasswordReset(ctx context.Context, userID string, codeHash []byte, expiresAt time.Time) error {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("begin reset tx: %w", err)
 	}
 	defer tx.Rollback(ctx) // noop after commit
+
+	// FOR UPDATE below locks nothing when no row exists yet, so two first-ever
+	// requests would both insert. Serialize on the user id instead.
+	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext($1))`, userID); err != nil {
+		return fmt.Errorf("lock reset issue: %w", err)
+	}
 
 	var recent bool
 	err = tx.QueryRow(ctx, `

@@ -3,6 +3,7 @@ import type { SyncPullResult } from "@nozbe/watermelondb/sync";
 
 import { authedApi } from "./api";
 import { database } from "./db";
+import { isGuest } from "./guestStore";
 import { takeLedgerStale } from "./ledgerStore";
 import { refreshPending, setSyncState } from "./syncState";
 
@@ -12,6 +13,10 @@ import { refreshPending, setSyncState } from "./syncState";
 // surfaced through syncState (header chip + banner) — never silently dropped,
 // because a record dropped here is missing money.
 export async function syncDatabase(): Promise<void> {
+  // A guest has no token and no server ledger. Every local write calls through
+  // here, so without this the app would fire a 401 at /sync on every entry and
+  // paint the offline banner over a session that is working exactly as intended.
+  if (isGuest()) return;
   setSyncState({ status: "syncing", lastError: null });
   try {
     // A book we were removed from left its rows and its watermark behind. Wipe

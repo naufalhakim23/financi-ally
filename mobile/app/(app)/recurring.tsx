@@ -107,8 +107,7 @@ function buildTemplate(
 }
 
 export default function Recurring() {
-  const { user } = useAuth();
-  const base = user?.base_currency ?? "IDR";
+  const { user, baseCurrency: base } = useAuth();
 
   const [rules, setRules] = useState<RecurringRule[]>([]);
   const [err, setErr] = useState<string | null>(null);

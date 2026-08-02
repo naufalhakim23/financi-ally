@@ -11,6 +11,7 @@ import { makeRedirectUri, useAuthRequest } from "expo-auth-session";
 
 import { api, HTTPError, type AuthResponse, type User } from "./api";
 import { setAuthAccessors } from "./authBridge";
+import { clearGuest, hydrateGuest, startGuest as persistGuest, useGuestCurrency } from "./guestStore";
 import { clearActiveLedger, hydrateLedger } from "./ledgerStore";
 import { clearTokens, getTokens, setTokens } from "./tokenStore";
 
@@ -26,11 +27,20 @@ const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ?? "";
 
 type AuthContextValue = {
   user: User | null;
+  /** True when the app is running with no account. Mutually exclusive with `user`. */
+  guest: boolean;
   loading: boolean; // true during initial token hydration
   googleEnabled: boolean;
+  /**
+   * The currency every screen formats and normalizes into. The account's when
+   * signed in, the guest's choice otherwise — screens read this instead of
+   * `user.base_currency` so guest mode needs no per-screen fallback.
+   */
+  baseCurrency: string;
   register: (email: string, password: string, baseCurrency?: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   googleSignin: () => Promise<void>;
+  startGuest: (baseCurrency: string) => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -39,6 +49,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const guestCur = useGuestCurrency();
   // Refs mirror tokens so logout/refresh callbacks read the latest without
   // stale-closure churn across renders.
   const accessRef = useRef<string | null>(null);
@@ -48,7 +59,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     accessRef.current = s.access_token;
     refreshRef.current = s.refresh_token;
     setUser(s.user);
-    await setTokens(s.access_token, s.refresh_token);
+    // A real session ends guest mode. Local rows stay put: they are still all
+    // WatermelonDB `created`, so the next sync pushes them into this account —
+    // the sign-in screen is what asks whether that is wanted.
+    await Promise.all([setTokens(s.access_token, s.refresh_token), clearGuest()]);
   }, []);
 
   const clearAll = useCallback(async () => {
@@ -97,7 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     (async () => {
       // Restore the active book before any authed call, so the first request
       // after a cold start already carries the right X-Ledger-Id.
-      await hydrateLedger();
+      await Promise.all([hydrateLedger(), hydrateGuest()]);
       const { access, refresh } = await getTokens();
       if (access) {
         try {
@@ -142,6 +156,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [applySession],
   );
 
+  const startGuest = useCallback(async (baseCurrency: string) => {
+    await persistGuest(baseCurrency.trim().toUpperCase() || "IDR");
+  }, []);
+
   const logout = useCallback(async () => {
     const access = accessRef.current;
     const refresh = refreshRef.current;
@@ -181,11 +199,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
+        guest: !user && guestCur !== null,
         loading,
         googleEnabled: !!GOOGLE_CLIENT_ID,
+        baseCurrency: user?.base_currency ?? guestCur ?? "IDR",
         register,
         login,
         googleSignin,
+        startGuest,
         logout,
       }}
     >

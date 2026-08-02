@@ -4,16 +4,17 @@ import { router } from "expo-router";
 
 import { useAuth } from "../src/lib/auth";
 
-// Auth gate. While tokens hydrate we show a spinner; with no session we go to
-// /login, and signed-in users land in the (app) tab group.
+// Entry gate. While tokens hydrate we show a spinner; a session or an active
+// guest lands in the (app) tab group, and everyone else meets /welcome — which
+// offers using the app without an account before it offers signing in.
 export default function Home() {
-  const { user, loading } = useAuth();
+  const { user, guest, loading } = useAuth();
 
   useEffect(() => {
     if (loading) return;
-    if (user) router.replace("/(app)");
-    else router.replace("/login");
-  }, [loading, user]);
+    if (user || guest) router.replace("/(app)");
+    else router.replace("/welcome");
+  }, [loading, user, guest]);
 
   return (
     <View className="flex-1 items-center justify-center bg-white">

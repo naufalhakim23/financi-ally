@@ -62,6 +62,7 @@ export function Dialog({
   title,
   body,
   confirmLabel,
+  cancelLabel = "Cancel",
   onConfirm,
   onCancel,
   busy = false,
@@ -70,6 +71,8 @@ export function Dialog({
   title: string;
   body?: string;
   confirmLabel: string;
+  /** Name the safe outcome when "Cancel" is not what declining actually means. */
+  cancelLabel?: string;
   onConfirm: () => void;
   onCancel: () => void;
   busy?: boolean;
@@ -90,7 +93,7 @@ export function Dialog({
           {body && <Text className="text-body font-sans-medium text-dim mt-2">{body}</Text>}
           <View className="flex-row mt-6" style={{ gap: 12 }}>
             <View className="flex-1">
-              <Button label="Cancel" onPress={onCancel} variant="secondary" disabled={busy} />
+              <Button label={cancelLabel} onPress={onCancel} variant="secondary" disabled={busy} />
             </View>
             <View className="flex-1">
               <Button

@@ -5,12 +5,16 @@ import { router } from "expo-router";
 import { Button, Field } from "../src/components/ui";
 import { useAuth } from "../src/lib/auth";
 import { messageFor } from "../src/lib/errors";
+import { guestCurrency } from "../src/lib/guestStore";
+import { syncDatabase } from "../src/lib/sync";
 
 export default function RegisterScreen() {
   const { register } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [baseCurrency, setBaseCurrency] = useState("");
+  // A guest already picked a currency and has entries denominated in it; the
+  // new account must inherit it, or every figure silently reprices.
+  const [baseCurrency, setBaseCurrency] = useState(guestCurrency() ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,6 +24,10 @@ export default function RegisterScreen() {
     try {
       // base_currency is optional; omit when blank so the server default (IDR) applies.
       await register(email.trim(), password, baseCurrency.trim() || undefined);
+      // Anything entered as a guest is still WatermelonDB `created`, so this
+      // first cycle carries the whole history up. Failure is not fatal — the
+      // rows stay pending and the next sync retries.
+      await syncDatabase().catch(() => {});
       router.replace("/(app)");
     } catch (e) {
       setError(messageFor(e, "Registration failed"));

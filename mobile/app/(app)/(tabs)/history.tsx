@@ -77,8 +77,7 @@ function monthRows(views: EntryView[], worth: number): MonthRow[] {
 }
 
 export default function HistoryScreen() {
-  const { user } = useAuth();
-  const base = user?.base_currency ?? "IDR";
+  const { baseCurrency: base } = useAuth();
   const { t } = useWording();
   const { C } = useTheme();
   const [tab, setTab] = useState<Tab>("months");

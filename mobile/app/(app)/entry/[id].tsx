@@ -31,8 +31,7 @@ import {
 
 export default function EntryDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { user } = useAuth();
-  const base = user?.base_currency ?? "IDR";
+  const { baseCurrency: base } = useAuth();
   const { t, showSides } = useWording();
   const { C } = useTheme();
   const [confirming, setConfirming] = useState(false);

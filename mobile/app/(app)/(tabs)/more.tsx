@@ -5,6 +5,7 @@ import { router } from "expo-router";
 import {
   ArrowUp,
   BarChart3,
+  Lock,
   LogOut,
   PieChart,
   RefreshCw,
@@ -23,7 +24,7 @@ import { useLedgerState } from "../../../src/lib/ledgerStore";
 // Everything direction 2a does not give a tab. Budgets, recurring rules and
 // reports still exist — they just stopped being destinations of their own.
 export default function MoreScreen() {
-  const { user, logout } = useAuth();
+  const { user, guest, logout } = useAuth();
   const { mode } = useWording();
   // null means the personal book; only a household name is worth showing.
   const { active: activeLedger } = useLedgerState();
@@ -42,6 +43,18 @@ export default function MoreScreen() {
     }
   }
 
+  // Books, the spending plan, repeating rules and reports are computed and
+  // stored server-side. A guest has no server, so the rows say so and lead to
+  // sign-up instead of opening a screen that can only fail.
+  const gated = (subtitle: string, href: Parameters<typeof router.push>[0]) =>
+    guest
+      ? {
+          subtitle: "Sign in to unlock",
+          chevronGlyph: Lock,
+          onPress: () => router.push("/register"),
+        }
+      : { subtitle, onPress: () => router.push(href) };
+
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-background">
       <TitleBar title="More" />
@@ -55,9 +68,11 @@ export default function MoreScreen() {
           <ListRow
             glyph={activeLedger ? Users : BookOpen}
             title="Books"
-            subtitle={activeLedger ? `${activeLedger.name} · shared` : "Personal · private to you"}
             chevron
-            onPress={() => router.push("/(app)/ledgers")}
+            {...gated(
+              activeLedger ? `${activeLedger.name} · shared` : "Personal · private to you",
+              "/(app)/ledgers",
+            )}
           />
           <ListRow
             divider
@@ -71,25 +86,22 @@ export default function MoreScreen() {
             divider
             glyph={PieChart}
             title="The spending plan"
-            subtitle="Set what each category may take"
             chevron
-            onPress={() => router.push("/(app)/budgets")}
+            {...gated("Set what each category may take", "/(app)/budgets")}
           />
           <ListRow
             divider
             glyph={Repeat}
             title="Repeating entries"
-            subtitle="Rent, salary, subscriptions"
             chevron
-            onPress={() => router.push("/(app)/recurring")}
+            {...gated("Rent, salary, subscriptions", "/(app)/recurring")}
           />
           <ListRow
             divider
             glyph={BarChart3}
             title="Reports"
-            subtitle="Cash flow and category breakdown"
             chevron
-            onPress={() => router.push("/(app)/reports")}
+            {...gated("Cash flow and category breakdown", "/(app)/reports")}
           />
           <ListRow
             divider
@@ -102,6 +114,28 @@ export default function MoreScreen() {
         </Card>
 
         <SectionLabel>this device</SectionLabel>
+        {guest ? (
+          <>
+            <Card>
+              <Text className="text-body-strong font-sans-semibold text-ink">
+                Everything is on this phone
+              </Text>
+              <Text className="text-caption font-sans-medium text-faint mt-1 mb-4">
+                Nothing has left the device. Make an account and what you have entered comes with
+                you — plus reports, the spending plan and shared books.
+              </Text>
+              <Button label="Create an account" onPress={() => router.push("/register")} />
+            </Card>
+            <View className="mt-2">
+              <Button
+                label="I already have an account"
+                variant="tertiary"
+                onPress={() => router.push("/login")}
+              />
+            </View>
+          </>
+        ) : (
+          <>
         <Card>
           <View className="flex-row items-center justify-between">
             <View className="flex-1 pr-3">
@@ -131,6 +165,8 @@ export default function MoreScreen() {
         <View className="mt-2">
           <Button label="Sign out" variant="destructive" glyph={LogOut} onPress={logout} />
         </View>
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

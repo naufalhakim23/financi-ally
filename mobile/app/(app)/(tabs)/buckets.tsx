@@ -38,8 +38,7 @@ import {
 // figure; expanding it reveals the accounts behind that figure with their own
 // add / move affordances.
 export default function BucketsScreen() {
-  const { user } = useAuth();
-  const base = user?.base_currency ?? "IDR";
+  const { guest, baseCurrency: base } = useAuth();
   const { t } = useWording();
   const [open, setOpen] = useState<BucketId | null>("cash");
 
@@ -59,6 +58,7 @@ export default function BucketsScreen() {
     queryKey: ["fx-rates"],
     queryFn: () => authedApi.listFxRates(),
     staleTime: 30 * 60 * 1000,
+    enabled: !guest, // no token in guest mode; conversions fall back to EMPTY_RATES
   });
   const rates: RateTable = ratesQuery.data
     ? { rates: ratesQuery.data.rates ?? [], asOf: ratesQuery.data.as_of ?? null }

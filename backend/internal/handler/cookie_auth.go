@@ -30,14 +30,6 @@ const (
 	// refreshCookieName is namespaced so it can't collide with anything else on
 	// the origin.
 	refreshCookieName = "fa_refresh"
-
-	// refreshCookiePath scopes the cookie to the auth routes *as the browser
-	// sees them* — the SPA is served at `/` and the API is proxied under `/api`.
-	// Combined with SameSite=Lax it means the cookie only ever rides
-	// refresh/logout, so a cross-site form post can't trigger a money mutation:
-	// those need the Bearer header, which an attacker's page cannot read. That
-	// is why there is no separate CSRF token.
-	refreshCookiePath = "/api/auth"
 )
 
 // WebCookieAuth returns a strict middleware that mirrors the refresh token into
@@ -46,7 +38,13 @@ const (
 //
 // secure should be false only for plain-HTTP local development; a Secure cookie
 // is not stored by the browser over http://.
-func WebCookieAuth(secure bool) api.StrictMiddlewareFunc {
+//
+// path scopes the cookie to the auth routes *as the browser sees them*, which
+// varies by deployment — hence config, not a constant. Combined with
+// SameSite=Lax the cookie only ever rides refresh/logout, so a cross-site form
+// post can't trigger a money mutation: those need the Bearer header, which an
+// attacker's page cannot read. That is why there is no separate CSRF token.
+func WebCookieAuth(secure bool, path string) api.StrictMiddlewareFunc {
 	return func(next api.StrictHandlerFunc, operationID string) api.StrictHandlerFunc {
 		// oapi-codegen passes the Go handler name, not the contract's
 		// operationId — "Refresh", not "refresh".
@@ -65,12 +63,12 @@ func WebCookieAuth(secure bool) api.StrictMiddlewareFunc {
 
 			if operationID == "Logout" {
 				if _, ok := resp.(api.Logout204Response); ok {
-					clearRefreshCookie(w, secure)
+					clearRefreshCookie(w, secure, path)
 				}
 				return resp, nil
 			}
 			if token, ok := issuedRefreshToken(resp); ok {
-				setRefreshCookie(w, token, secure)
+				setRefreshCookie(w, token, secure, path)
 			}
 			return resp, nil
 		}
@@ -135,11 +133,11 @@ func issuedRefreshToken(resp any) (string, bool) {
 	return "", false
 }
 
-func setRefreshCookie(w http.ResponseWriter, token string, secure bool) {
+func setRefreshCookie(w http.ResponseWriter, token string, secure bool, path string) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     refreshCookieName,
 		Value:    token,
-		Path:     refreshCookiePath,
+		Path:     path,
 		HttpOnly: true,
 		Secure:   secure,
 		SameSite: http.SameSiteLaxMode,
@@ -149,11 +147,11 @@ func setRefreshCookie(w http.ResponseWriter, token string, secure bool) {
 	})
 }
 
-func clearRefreshCookie(w http.ResponseWriter, secure bool) {
+func clearRefreshCookie(w http.ResponseWriter, secure bool, path string) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     refreshCookieName,
 		Value:    "",
-		Path:     refreshCookiePath,
+		Path:     path,
 		HttpOnly: true,
 		Secure:   secure,
 		SameSite: http.SameSiteLaxMode,

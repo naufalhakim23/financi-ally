@@ -117,7 +117,7 @@ func main() {
 	// either way, so this stays off unless a web deploy asks for it.
 	var strictMW []api.StrictMiddlewareFunc
 	if cfg.Auth.WebCookieAuth {
-		strictMW = append(strictMW, handler.WebCookieAuth(cfg.Auth.WebCookieSecure))
+		strictMW = append(strictMW, handler.WebCookieAuth(cfg.Auth.WebCookieSecure, cfg.Auth.WebCookiePath))
 	}
 	strict := api.NewStrictHandlerWithOptions(serverImpl, strictMW, opts)
 

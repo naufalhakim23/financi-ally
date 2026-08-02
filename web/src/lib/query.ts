@@ -41,6 +41,8 @@ export const qk = {
   ledgerMembers: (id: string) => ["ledgers", id, "members"] as const,
   book: (ledgerId: string | null) => ["book", ledgerId ?? "personal"] as const,
   accounts: (ledgerId: string | null) => [...qk.book(ledgerId), "accounts"] as const,
+  accountBalances: (ledgerId: string | null) =>
+    [...qk.book(ledgerId), "account-balances"] as const,
   entries: (ledgerId: string | null, from: string, to: string) =>
     [...qk.book(ledgerId), "entries", from, to] as const,
   entry: (ledgerId: string | null, id: string) => [...qk.book(ledgerId), "entry", id] as const,

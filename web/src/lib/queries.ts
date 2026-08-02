@@ -66,6 +66,30 @@ export function useAccounts(type?: AccountType) {
   return { ...query, accounts };
 }
 
+/**
+ * Whole-book balance per account, straight from the server.
+ *
+ * Not derived from `useEntries`: those lines cover a rolling window, so an
+ * account whose history starts before it would show a balance missing
+ * everything older.
+ */
+export function useAccountBalances() {
+  const ledgerId = activeLedgerId();
+  const query = useQuery({
+    queryKey: qk.accountBalances(ledgerId),
+    queryFn: () => authedApi.listAccountBalances(),
+  });
+  const byId = useMemo(
+    () => new Map((query.data ?? []).map((b) => [b.account_id, b.signed_minor])),
+    [query.data],
+  );
+  const balanceOf = useMemo(
+    () => (account: { id: string }) => byId.get(account.id) ?? 0,
+    [byId],
+  );
+  return { ...query, byId, balanceOf };
+}
+
 export function useEntries(from: string, to: string) {
   const ledgerId = activeLedgerId();
   const query = useQuery({

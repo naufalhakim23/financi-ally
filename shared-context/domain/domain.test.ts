@@ -7,6 +7,7 @@
 
 import { describe, expect, it } from "vitest";
 
+import { accountSigned } from "./balances";
 import { buildBuckets, daysLeftInMonth, safeToSpend, spendingForMonth } from "./buckets";
 import { convert, rateCaption, rateFor, type RateTable } from "./fx";
 import { buildEntryViews, groupByDay, monthCsv, monthKey, signedAmount } from "./ledger";
@@ -218,7 +219,7 @@ describe("buckets", () => {
   });
 
   it("sorts accounts into the four buckets", () => {
-    const buckets = buildBuckets(accounts, lines, "IDR", rates, spending);
+    const buckets = buildBuckets(accounts, (a) => accountSigned(a, lines), "IDR", rates, spending);
     const cash = buckets.find((b) => b.id === "cash")!;
     const foreign = buckets.find((b) => b.id === "foreign")!;
     const owed = buckets.find((b) => b.id === "owed")!;
@@ -234,9 +235,10 @@ describe("buckets", () => {
   it("collapses a total rather than under-reporting an unconvertible child", () => {
     const noRates: RateTable = { rates: [], asOf: null };
     const withEur = [...accounts, account("n26", "asset", "N26", "EUR")];
+    const withEurLines = [...lines, line("e4", "n26", "debit", 500)];
     const blind = buildBuckets(
       withEur,
-      [...lines, line("e4", "n26", "debit", 500)],
+      (a) => accountSigned(a, withEurLines),
       "IDR",
       noRates,
       spending,

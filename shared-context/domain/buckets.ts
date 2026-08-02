@@ -1,5 +1,4 @@
 import type { Account, Budget, JournalLine } from "./types";
-import { accountSigned } from "./balances";
 import { convert, type RateTable } from "./fx";
 
 // Direction 2a replaces the flat pockets list with four fixed buckets. They are
@@ -45,8 +44,17 @@ export const BUCKET_SLOT: Record<BucketId, number> = {
   owed: 7,
 };
 
-function childOf(account: Account, lines: JournalLine[], base: string, rates: RateTable): BucketChild {
-  const balance = accountSigned(account, lines);
+/**
+ * A function rather than journal lines because the clients hold different
+ * amounts of history: mobile has the whole book locally, the web client has
+ * only a rolling window and must read the server's figure instead. Deriving
+ * here from whatever lines the caller happens to have is how an account older
+ * than the window ends up showing a wrong balance.
+ */
+export type BalanceOf = (account: Account) => number;
+
+function childOf(account: Account, balanceOf: BalanceOf, base: string, rates: RateTable): BucketChild {
+  const balance = balanceOf(account);
   return {
     account,
     balance,
@@ -81,7 +89,7 @@ export type SpendingRow = {
  */
 export function buildBuckets(
   accounts: Account[],
-  lines: JournalLine[],
+  balanceOf: BalanceOf,
   base: string,
   rates: RateTable,
   spendingRows: SpendingRow[],
@@ -90,15 +98,15 @@ export function buildBuckets(
 
   const cashChildren = active
     .filter((a) => a.type === "asset" && a.currency === base)
-    .map((a) => childOf(a, lines, base, rates));
+    .map((a) => childOf(a, balanceOf, base, rates));
 
   const foreignChildren = active
     .filter((a) => a.type === "asset" && a.currency !== base)
-    .map((a) => childOf(a, lines, base, rates));
+    .map((a) => childOf(a, balanceOf, base, rates));
 
   const owedChildren = active
     .filter((a) => a.type === "liability")
-    .map((a) => childOf(a, lines, base, rates));
+    .map((a) => childOf(a, balanceOf, base, rates));
 
   const spent = spendingRows.reduce((s, r) => s + r.spent, 0);
 

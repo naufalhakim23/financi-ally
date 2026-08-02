@@ -17,6 +17,7 @@ import {
   BOOK_WINDOW_MONTHS,
   periodOf,
   rollingRange,
+  useAccountBalances,
   useAccounts,
   useBudgets,
   useEntries,
@@ -42,13 +43,17 @@ export function DashboardRoute() {
   const entriesQ = useEntries(window.from, window.to);
   const budgetsQ = useBudgets(periodOf(now));
   const fxQ = useFxRates();
+  // Bucket balances are whole-book figures like net worth. The windowed lines
+  // only feed this month's spending and the recent list.
+  const balancesQ = useAccountBalances();
   // Net worth comes from the server, not from the windowed lines above: it is a
   // whole-book figure, and an entry older than the window would silently drop
   // out of the one number on this screen nobody would think to double-check.
   const worthQ = useNetWorth();
 
-  const loading = accountsQ.isPending || entriesQ.isPending;
-  const error = accountsQ.error ?? entriesQ.error ?? budgetsQ.error ?? worthQ.error;
+  const loading = accountsQ.isPending || entriesQ.isPending || balancesQ.isPending;
+  const error =
+    accountsQ.error ?? entriesQ.error ?? budgetsQ.error ?? worthQ.error ?? balancesQ.error;
 
   const monthStart = useMemo(() => new Date(now.getFullYear(), now.getMonth(), 1), [now]);
 
@@ -75,8 +80,8 @@ export function DashboardRoute() {
   );
 
   const buckets = useMemo(
-    () => buildBuckets(accountsQ.accounts, entriesQ.lines, base, fxQ.rates, spending),
-    [accountsQ.accounts, entriesQ.lines, base, fxQ.rates, spending],
+    () => buildBuckets(accountsQ.accounts, balancesQ.balanceOf, base, fxQ.rates, spending),
+    [accountsQ.accounts, balancesQ.balanceOf, base, fxQ.rates, spending],
   );
 
   const recent = useMemo(
@@ -153,6 +158,7 @@ export function DashboardRoute() {
             void entriesQ.refetch();
             void budgetsQ.refetch();
             void worthQ.refetch();
+            void balancesQ.refetch();
           }}
         />
       ) : null}

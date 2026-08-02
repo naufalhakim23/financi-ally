@@ -1,7 +1,6 @@
 import { Archive, ArchiveRestore, Plus, Wallet } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
-import { accountSigned } from "@financially/domain/balances";
 import { currencyError } from "@financially/domain/validate";
 
 import { Field } from "@/components/field";
@@ -28,11 +27,9 @@ import {
 import { HTTPError, type AccountType } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import {
-  BOOK_WINDOW_MONTHS,
-  rollingRange,
+  useAccountBalances,
   useAccounts,
   useCreateAccount,
-  useEntries,
   useUpdateAccount,
 } from "@/lib/queries";
 import { cn } from "@/lib/utils";
@@ -55,17 +52,12 @@ export function PocketsRoute() {
   const base = user?.base_currency ?? "IDR";
 
   const accountsQ = useAccounts();
-  // Balances are derived from the same lines the dashboard uses rather than
-  // fetched one-by-one from /accounts/{id}/balance: one request instead of N,
-  // and the arithmetic is the shared domain's, so the two screens cannot
-  // disagree.
-  const window = useMemo(() => rollingRange(BOOK_WINDOW_MONTHS), []);
-  const entriesQ = useEntries(window.from, window.to);
+  const balancesQ = useAccountBalances();
   const update = useUpdateAccount();
 
   const [showArchived, setShowArchived] = useState(false);
 
-  const loading = accountsQ.isPending || entriesQ.isPending;
+  const loading = accountsQ.isPending || balancesQ.isPending;
 
   return (
     <div className="space-y-5">
@@ -137,7 +129,7 @@ export function PocketsRoute() {
                         </span>
                         <Amount
                           currency={account.currency}
-                          minor={accountSigned(account, entriesQ.lines)}
+                          minor={balancesQ.balanceOf(account)}
                         />
                         <Button
                           variant="ghost"

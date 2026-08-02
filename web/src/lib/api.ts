@@ -94,9 +94,12 @@ export function refreshAccessToken(): Promise<string> {
 async function rawRefresh(): Promise<string> {
   // Empty body: the token comes from the fa_refresh cookie the browser sends.
   const res = await client.POST("/auth/refresh", { body: {} });
+  // Only a 401 means "no valid cookie". Collapsing a 500 into the same empty
+  // string would tell the boot path a signed-in user is signed out.
   if (res.error !== undefined || !res.data) {
     accessToken = "";
-    return "";
+    if (res.response.status === 401) return "";
+    throw new HTTPError(res.response.status, isApiError(res.error) ? res.error : null);
   }
   accessToken = res.data.access_token;
   return accessToken;
@@ -202,6 +205,8 @@ export const authedApi = {
 
   listAccounts: (type?: AccountType) =>
     authed(() => client.GET("/accounts", { params: { query: { type } } })),
+
+  listAccountBalances: () => authed(() => client.GET("/accounts/balances")),
 
   createAccount: (body: { type: AccountType; currency: string; name: string; parent_id?: string }) =>
     authed(() => client.POST("/accounts", { body })),

@@ -7,6 +7,14 @@ import { authedApi, type RecurringRule, type RecurringTemplate } from "../../src
 import { useAuth } from "../../src/lib/auth";
 import { database } from "../../src/lib/db";
 import { format, toMinor } from "../../src/lib/money";
+import {
+  MAX_MONTH_DAY,
+  WEEKDAYS,
+  buildRRule,
+  describeRRule,
+  parseRRule,
+  type Freq,
+} from "../../src/lib/recurrence";
 import { useObservable } from "../../src/lib/useObserve";
 import { Account } from "../../src/model/models";
 import {
@@ -28,62 +36,6 @@ import {
   useTheme,
 } from "../../src/components/ui";
 import { messageFor } from "../../src/lib/errors";
-
-type Freq = "daily" | "weekly" | "monthly";
-
-// Rules are authored as three plain choices (how often, which day, how much)
-// and compiled to an RRULE here — the ledger's double-entry shape and the
-// iCalendar syntax both stay behind the UI, per the plan's "hide DE behind a
-// friendly picker" rule.
-function buildRRule(freq: Freq, monthDay: number, weekDay: string): string {
-  switch (freq) {
-    case "daily":
-      return "FREQ=DAILY";
-    case "weekly":
-      return `FREQ=WEEKLY;BYDAY=${weekDay}`;
-    case "monthly":
-      return `FREQ=MONTHLY;BYMONTHDAY=${monthDay}`;
-  }
-}
-
-// Reads an RRULE back into the form's fields so editing shows what was saved.
-function parseRRule(rrule: string): { freq: Freq; monthDay: number; weekDay: string } {
-  const parts = Object.fromEntries(
-    rrule
-      .replace(/^RRULE:/, "")
-      .split(";")
-      .map((p) => p.split("=") as [string, string]),
-  );
-  const freq: Freq =
-    parts.FREQ === "DAILY" ? "daily" : parts.FREQ === "WEEKLY" ? "weekly" : "monthly";
-  return {
-    freq,
-    monthDay: Number(parts.BYMONTHDAY ?? 1) || 1,
-    weekDay: parts.BYDAY ?? "MO",
-  };
-}
-
-const WEEKDAYS: { value: string; label: string }[] = [
-  { value: "MO", label: "Mon" },
-  { value: "TU", label: "Tue" },
-  { value: "WE", label: "Wed" },
-  { value: "TH", label: "Thu" },
-  { value: "FR", label: "Fri" },
-  { value: "SA", label: "Sat" },
-  { value: "SU", label: "Sun" },
-];
-
-function describe(rule: RecurringRule): string {
-  const { freq, monthDay, weekDay } = parseRRule(rule.rrule);
-  if (freq === "daily") return "Every day";
-  if (freq === "weekly") return `Every ${WEEKDAYS.find((d) => d.value === weekDay)?.label ?? weekDay}`;
-  return `Monthly on the ${monthDay}${ordinal(monthDay)}`;
-}
-
-function ordinal(n: number): string {
-  if (n % 100 >= 11 && n % 100 <= 13) return "th";
-  return ["th", "st", "nd", "rd"][n % 10] ?? "th";
-}
 
 function formatDate(d?: string | null): string {
   if (!d) return "—";
@@ -232,7 +184,7 @@ export default function Recurring() {
     } catch { setFormErr("Enter a valid amount"); return; }
     if (minor <= 0) { setFormErr("Amount must be greater than zero"); return; }
 
-    const rrule = buildRRule(freq, monthDay, weekDay);
+    const rrule = buildRRule({ freq, monthDay, weekDay });
     const template = buildTemplate(currency, categoryId, pocketId, minor, memo);
 
     setFormBusy(true);
@@ -361,7 +313,7 @@ export default function Recurring() {
                           {rule.template.memo || nameFor(debit?.account_id ?? "")}
                         </Text>
                         <Text className="text-faint text-caption font-sans-medium">
-                          {describe(rule)} · from {nameFor(credit?.account_id ?? "")}
+                          {describeRRule(rule.rrule)} · from {nameFor(credit?.account_id ?? "")}
                         </Text>
                       </View>
                       <View className="items-end">
@@ -436,9 +388,9 @@ export default function Recurring() {
           <ChipGroup
             label="Day of month"
             value={String(monthDay)}
-            // Capped at 28 so every month has the day — no "31st in
-            // February" surprises.
-            options={Array.from({ length: 28 }, (_, i) => ({
+            // Capped so every month has the day — no "31st in February"
+            // surprises. The cap lives in the shared recurrence module.
+            options={Array.from({ length: MAX_MONTH_DAY }, (_, i) => ({
               value: String(i + 1),
               label: String(i + 1),
             }))}

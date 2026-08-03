@@ -1,5 +1,5 @@
 // The money math both clients run. Ported from mobile/src/lib/checks.ts when
-// these modules moved here, plus coverage for money.ts itself — the conversion
+// these modules moved here, plus coverage for money.ts itself, the conversion
 // that every amount on every screen passes through and that had no test.
 //
 // Deliberately narrow: it covers arithmetic that would otherwise be wrong
@@ -12,6 +12,7 @@ import { buildBuckets, daysLeftInMonth, safeToSpend, spendingForMonth } from "./
 import { convert, rateCaption, rateFor, type RateTable } from "./fx";
 import { buildEntryViews, groupByDay, monthCsv, monthKey, signedAmount } from "./ledger";
 import { format, scale, toMinor } from "./money";
+import { MAX_MONTH_DAY, buildRRule, describeRRule, ordinal, parseRRule } from "./recurrence";
 import type { Account, Budget, Entry, JournalLine } from "./types";
 
 // ── fixtures ────────────────────────────────────────────────────────────────
@@ -254,5 +255,40 @@ describe("buckets", () => {
   it("counts today as a day left", () => {
     expect(daysLeftInMonth(new Date(2026, 6, 31))).toBe(1);
     expect(daysLeftInMonth(new Date(2026, 6, 1))).toBe(31);
+  });
+});
+
+describe("recurrence", () => {
+  it("round-trips every frequency through build and parse", () => {
+    for (const r of [
+      { freq: "daily", monthDay: 1, weekDay: "MO" },
+      { freq: "weekly", monthDay: 1, weekDay: "TH" },
+      { freq: "monthly", monthDay: 15, weekDay: "MO" },
+    ] as const) {
+      expect(parseRRule(buildRRule(r))).toEqual(r);
+    }
+  });
+
+  it("tolerates the RRULE: prefix and a missing day", () => {
+    expect(parseRRule("RRULE:FREQ=MONTHLY").monthDay).toBe(1);
+    expect(parseRRule("FREQ=WEEKLY").weekDay).toBe("MO");
+  });
+
+  it("describes a rule in the user's words", () => {
+    expect(describeRRule("FREQ=DAILY")).toBe("Every day");
+    expect(describeRRule("FREQ=WEEKLY;BYDAY=TH")).toBe("Every Thu");
+    expect(describeRRule("FREQ=MONTHLY;BYMONTHDAY=1")).toBe("Monthly on the 1st");
+    expect(describeRRule("FREQ=MONTHLY;BYMONTHDAY=22")).toBe("Monthly on the 22nd");
+  });
+
+  it("says 11th, 12th, 13th — not 11st, 12nd, 13rd", () => {
+    expect([11, 12, 13].map(ordinal)).toEqual(["th", "th", "th"]);
+    expect([1, 2, 3, 21].map(ordinal)).toEqual(["st", "nd", "rd", "st"]);
+  });
+
+  it("caps the day of month at one every month has", () => {
+    // A rule on the 31st would skip February entirely, which reads to a user as
+    // the app losing an entry.
+    expect(MAX_MONTH_DAY).toBe(28);
   });
 });

@@ -1,0 +1,52 @@
+# Same-origin serving for the web client.
+#
+# The whole auth design rests on this file: the SPA and the API share one
+# origin, which is what lets the refresh token live in a SameSite=Lax httpOnly
+# cookie with no CORS preflight and no CSRF token. Split the origins and all
+# three of those come back.
+#
+# `{$SITE_ADDRESS}` defaults to :80 for a local container run. In production set
+# it to the real hostname and Caddy provisions TLS on its own, at which point
+# the backend must also run with WEB_COOKIE_SECURE=true.
+
+{$SITE_ADDRESS::80} {
+	encode zstd gzip
+
+	# API first: a more specific matcher wins regardless of block order, but
+	# keeping it first is how a reader knows /api never reaches the SPA.
+	#
+	# The prefix is stripped because the Go server routes at the root
+	# (/auth/login, not /api/auth/login). The cookie path the backend sets is
+	# what the *browser* sees, so it stays /api/auth, WEB_COOKIE_PATH exists
+	# for exactly this mismatch.
+	handle_path /api/* {
+		reverse_proxy {$API_UPSTREAM:backend:8080}
+	}
+
+	handle {
+		root * /srv
+		# Client-side routing: a hard load of /app/history must serve index.html
+		# rather than 404, or every deep link and every reload breaks.
+		try_files {path} /index.html
+		file_server
+	}
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+
+	# Hashed asset filenames make these immutable; index.html must never be
+	# cached or a deploy leaves browsers pinned to a stale bundle that
+	# references assets the server no longer has.
+	@assets path /assets/*
+	header @assets Cache-Control "public, max-age=31536000, immutable"
+	@index path /index.html
+	header @index Cache-Control "no-store"
+
+	log {
+		output stdout
+		format console
+	}
+}

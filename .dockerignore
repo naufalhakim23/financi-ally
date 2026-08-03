@@ -1,0 +1,12 @@
+# The web image builds from the repo root (it needs shared-context/ alongside
+# web/), so everything else has to be excluded explicitly or the context is the
+# whole monorepo including three node_modules trees.
+**/node_modules
+**/dist
+**/.expo
+**/.git
+backend
+mobile
+docs
+misc
+*.md

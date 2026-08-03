@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { authedApi } from "@/lib/api";
-import { activeLedgerId, setActiveLedger } from "@/lib/ledger-store";
+import { setActiveLedger, useActiveLedger } from "@/lib/ledger-store";
 import { qk } from "@/lib/query";
 import { cn } from "@/lib/utils";
 
@@ -27,7 +27,7 @@ import { cn } from "@/lib/utils";
 export function BookSwitcher() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const active = activeLedgerId();
+  const active = useActiveLedger();
 
   const { data: ledgers } = useQuery({
     queryKey: qk.ledgers,

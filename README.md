@@ -20,10 +20,17 @@ financi-ally/
 │  ├─ cmd/server/         entrypoint
 │  ├─ api/                oapi-codegen cfg + generated.go (regen from shared contract)
 │  └─ internal/           config · db · handler · auth · household · ledger · budget · sync · pkg/{ctxkey,money}
-└─ mobile/                Expo app (Router + NativeWind + WatermelonDB)
-   ├─ app/                routes (auth screens + (app) tab group)
-   └─ src/                lib (api-types.ts generated) · model (WatermelonDB) · components
+├─ shared-context/domain/ pure money logic shared by BOTH clients (Vitest)
+├─ mobile/                Expo app (Router + NativeWind + WatermelonDB)
+│  ├─ app/                routes (auth screens + (app) tab group)
+│  └─ src/                lib (api-types.ts generated) · model (WatermelonDB) · components
+└─ web/                   Vite + React SPA, online-only (TanStack Query, no local DB)
+   └─ src/                lib (api · queries · auth) · routes · components/ui
 ```
+
+`shared-context/domain/` is the money logic itself (balances, buckets, entry
+views, FX, RRULE, validation). Both clients import it, so a rounding fix cannot
+land in one client only. `make test-domain` is the suite that guards it.
 
 ## Prerequisites
 
@@ -50,6 +57,12 @@ cd ../mobile
 npm install
 npm run gen          # generate src/lib/api-types.ts from the shared contract
 npx expo start       # needs a dev-client build (WatermelonDB is native, not in Expo Go)
+
+# 4. Web (optional, independent of mobile)
+cd ../web
+yarn install
+yarn gen             # generate src/lib/api-types.ts from the shared contract
+yarn dev             # http://localhost:5173, proxies /api to :8080
 ```
 
 > **WatermelonDB is native** — the app does **not** run in Expo Go. Build a dev
@@ -59,6 +72,51 @@ npx expo start       # needs a dev-client build (WatermelonDB is native, not in 
 > `http://localhost:8080`).
 
 `GET /healthz` → `{"status":"ok","db":"up"}` means the whole backend→DB chain is wired.
+
+## Web client
+
+Online-only browser client. No WatermelonDB, no service worker, no offline mode:
+TanStack Query is the only cache, and a mutation invalidates what it touched.
+Desktop-first responsive layout (sidebar + fluid content), not a phone shape in a
+browser.
+
+**Auth is same-origin by design.** The access token lives in memory only; the
+refresh token lives in an `httpOnly` `fa_refresh` cookie, so one XSS is not a
+permanent account takeover on a finance app. That requires the SPA and the API to
+share an origin, which is why dev proxies `/api` through Vite instead of pointing
+at `:8080` directly, and why prod runs behind Caddy. Same-origin is also what
+removes the need for CORS and a CSRF token.
+
+Enable it on the backend (mobile's body-based refresh flow is unaffected):
+
+```bash
+WEB_COOKIE_AUTH=true
+WEB_COOKIE_SECURE=false   # true in production; a Secure cookie is not stored over http://
+WEB_COOKIE_PATH=/api/auth # what the BROWSER sees, not what Go listens on
+```
+
+`WEB_COOKIE_PATH` fails quietly when wrong: login works, then a reload signs the
+user out.
+
+### Serving it (production shape)
+
+```bash
+docker compose -f docker/compose.yml --profile web up --build   # http://localhost:8081
+```
+
+Caddy serves the built SPA and proxies `/api/*` to the Go server, stripping the
+prefix. `API_UPSTREAM` defaults to `host.docker.internal:8080` because the
+backend still runs on the host; point it at `backend:8080` once the backend is a
+compose service.
+
+### Web scripts
+
+| command | does |
+|---|---|
+| `yarn dev` | dev server on :5173 with the `/api` proxy |
+| `yarn build` | typecheck + production build to `dist/` |
+| `yarn check` | `tsc -b` only (note: `yarn run check`, `yarn check` is yarn's own builtin) |
+| `yarn gen` | regenerate `src/lib/api-types.ts` from the contract |
 
 ## Books (ledgers)
 
@@ -131,9 +189,11 @@ From the repo root, one command regenerates both clients:
 
 | target | does |
 |---|---|
-| `make generate-contract` | regen BOTH `backend/api/generated.go` + `mobile/src/lib/api-types.ts` |
+| `make generate-contract` | regen ALL: backend + mobile + web bindings |
 | `make gen-backend` | regen backend only |
 | `make gen-mobile` | regen mobile only |
+| `make gen-web` | regen web only |
+| `make test-domain` | run the shared money-logic suite (Vitest) |
 
 Backend uses [oapi-codegen](https://github.com/oapi-codegen/oapi-codegen) (strict-server + chi);
 mobile uses [openapi-typescript](https://github.com/openapi-ts/openapi-typescript) (types) +
@@ -151,6 +211,11 @@ once, run `make generate-contract`, both sides update.
 - **M6** ✅ recurring (RRULE): rules + server scheduler (idempotent per occurrence, catches up after downtime), offline sync, Recurring tab
 - **M7** ✅ polish: DESIGN.md, charts (donut + monthly trend), onboarding + opening balance, empty/loading/sync states, EAS build config
   - still open: **Apple Sign-In** (needs an Apple Developer account) and running the first EAS build
+
+- **M8** ✅ shared ledgers: books, membership, join codes, `X-Ledger-Id` scoping
+- **Web** ✅ browser client (plan 03, W0–W6): shared domain extraction, cookie auth,
+  full screen parity with mobile, landing page, Caddy same-origin serving
+  - dropped on web by decision: **guest mode** (see `docs/decision_logs/0013-web-client-w4-w6.md`)
 
 > Synced tables use client-generated text IDs (WatermelonDB-native); `users`
 > stays server-uuid. See `docs/decision_logs/0004-m3-sync.md`.

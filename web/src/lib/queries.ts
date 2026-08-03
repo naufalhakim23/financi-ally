@@ -3,9 +3,11 @@ import { useMemo } from "react";
 
 import { monthKey } from "@financially/domain/ledger";
 
-import { authedApi, type AccountType, type DC } from "./api";
+import { authedApi, type AccountType, type DC, type RecurringTemplate } from "./api";
 import { linesOf, toDomainAccount, toDomainBudget, toDomainEntry, toRateTable } from "./adapters";
-import { activeLedgerId } from "./ledger-store";
+// Reads during render go through the hook so a book switch re-renders the
+// screen; the mutation callbacks below run outside render and use the getter.
+import { activeLedgerId, useActiveLedger } from "./ledger-store";
 import { qk, queryClient } from "./query";
 
 // What `useObservable(query.observe())` becomes on the web.
@@ -13,7 +15,7 @@ import { qk, queryClient } from "./query";
 // The mobile app watches local tables and lets WatermelonDB push changes; here
 // a mutation invalidates the keys it touched and the server answers again.
 // Every hook returns the raw contract objects *and* the domain-shaped records,
-// because screens need both — the id and timestamps for routing, the domain
+// because screens need both, the id and timestamps for routing, the domain
 // records for the money math the two clients share.
 
 /** The month a screen is looking at, as the `YYYY-MM-01` the API expects. */
@@ -57,7 +59,7 @@ export function rollingRange(months: number, now = new Date()): { from: string; 
 // --- reads ------------------------------------------------------------------
 
 export function useAccounts(type?: AccountType) {
-  const ledgerId = activeLedgerId();
+  const ledgerId = useActiveLedger();
   const query = useQuery({
     queryKey: [...qk.accounts(ledgerId), type ?? "all"],
     queryFn: () => authedApi.listAccounts(type),
@@ -74,7 +76,7 @@ export function useAccounts(type?: AccountType) {
  * everything older.
  */
 export function useAccountBalances() {
-  const ledgerId = activeLedgerId();
+  const ledgerId = useActiveLedger();
   const query = useQuery({
     queryKey: qk.accountBalances(ledgerId),
     queryFn: () => authedApi.listAccountBalances(),
@@ -91,7 +93,7 @@ export function useAccountBalances() {
 }
 
 export function useEntries(from: string, to: string) {
-  const ledgerId = activeLedgerId();
+  const ledgerId = useActiveLedger();
   const query = useQuery({
     queryKey: qk.entries(ledgerId, from, to),
     queryFn: () => authedApi.listEntries(from, to),
@@ -104,7 +106,7 @@ export function useEntries(from: string, to: string) {
 }
 
 export function useEntry(id: string) {
-  const ledgerId = activeLedgerId();
+  const ledgerId = useActiveLedger();
   return useQuery({
     queryKey: qk.entry(ledgerId, id),
     queryFn: () => authedApi.getEntry(id),
@@ -113,7 +115,7 @@ export function useEntry(id: string) {
 }
 
 export function useBudgets(period: string) {
-  const ledgerId = activeLedgerId();
+  const ledgerId = useActiveLedger();
   const query = useQuery({
     queryKey: qk.budgets(ledgerId, period),
     queryFn: () => authedApi.listBudgets(period),
@@ -123,7 +125,7 @@ export function useBudgets(period: string) {
 }
 
 export function useFxRates() {
-  const ledgerId = activeLedgerId();
+  const ledgerId = useActiveLedger();
   const query = useQuery({
     queryKey: qk.fxRates(ledgerId),
     // Rates move once a day at most; refetching them per screen is wasted work.
@@ -135,7 +137,7 @@ export function useFxRates() {
 }
 
 export function useMonthlySeries(months = 6) {
-  const ledgerId = activeLedgerId();
+  const ledgerId = useActiveLedger();
   return useQuery({
     queryKey: qk.reportMonthly(ledgerId, months),
     queryFn: () => authedApi.getMonthlySeries(months),
@@ -143,10 +145,54 @@ export function useMonthlySeries(months = 6) {
 }
 
 export function useNetWorth() {
-  const ledgerId = activeLedgerId();
+  const ledgerId = useActiveLedger();
   return useQuery({
     queryKey: qk.reportNetWorth(ledgerId),
     queryFn: () => authedApi.getNetWorth(),
+  });
+}
+
+export function useSpending(from: string, to: string) {
+  const ledgerId = useActiveLedger();
+  return useQuery({
+    queryKey: qk.reportSpending(ledgerId, from, to),
+    queryFn: () => authedApi.getSpending(from, to),
+  });
+}
+
+export function useCashFlow(from: string, to: string) {
+  const ledgerId = useActiveLedger();
+  return useQuery({
+    queryKey: qk.reportCashFlow(ledgerId, from, to),
+    queryFn: () => authedApi.getCashFlow(from, to),
+  });
+}
+
+export function useRecurring() {
+  const ledgerId = useActiveLedger();
+  return useQuery({
+    queryKey: qk.recurring(ledgerId),
+    queryFn: () => authedApi.listRecurring(),
+  });
+}
+
+/**
+ * The books this user belongs to.
+ *
+ * Not namespaced by the active book: membership is a property of the user, and
+ * keying it per book would refetch the same list on every switch. A switch
+ * clears the whole cache anyway, so this key refetches too, it just does not
+ * accumulate one stale copy per book.
+ */
+export function useLedgers() {
+  return useQuery({ queryKey: qk.ledgers, queryFn: () => authedApi.listLedgers() });
+}
+
+export function useLedgerMembers(id: string | null) {
+  return useQuery({
+    queryKey: qk.ledgerMembers(id ?? ""),
+    queryFn: () => authedApi.listLedgerMembers(id as string),
+    enabled: !!id,
   });
 }
 
@@ -170,7 +216,7 @@ export function usePostEntry() {
   return useMutation({
     mutationFn: authedApi.postEntry,
     // No optimistic update. An entry the server rejects as unbalanced would
-    // otherwise show a balance that never existed — on a money screen, briefly
+    // otherwise show a balance that never existed, on a money screen, briefly
     // wrong is worse than briefly slow.
     onSuccess: invalidateBook,
   });
@@ -181,7 +227,7 @@ export function useDeleteEntry() {
     mutationFn: (id: string) => authedApi.deleteEntry(id),
     onSuccess: (_data, id) => {
       // Drop the deleted entry's own key rather than letting the blanket
-      // invalidation refetch it — that refetch can only ever 404.
+      // invalidation refetch it, that refetch can only ever 404.
       queryClient.removeQueries({ queryKey: qk.entry(activeLedgerId(), id) });
       return invalidateBook();
     },
@@ -227,6 +273,91 @@ export function useSetBudget() {
       targetMinor: number;
     }) => authedApi.setBudget(accountId, period, targetMinor),
     onSuccess: invalidateBook,
+  });
+}
+
+export function useUpdateBudget() {
+  return useMutation({
+    mutationFn: ({ id, targetMinor }: { id: string; targetMinor: number }) =>
+      authedApi.updateBudget(id, targetMinor),
+    onSuccess: invalidateBook,
+  });
+}
+
+export function useDeleteBudget() {
+  return useMutation({
+    mutationFn: (id: string) => authedApi.deleteBudget(id),
+    onSuccess: invalidateBook,
+  });
+}
+
+type RuleInput = { rrule: string; template: RecurringTemplate; active?: boolean };
+
+export function useSaveRecurring() {
+  return useMutation({
+    // One hook for create and edit: the only difference is whether an id
+    // exists, and splitting it would duplicate the invalidation and the form's
+    // error handling for no gain.
+    mutationFn: ({ id, rrule, template, active = true }: RuleInput & { id?: string }) =>
+      id
+        ? authedApi.updateRecurring(id, rrule, template, active)
+        : authedApi.createRecurring(rrule, template, active),
+    onSuccess: invalidateBook,
+  });
+}
+
+export function useDeleteRecurring() {
+  return useMutation({
+    mutationFn: (id: string) => authedApi.deleteRecurring(id),
+    onSuccess: invalidateBook,
+  });
+}
+
+export function useTriggerRecurring() {
+  return useMutation({
+    // Idempotent per occurrence on the server, so a double click cannot
+    // double-post, but it does post money, so it still invalidates the book.
+    mutationFn: () => authedApi.triggerRecurring(),
+    onSuccess: invalidateBook,
+  });
+}
+
+// --- books ------------------------------------------------------------------
+// These invalidate the membership list rather than the book: creating or
+// joining a book changes which books exist, not the figures in the one on
+// screen. Removing a member is the same, the ledger's entries are unchanged.
+
+function invalidateLedgers() {
+  return queryClient.invalidateQueries({ queryKey: qk.ledgers });
+}
+
+export function useCreateLedger() {
+  return useMutation({
+    mutationFn: ({ name, baseCurrency }: { name: string; baseCurrency?: string }) =>
+      authedApi.createLedger(name, baseCurrency),
+    onSuccess: invalidateLedgers,
+  });
+}
+
+export function useJoinLedger() {
+  return useMutation({
+    mutationFn: (code: string) => authedApi.joinLedger(code),
+    onSuccess: invalidateLedgers,
+  });
+}
+
+export function useCreateInvite() {
+  return useMutation({ mutationFn: (id: string) => authedApi.createLedgerInvite(id) });
+}
+
+export function useRemoveMember() {
+  return useMutation({
+    mutationFn: ({ id, userId }: { id: string; userId: string }) =>
+      authedApi.removeLedgerMember(id, userId),
+    onSuccess: (_data, { id }) => {
+      void queryClient.invalidateQueries({ queryKey: qk.ledgerMembers(id) });
+      return invalidateLedgers();
+    },
   });
 }
 

@@ -1,5 +1,5 @@
-# Local dev Postgres for FinanciAlly.
-# M0: database only. Backend runs via `make run` / `make dev` on the host.
+# Local dev Postgres for FinanciAlly, plus the same-origin web edge.
+# M0: database only. Backend still runs via `make run` / `make dev` on the host.
 # A backend service (build from ../backend/Dockerfile) gets added when a
 # milestone needs containerized runs / CI.
 services:
@@ -21,6 +21,30 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # The production shape of the web client: built SPA behind Caddy, with /api
+  # proxied to the Go server so the browser sees one origin. Behind a profile
+  # because day-to-day work runs `yarn dev` (Vite's proxy mirrors this exactly)
+  # and only needs Postgres up.
+  #
+  #   docker compose --profile web up --build
+  #
+  # API_UPSTREAM points at the host by default, because the backend is not yet
+  # a compose service, it runs on the host via `make run`. Point it at
+  # `backend:8080` once that service exists.
+  web:
+    profiles: ["web"]
+    build:
+      context: ..
+      dockerfile: web/Dockerfile
+    container_name: financially_web
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+      API_UPSTREAM: ${API_UPSTREAM:-host.docker.internal:8080}
+    ports:
+      - "8081:80"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
 volumes:
   postgres_data:

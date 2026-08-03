@@ -54,6 +54,8 @@ export const qk = {
     [...qk.book(ledgerId), "reports", "monthly", months] as const,
   reportSpending: (ledgerId: string | null, from: string, to: string) =>
     [...qk.book(ledgerId), "reports", "spending", from, to] as const,
+  reportCashFlow: (ledgerId: string | null, from: string, to: string) =>
+    [...qk.book(ledgerId), "reports", "cash-flow", from, to] as const,
   reportNetWorth: (ledgerId: string | null) =>
     [...qk.book(ledgerId), "reports", "net-worth"] as const,
 };

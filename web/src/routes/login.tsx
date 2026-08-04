@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 
 import { emailError, passwordError } from "@financially/domain/validate";
 
@@ -13,6 +13,10 @@ import { AuthShell } from "@/routes/auth-shell";
 export function LoginRoute() {
   const { signIn } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  // The layout guard already records where the user was headed; until now
+  // nobody read it, so every deep link died at the sign-in screen.
+  const from = (location.state as { from?: string } | null)?.from;
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -34,7 +38,7 @@ export function LoginRoute() {
     setBusy(true);
     try {
       await signIn(email.trim(), password);
-      navigate("/app", { replace: true });
+      navigate(from ?? "/app", { replace: true });
     } catch (err) {
       // 401 here means "wrong email or password" and must stay ambiguous about
       // which — naming the wrong one turns this into an account-enumeration

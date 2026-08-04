@@ -128,7 +128,10 @@ export function AppLayout() {
     );
   }
   if (!user) {
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+    // Search and hash included, or /app/history?month=2026-03 comes back from
+    // the sign-in screen as a bare /app/history.
+    const from = location.pathname + location.search + location.hash;
+    return <Navigate to="/login" replace state={{ from }} />;
   }
 
   return (

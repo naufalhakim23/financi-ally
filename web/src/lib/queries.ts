@@ -32,6 +32,42 @@ export function monthRange(date: Date): { from: string; to: string } {
   return { from: iso(new Date(y, m, 1)), to: iso(new Date(y, m + 1, 0)) };
 }
 
+export type Period = "week" | "month" | "year";
+
+function iso(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/**
+ * The `to` a /reports endpoint needs to include `day`.
+ *
+ * Every reporting query filters `txn_date < to` — half-open, unlike /entries,
+ * which is inclusive. Passing today to a report therefore drops everything
+ * posted today, which on a dashboard means the coffee you just recorded is
+ * missing from this month's spend and nothing on screen says why.
+ */
+export function reportEndAfter(day: Date): string {
+  return iso(new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1));
+}
+
+/**
+ * The range a period picker means, ending today.
+ *
+ * Never runs past today: a "this year" range ending 31 December would divide
+ * income by months that have not happened, and a cash-flow figure covering
+ * unlived time reads as a shortfall the user cannot act on.
+ */
+export function periodRange(period: Period, now = new Date()): { from: string; to: string } {
+  const to = reportEndAfter(now);
+
+  if (period === "year") return { from: iso(new Date(now.getFullYear(), 0, 1)), to };
+  if (period === "month") return { from: iso(new Date(now.getFullYear(), now.getMonth(), 1)), to };
+  // Weeks start Monday: Sunday is `getDay() === 0`, which would otherwise land
+  // six days ahead of the week the user is actually in.
+  const offset = (now.getDay() + 6) % 7;
+  return { from: iso(new Date(now.getFullYear(), now.getMonth(), now.getDate() - offset)), to };
+}
+
 /**
  * How far back the screens that derive figures from entries look.
  *

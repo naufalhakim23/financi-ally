@@ -1,13 +1,11 @@
 import { useMemo, useState } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from "react-native";
-import { router, useLocalSearchParams } from "expo-router";
+import { router } from "expo-router";
 
 import {
   AmountField,
   Button,
-  Card,
   Field,
-  SectionLabel,
   SegmentedControl,
 } from "../../src/components/ui";
 import { useAuth } from "../../src/lib/auth";
@@ -16,10 +14,6 @@ import { isAlpha3, toMinor } from "../../src/lib/money";
 import { syncDatabase } from "../../src/lib/sync";
 import { useObservable } from "../../src/lib/useObserve";
 import { Account, AccountType, Entry, JournalLine } from "../../src/model/models";
-
-// Categories a first-time user gets for free, so the first expense can be
-// logged without a second setup step.
-const STARTER_CATEGORIES = ["Groceries", "Rent", "Transport", "Dining"];
 
 const EQUITY_ACCOUNT_NAME = "Opening Balances";
 
@@ -33,11 +27,11 @@ type PocketType = Extract<AccountType, "asset" | "liability">;
  * pockets debit the pocket and credit equity; liability pockets (you already
  * owe something) do the reverse.
  *
- * `?first=1` marks the onboarding path: it also seeds starter categories.
+ * Exactly one pocket, nothing else. Seeding a starter chart is the setup
+ * wizard's job — gating it on a query param here meant two of the three routes
+ * into this screen produced a ledger with no categories at all.
  */
 export default function PocketNew() {
-  const { first } = useLocalSearchParams<{ first?: string }>();
-  const onboarding = first === "1";
   const { baseCurrency: base } = useAuth();
 
   const accountsObs = useMemo(() => database.get<Account>("accounts").query().observe(), []);
@@ -119,10 +113,6 @@ export default function PocketNew() {
             await line(pocket.id, "credit");
           }
         }
-
-        if (onboarding && !accounts.some((a) => a.type === "expense")) {
-          for (const c of STARTER_CATEGORIES) await mkAccount("expense", c, cur);
-        }
       });
 
       try {
@@ -148,17 +138,6 @@ export default function PocketNew() {
         contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
         keyboardShouldPersistTaps="handled"
       >
-        {onboarding && (
-          <Card className="mb-card-gap">
-            <SectionLabel>Getting started</SectionLabel>
-            <Text className="text-dim text-body font-sans-medium mt-2">
-              A pocket is where money sits — a bank account, cash, an e-wallet, or a
-              card you owe on. Add your first one and we&apos;ll set up starter
-              categories to spend against.
-            </Text>
-          </Card>
-        )}
-
         <View className="mb-4">
           <Text className="text-label font-sans-semibold text-ink mb-1.5">Kind</Text>
           <SegmentedControl

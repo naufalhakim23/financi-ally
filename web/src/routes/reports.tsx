@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { CategorySpend } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { useCashFlow, useMonthlySeries, useNetWorth, useSpending } from "@/lib/queries";
+import { reportEndAfter, useCashFlow, useMonthlySeries, useNetWorth, useSpending } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 
 // Reports read server-computed endpoints, every figure here is normalized to
@@ -43,11 +43,13 @@ const RANGES: Range[] = [
   { months: 12, label: "12 months" },
 ];
 
-/** First day of the month `n` months back, and today, both `YYYY-MM-DD`. */
+/** First day of the month `n` months back, through the end of today. */
 function rangeFor(months: number, now = new Date()): { from: string; to: string } {
-  const iso = (d: Date) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  return { from: iso(new Date(now.getFullYear(), now.getMonth() - (months - 1), 1)), to: iso(now) };
+  const start = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1);
+  return {
+    from: `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, "0")}-01`,
+    to: reportEndAfter(now),
+  };
 }
 
 /** "Aug 26", the axis tick for a `YYYY-MM-DD` month start. */

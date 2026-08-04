@@ -43,6 +43,30 @@ const SIDES: Record<Mode, { from: string[]; to: string[] }> = {
   move: { from: ["asset", "liability"], to: ["asset", "liability"] },
 };
 
+// What to say, and where to send them, when a side has nothing to offer.
+// Categories and income sources have no create screen of their own on this
+// client — the setup wizard is where they come from.
+const NEED = {
+  pocket: {
+    title: "Set up a pocket first",
+    body: "A pocket is a bank account, cash, an e-wallet, or a card. Money has to come out of one.",
+    actionLabel: "Create a pocket",
+    href: "/(app)/pocket-new",
+  },
+  expense: {
+    title: "Add a category first",
+    body: "Spending lands in a category — groceries, rent, transport. Setup can create a starter set.",
+    actionLabel: "Set up categories",
+    href: "/(app)/setup",
+  },
+  income: {
+    title: "Add an income source first",
+    body: "Money coming in needs a source: a salary, freelance work, a gift.",
+    actionLabel: "Set up income",
+    href: "/(app)/setup",
+  },
+} as const;
+
 export default function EntryNew() {
   const params = useLocalSearchParams<{ mode?: string; from?: string; to?: string; amount?: string }>();
   const { guest, baseCurrency: base } = useAuth();
@@ -218,7 +242,15 @@ export default function EntryNew() {
   }, [digits, currency, base, rates]);
 
   const pickOptions = picking === "from" ? fromOptions : toOptions;
-  const empty = fromOptions.length === 0 || toOptions.length === 0;
+  // Which side is actually empty, not just "something is". Saying "set up a
+  // pocket first" to someone who has three pockets and no categories sends them
+  // to create a fourth pocket and hit the same wall.
+  const missing =
+    fromOptions.length === 0
+      ? NEED[mode === "in" ? "income" : "pocket"]
+      : toOptions.length === 0
+        ? NEED[mode === "out" ? "expense" : "pocket"]
+        : null;
 
   return (
     <SafeAreaView edges={["bottom"]} className="flex-1 bg-surface">
@@ -243,13 +275,13 @@ export default function EntryNew() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {empty && (
+        {missing && (
           <EmptyState
             glyph={Wallet}
-            title="Set up a pocket first"
-            body="An entry moves money between two places — you need both before you can log one."
-            actionLabel="Create a pocket"
-            onAction={() => router.push("/(app)/pocket-new?first=1")}
+            title={missing.title}
+            body={missing.body}
+            actionLabel={missing.actionLabel}
+            onAction={() => router.push(missing.href)}
           />
         )}
 
@@ -305,7 +337,7 @@ export default function EntryNew() {
 
         <Keypad onKey={(k: KeypadKey) => setDigits((d) => applyKey(d, k))} />
 
-        <Button label="Save transaction" onPress={save} busy={busy} disabled={empty} />
+        <Button label="Save transaction" onPress={save} busy={busy} disabled={!!missing} />
       </ScrollView>
 
       <Sheet

@@ -141,9 +141,9 @@ export default function BucketsScreen() {
           <EmptyState
             glyph={Wallet}
             title="No buckets yet"
-            body="Buckets group your accounts and categories. Create a pocket to start one."
-            actionLabel="Create a pocket"
-            onAction={() => router.push("/(app)/pocket-new?first=1")}
+            body="Buckets group your accounts and categories. Setup builds you a starter set."
+            actionLabel="Set up"
+            onAction={() => router.push("/(app)/setup")}
           />
         )}
 

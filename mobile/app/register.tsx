@@ -48,7 +48,7 @@ export default function RegisterScreen() {
       // first cycle carries the whole history up. Failure is not fatal — the
       // rows stay pending and the next sync retries.
       await syncDatabase().catch(() => {});
-      router.replace("/(app)");
+      router.replace("/(app)/setup");
     } catch (e) {
       setError(messageFor(e, "Registration failed"));
     } finally {

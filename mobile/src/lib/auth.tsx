@@ -13,6 +13,7 @@ import { api, HTTPError, type AuthResponse, type User } from "./api";
 import { setAuthAccessors } from "./authBridge";
 import { clearGuest, hydrateGuest, startGuest as persistGuest, useGuestCurrency } from "./guestStore";
 import { clearActiveLedger, hydrateLedger } from "./ledgerStore";
+import { clearSetupState } from "./setup";
 import { clearTokens, getTokens, setTokens } from "./tokenStore";
 
 // Google OIDC endpoints (stable). The client runs the authorization request
@@ -74,7 +75,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refreshRef.current = null;
     setUser(null);
     // Drop the book choice too: the next person to sign in on this device is
-    // almost certainly not a member of it, and every request would 403.
+    // almost certainly not a member of it, and every request would 403. Same
+    // for the checklist dismissal, which is about a ledger, not a device.
+    clearSetupState();
     await Promise.all([clearTokens(), clearActiveLedger()]);
   }, []);
 

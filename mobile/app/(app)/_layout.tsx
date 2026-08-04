@@ -59,6 +59,7 @@ export default function AppLayout() {
             }}
           />
           <Stack.Screen name="pocket-new" options={{ presentation: "modal" }} />
+          <Stack.Screen name="setup" />
           <Stack.Screen name="month/[month]" />
           <Stack.Screen name="entry/[id]" />
           <Stack.Screen name="wording" />

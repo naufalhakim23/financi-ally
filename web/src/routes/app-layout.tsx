@@ -17,6 +17,8 @@ import { OfflineBanner } from "@/components/states";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/lib/auth";
+import { useAccounts } from "@/lib/queries";
+import { setupSkipped } from "@/lib/setup";
 import { useOnline } from "@/lib/use-online";
 import { cn } from "@/lib/utils";
 import { useWording } from "@/lib/wording";
@@ -134,8 +136,21 @@ export function AppLayout() {
     return <Navigate to="/login" replace state={{ from }} />;
   }
 
+  // The wizard renders under this layout for the auth gate, but with no chrome.
+  // A sidebar beside it is a trap: the empty-ledger guard below re-fires on
+  // every nav click and bounces the user back here with no explanation, and
+  // only the wizard's own Skip escapes.
+  if (location.pathname === "/app/setup") {
+    return (
+      <div className="bg-background min-h-dvh px-4 py-6 md:px-6">
+        <Outlet />
+      </div>
+    );
+  }
+
   return (
     <div className="bg-background min-h-dvh">
+      <EmptyLedgerRedirect />
       {!online ? <OfflineBanner /> : null}
 
       <div className="mx-auto flex w-full max-w-[1600px]">
@@ -167,4 +182,23 @@ export function AppLayout() {
       </div>
     </div>
   );
+}
+
+/**
+ * Send a ledger with no accounts to the wizard.
+ *
+ * Its own component so the query only runs once past the auth checks above —
+ * an unauthenticated render would fire a request that can only 401.
+ *
+ * Only a *successful* empty response counts. `useAccounts()` falls back to an
+ * empty array, so both the loading window and a failed fetch look identical to
+ * a brand-new ledger — and an established user who opens the app offline would
+ * be dumped into onboarding by a request that never arrived.
+ */
+function EmptyLedgerRedirect() {
+  const { isSuccess, accounts } = useAccounts();
+
+  if (setupSkipped()) return null;
+  if (!isSuccess || accounts.length > 0) return null;
+  return <Navigate to="/app/setup" replace />;
 }

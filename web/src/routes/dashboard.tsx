@@ -9,6 +9,7 @@ import { rateCaption } from "@financially/domain/fx";
 import { AddEntryButton } from "@/components/add-entry-button";
 import { EntryRow } from "@/components/entry-row";
 import { Amount, formatMoney } from "@/components/money";
+import { SetupChecklist } from "@/components/setup-checklist";
 import { EmptyState, ErrorState, LoadingRows } from "@/components/states";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CardSplitAccordion, type SplitAccordionItem } from "@/components/ui/card-split-accordion";
@@ -162,6 +163,8 @@ export function DashboardRoute() {
           }}
         />
       ) : null}
+
+      <SetupChecklist />
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card>

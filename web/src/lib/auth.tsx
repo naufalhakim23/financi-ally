@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 import { api, authedApi, HTTPError, setAccessToken, refreshAccessToken, type User } from "./api";
 import { setActiveLedger } from "./ledger-store";
+import { clearSetupState } from "./setup";
 
 // Session state for the browser client.
 //
@@ -82,6 +83,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setAccessToken("");
       setActiveLedger(null);
+      // Same reason as the book choice: these outlive the tab, and the next
+      // user on this browser must not inherit the last one's dismissals.
+      clearSetupState();
       setUser(null);
     }
   }, []);

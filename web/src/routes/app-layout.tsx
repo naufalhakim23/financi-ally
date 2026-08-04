@@ -28,43 +28,62 @@ import { useWording } from "@/lib/wording";
 // desktop version worth having.
 
 type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; end?: boolean };
+type NavGroup = { heading: string; items: NavItem[] };
 
-function useNavItems(): NavItem[] {
+// Grouped, not eight flat equals: a new user needs Pockets before they can run
+// a single report, and a flat list said those were the same kind of thing.
+// Group headings are structure, not vocabulary, so they stay out of the wording
+// map while the item labels keep going through `t()`.
+function useNavGroups(): NavGroup[] {
   const { t } = useWording();
   return [
-    { to: "/app", label: "Dashboard", icon: LayoutDashboard, end: true },
-    { to: "/app/history", label: t("history"), icon: ArrowLeftRight },
-    { to: "/app/pockets", label: t("buckets"), icon: Wallet },
-    { to: "/app/budgets", label: "Budgets", icon: Target },
-    { to: "/app/reports", label: "Reports", icon: PieChart },
-    { to: "/app/recurring", label: "Recurring", icon: Repeat },
-    { to: "/app/books", label: "Books", icon: BookOpen },
+    {
+      heading: "Money",
+      items: [
+        { to: "/app", label: "Dashboard", icon: LayoutDashboard, end: true },
+        { to: "/app/history", label: t("history"), icon: ArrowLeftRight },
+      ],
+    },
+    {
+      heading: "Plan",
+      items: [
+        { to: "/app/pockets", label: t("buckets"), icon: Wallet },
+        { to: "/app/budgets", label: "Budgets", icon: Target },
+        { to: "/app/recurring", label: "Recurring", icon: Repeat },
+      ],
+    },
+    {
+      heading: "Insight",
+      items: [{ to: "/app/reports", label: "Reports", icon: PieChart }],
+    },
   ];
 }
 
+const linkClass = ({ isActive }: { isActive: boolean }) =>
+  cn(
+    "text-body flex items-center gap-2.5 rounded-md px-3 py-2 transition-colors",
+    "focus-visible:ring-focus-ring focus-visible:ring-2 focus-visible:outline-none",
+    isActive
+      ? "bg-surface-container-high text-ink font-semibold"
+      : "text-dim hover:bg-surface-container hover:text-ink",
+  );
+
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
-  const items = useNavItems();
+  const groups = useNavGroups();
   return (
-    <nav className="flex flex-col gap-0.5">
-      {items.map(({ to, label, icon: Icon, end }) => (
-        <NavLink
-          key={to}
-          to={to}
-          end={end}
-          onClick={onNavigate}
-          className={({ isActive }) =>
-            cn(
-              "text-body flex items-center gap-2.5 rounded-md px-3 py-2 transition-colors",
-              "focus-visible:ring-focus-ring focus-visible:ring-2 focus-visible:outline-none",
-              isActive
-                ? "bg-surface-container-high text-ink font-semibold"
-                : "text-dim hover:bg-surface-container hover:text-ink",
-            )
-          }
-        >
-          <Icon className="size-4 shrink-0" strokeWidth={1.75} />
-          {label}
-        </NavLink>
+    <nav className="flex flex-col gap-5">
+      {groups.map((group) => (
+        <div key={group.heading} className="flex flex-col gap-0.5">
+          <span className="text-caption text-faint px-3 pb-1 font-semibold tracking-wide uppercase">
+            {group.heading}
+          </span>
+          {group.items.map(({ to, label, icon: Icon, end }) => (
+            <NavLink key={to} to={to} end={end} onClick={onNavigate} className={linkClass}>
+              <Icon className="size-4 shrink-0" strokeWidth={1.75} />
+              {label}
+            </NavLink>
+          ))}
+        </div>
       ))}
     </nav>
   );
@@ -77,20 +96,15 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         <span className="text-headline text-ink font-semibold">Financi-Ally</span>
       </div>
       <NavLinks onNavigate={onNavigate} />
-      <div className="mt-auto">
-        <NavLink
-          to="/app/settings"
-          onClick={onNavigate}
-          className={({ isActive }) =>
-            cn(
-              "text-body flex items-center gap-2.5 rounded-md px-3 py-2 transition-colors",
-              isActive
-                ? "bg-surface-container-high text-ink font-semibold"
-                : "text-dim hover:bg-surface-container hover:text-ink",
-            )
-          }
-        >
-          <Settings className="size-4" strokeWidth={1.75} />
+      {/* Books and Settings are about the account, not about money — they sit
+          below the divider rather than in a group of their own. */}
+      <div className="border-outline mt-auto flex flex-col gap-0.5 border-t pt-3">
+        <NavLink to="/app/books" onClick={onNavigate} className={linkClass}>
+          <BookOpen className="size-4 shrink-0" strokeWidth={1.75} />
+          Books
+        </NavLink>
+        <NavLink to="/app/settings" onClick={onNavigate} className={linkClass}>
+          <Settings className="size-4 shrink-0" strokeWidth={1.75} />
           Settings
         </NavLink>
       </div>

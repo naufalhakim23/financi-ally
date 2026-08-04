@@ -13,6 +13,7 @@ import { convert, rateCaption, rateFor, type RateTable } from "./fx";
 import { buildEntryViews, groupByDay, monthCsv, monthKey, signedAmount } from "./ledger";
 import { format, scale, toMinor } from "./money";
 import { MAX_MONTH_DAY, buildRRule, describeRRule, ordinal, parseRRule } from "./recurrence";
+import { STARTER_ITEMS, defaultSelection, selectedItems } from "./starter";
 import type { Account, Budget, Entry, JournalLine } from "./types";
 
 // ── fixtures ────────────────────────────────────────────────────────────────
@@ -290,5 +291,28 @@ describe("recurrence", () => {
     // A rule on the 31st would skip February entirely, which reads to a user as
     // the app losing an entry.
     expect(MAX_MONTH_DAY).toBe(28);
+  });
+});
+
+describe("starter catalog", () => {
+  it("offers only account types the ledger can post against", () => {
+    const allowed = new Set(["asset", "liability", "expense", "income"]);
+    for (const item of STARTER_ITEMS) expect(allowed.has(item.type)).toBe(true);
+  });
+
+  it("keeps every name unique, so a selection can be a flat set", () => {
+    const names = STARTER_ITEMS.map((i) => i.name);
+    expect(new Set(names).size).toBe(names.length);
+  });
+
+  it("checks a postable pair by default — a pocket, a category and a source", () => {
+    const defaults = selectedItems(defaultSelection());
+    for (const type of ["asset", "expense", "income"]) {
+      expect(defaults.some((i) => i.type === type)).toBe(true);
+    }
+  });
+
+  it("resolves a selection back to catalog entries and ignores unknown names", () => {
+    expect(selectedItems(new Set(["Cash", "Nope"])).map((i) => i.name)).toEqual(["Cash"]);
   });
 });

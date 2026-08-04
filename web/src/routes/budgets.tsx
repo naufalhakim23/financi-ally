@@ -185,6 +185,7 @@ export function BudgetsRoute() {
         budget={editing}
         period={period}
         available={available}
+        anyCategories={categories.length > 0}
         nameFor={nameFor}
         onClose={() => {
           setCreating(false);
@@ -240,6 +241,7 @@ function BudgetDialog({
   budget,
   period,
   available,
+  anyCategories,
   nameFor,
   onClose,
 }: {
@@ -247,6 +249,7 @@ function BudgetDialog({
   budget: BudgetWithSpent | null;
   period: string;
   available: Category[];
+  anyCategories: boolean;
   nameFor: (id: string) => string;
   onClose: () => void;
 }) {
@@ -314,7 +317,13 @@ function BudgetDialog({
                 {nameFor(budget.account_id)}
               </p>
             ) : available.length === 0 ? (
-              <p className="text-body text-dim">Every category already has a budget.</p>
+              // Two very different states hid behind one sentence, and the wrong
+              // one was aimed squarely at brand-new users.
+              <p className="text-body text-dim">
+                {!anyCategories
+                  ? "You have no categories yet. Add one from Pockets, then set its budget here."
+                  : "Every category already has a budget."}
+              </p>
             ) : (
               <Select value={accountId ?? undefined} onValueChange={setAccountId}>
                 <SelectTrigger className="w-full">

@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
-import { RefreshControl, ScrollView, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { RefreshControl, ScrollView, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
-import { ListFilter, Search } from "lucide-react-native";
+import { router, useLocalSearchParams } from "expo-router";
+import { FilterX, ListFilter, Search, X } from "lucide-react-native";
 
 import { useAuth } from "../../../src/lib/auth";
+import { format } from "../../../src/lib/money";
 import { netWorth } from "../../../src/lib/balances";
 import { database } from "../../../src/lib/db";
 import {
@@ -21,7 +22,9 @@ import { EntryRow } from "../../../src/components/entry-row";
 import { useWording } from "../../../src/lib/wording";
 import { Account, Entry, JournalLine } from "../../../src/model/models";
 import {
+  Button,
   Card,
+  Chip,
   DayHeader,
   EmptyState,
   GroupedBars,
@@ -31,12 +34,22 @@ import {
   Receipt,
   SectionLabel,
   SegmentedControl,
+  Sheet,
   TitleBar,
   formatGrouped,
   useTheme,
 } from "../../../src/components/ui";
 
 type Tab = "months" | "entries";
+
+type DirFilter = "all" | "in" | "out" | "move";
+
+const DIR_LABEL: Record<DirFilter, string> = {
+  all: "All",
+  in: "Money in",
+  out: "Money out",
+  move: "Moves",
+};
 
 type MonthRow = {
   key: string;
@@ -83,6 +96,18 @@ export default function HistoryScreen() {
   const { C } = useTheme();
   const pull = useSyncRefresh();
   const [tab, setTab] = useState<Tab>("months");
+  const [searching, setSearching] = useState(false);
+  const [q, setQ] = useState("");
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [dir, setDir] = useState<DirFilter>("all");
+  const [pocketId, setPocketId] = useState<string | null>(null);
+
+  // Home's magnifier lands here with the search box already open. The param
+  // carries a nonce so a second press re-opens it after the user dismissed it.
+  const { search } = useLocalSearchParams<{ search?: string }>();
+  useEffect(() => {
+    if (search) setSearching(true);
+  }, [search]);
 
   const accountsObs = useMemo(() => database.get<Account>("accounts").query().observe(), []);
   const linesObs = useMemo(() => database.get<JournalLine>("journal_lines").query().observe(), []);
@@ -127,25 +152,95 @@ export default function HistoryScreen() {
       };
     });
 
-  const days = useMemo(() => groupByDay(views, base), [views, base]);
+  // Only money accounts are worth filtering by: an expense category shows up on
+  // one side of an entry anyway, and the pocket is what people remember.
+  const pockets = useMemo(
+    () => accounts.filter((a) => (a.type === "asset" || a.type === "liability") && !a.archived),
+    [accounts],
+  );
+  const filtered = useMemo(
+    () =>
+      views.filter(
+        (v) =>
+          (dir === "all" || v.direction === dir) &&
+          (pocketId === null || v.from?.id === pocketId || v.to?.id === pocketId),
+      ),
+    [views, dir, pocketId],
+  );
+
+  const matches = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    if (!needle) return filtered;
+    return filtered.filter((v) =>
+      [v.entry.memo, v.from?.name, v.to?.name, format(v.currency, v.amountMinor)]
+        .some((s) => s?.toLowerCase().includes(needle)),
+    );
+  }, [filtered, q]);
+
+  const days = useMemo(() => groupByDay(matches, base), [matches, base]);
+
+  const filtersOn = dir !== "all" || pocketId !== null;
+  const pocketName = pockets.find((p) => p.id === pocketId)?.name;
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-background">
       <TitleBar title={t("history")}>
-        <IconButton glyph={Search} label="Search entries" onPress={() => setTab("entries")} />
-        <IconButton glyph={ListFilter} label="Filter" onPress={() => setTab("entries")} />
+        <IconButton
+          glyph={searching ? X : Search}
+          label={searching ? "Close search" : "Search entries"}
+          onPress={() => {
+            setSearching((s) => !s);
+            setQ("");
+          }}
+        />
+        <IconButton
+          glyph={filtersOn ? FilterX : ListFilter}
+          label={filtersOn ? "Filters on" : "Filter"}
+          onPress={() => setFilterOpen(true)}
+        />
       </TitleBar>
 
-      <View className="px-4 pb-3">
-        <SegmentedControl
-          value={tab}
-          onChange={setTab}
-          options={[
-            { value: "months", label: "Months" },
-            { value: "entries", label: "All entries" },
-          ]}
-        />
-      </View>
+      {searching ? (
+        <View className="px-4 pb-3">
+          <View className="flex-row items-center bg-surface-container rounded-lg px-3 min-h-touch">
+            <Search size={18} color={C.faint} strokeWidth={1.75} />
+            <TextInput
+              value={q}
+              onChangeText={setQ}
+              autoFocus
+              placeholder="Memo, pocket or amount"
+              placeholderTextColor={C.disabled}
+              accessibilityLabel="Search entries"
+              className="flex-1 text-body font-sans text-ink ml-2 py-3"
+            />
+          </View>
+        </View>
+      ) : (
+        <View className="px-4 pb-3">
+          <SegmentedControl
+            value={tab}
+            onChange={setTab}
+            options={[
+              { value: "months", label: "Months" },
+              { value: "entries", label: "All entries" },
+            ]}
+          />
+        </View>
+      )}
+
+      {filtersOn && (
+        <View className="flex-row items-center px-4 pb-3" style={{ gap: 8 }}>
+          {dir !== "all" && <Chip label={DIR_LABEL[dir]} active onPress={() => setDir("all")} />}
+          {pocketName && <Chip label={pocketName} active onPress={() => setPocketId(null)} />}
+          <Chip
+            label="Clear"
+            onPress={() => {
+              setDir("all");
+              setPocketId(null);
+            }}
+          />
+        </View>
+      )}
 
       <ScrollView
         className="flex-1"
@@ -161,7 +256,15 @@ export default function HistoryScreen() {
           />
         )}
 
-        {tab === "months" ? (
+        {views.length > 0 && matches.length === 0 && (searching || filtersOn) && (
+          <EmptyState
+            glyph={Receipt}
+            title="No matches"
+            body="Nothing here fits the search and filters."
+          />
+        )}
+
+        {!searching && !filtersOn && tab === "months" ? (
           <>
             {barPoints.length > 0 && (
               <Card>
@@ -227,6 +330,36 @@ export default function HistoryScreen() {
           ))
         )}
       </ScrollView>
+
+      <Sheet visible={filterOpen} onClose={() => setFilterOpen(false)} title="Filter entries">
+        <SectionLabel>direction</SectionLabel>
+        <View className="flex-row flex-wrap py-2" style={{ gap: 8 }}>
+          {(Object.keys(DIR_LABEL) as DirFilter[]).map((d) => (
+            <Chip key={d} label={DIR_LABEL[d]} active={dir === d} onPress={() => setDir(d)} />
+          ))}
+        </View>
+
+        {pockets.length > 0 && (
+          <>
+            <SectionLabel>pocket</SectionLabel>
+            <View className="flex-row flex-wrap py-2" style={{ gap: 8 }}>
+              <Chip label="Any" active={pocketId === null} onPress={() => setPocketId(null)} />
+              {pockets.map((p) => (
+                <Chip
+                  key={p.id}
+                  label={p.name}
+                  active={pocketId === p.id}
+                  onPress={() => setPocketId(pocketId === p.id ? null : p.id)}
+                />
+              ))}
+            </View>
+          </>
+        )}
+
+        <View className="pt-3">
+          <Button label={`Show ${matches.length} ${matches.length === 1 ? "entry" : "entries"}`} onPress={() => setFilterOpen(false)} />
+        </View>
+      </Sheet>
     </SafeAreaView>
   );
 }

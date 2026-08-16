@@ -189,7 +189,18 @@ export default function HomeScreen() {
           <ChevronDown size={14} color={C.dim} strokeWidth={2} />
         </Pressable>
         <View className="flex-row items-center" style={{ gap: 8 }}>
-          <IconButton glyph={Search} label="Search" onPress={() => router.push("/(app)/(tabs)/history")} />
+          <IconButton
+            glyph={Search}
+            label="Search"
+            onPress={() =>
+              router.push({
+                pathname: "/(app)/(tabs)/history",
+                // Nonce: the tab stays mounted, so a fresh value is what tells
+                // it to re-open the box after a previous dismiss.
+                params: { search: String(Date.now()) },
+              })
+            }
+          />
           <View className="w-10 h-10 rounded-full bg-surface-container-high items-center justify-center">
             <Text className="text-label font-sans-semibold text-dim">{initials}</Text>
           </View>

@@ -1,11 +1,13 @@
 import { useMemo, useState } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from "react-native";
 import { router } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
   AmountField,
   Button,
   Field,
+  ScreenHeader,
   SegmentedControl,
 } from "../../src/components/ui";
 import { useAuth } from "../../src/lib/auth";
@@ -134,6 +136,9 @@ export default function PocketNew() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       className="flex-1 bg-background"
     >
+      <SafeAreaView edges={["top"]}>
+        <ScreenHeader title="New pocket" backLabel="Back" onBack={() => router.back()} />
+      </SafeAreaView>
       <ScrollView
         contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
         keyboardShouldPersistTaps="handled"

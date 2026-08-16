@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { ChevronDown, Delete, Eye, EyeOff } from "lucide-react-native";
 
-import { Chip, usePressed } from "./core";
+import { Chip, groupDigits, usePressed } from "./core";
 import { ListRow } from "./lists";
 import { Sheet } from "./overlays";
 import { useTheme } from "./tokens";
@@ -174,6 +174,10 @@ export function AmountField({
   error?: string | null;
 }) {
   const { C } = useTheme();
+  // The field shows separators but the caller keeps the raw decimal string, so
+  // toMinor() never has to know about display formatting.
+  const [intPart, frac] = value.split(".");
+  const display = frac === undefined ? groupDigits(intPart ?? "") : `${groupDigits(intPart ?? "")}.${frac}`;
   return (
     <FieldShell label={label} helper={helper} error={error}>
       <View
@@ -183,8 +187,8 @@ export function AmountField({
       >
         <Text className="text-amount font-mono-medium text-faint mr-2">{currency}</Text>
         <TextInput
-          value={value}
-          onChangeText={onChange}
+          value={display}
+          onChangeText={(t) => onChange(t.replace(/,/g, ""))}
           placeholder="0"
           keyboardType="decimal-pad"
           placeholderTextColor={C.disabled}

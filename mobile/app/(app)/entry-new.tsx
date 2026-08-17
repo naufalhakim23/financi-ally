@@ -10,6 +10,8 @@ import { useAuth } from "../../src/lib/auth";
 import { accountSigned } from "../../src/lib/balances";
 import { spendingForMonth } from "../../src/lib/buckets";
 import { database } from "../../src/lib/db";
+import { messageFor } from "../../src/lib/errors";
+import { createAccount } from "../../src/lib/setup";
 import { EMPTY_RATES, convert, type RateTable } from "../../src/lib/fx";
 import { syncDatabase } from "../../src/lib/sync";
 import { useObservable } from "../../src/lib/useObserve";
@@ -30,11 +32,14 @@ import {
   applyKey,
   categorySlot,
   formatGrouped,
+  haptic,
   ICON,
   useTheme,
 } from "../../src/components/ui";
 
 type Mode = "out" | "in" | "move";
+
+const LAST_FROM_KEY = "entry.lastFrom";
 
 // Which account types each side of the entry may point at. An entry is always
 // a balanced pair, so the mode fully determines both sides' candidates.
@@ -85,6 +90,9 @@ export default function EntryNew() {
   const [toId, setToId] = useState<string | null>(params.to ?? null);
   const [memo, setMemo] = useState("");
   const [noteOpen, setNoteOpen] = useState(false);
+  const [newCatOpen, setNewCatOpen] = useState(false);
+  const [newCatName, setNewCatName] = useState("");
+  const [newCatBusy, setNewCatBusy] = useState(false);
   const [picking, setPicking] = useState<"from" | "to" | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -160,6 +168,19 @@ export default function EntryNew() {
     setToId((cur) => (cur && toOptions.some((a) => a.id === cur) ? cur : null));
   }, [mode, accounts]);
 
+  // Fills a blank only: a deep-link param or the user's own pick always wins.
+  useEffect(() => {
+    if (fromId || mode === "in" || accounts.length === 0) return;
+    let stale = false;
+    void database.localStorage.get<string>(LAST_FROM_KEY).then((saved) => {
+      if (stale || !saved) return;
+      setFromId((cur) => (cur ? cur : fromOptions.some((a) => a.id === saved) ? saved : cur));
+    });
+    return () => {
+      stale = true;
+    };
+  }, [accounts.length, mode]);
+
   // Resolved against the options, not all accounts: an id that arrived by deep
   // link or went stale when an account was archived resolves to null and never
   // reaches save().
@@ -167,29 +188,34 @@ export default function EntryNew() {
   const to = toOptions.find((a) => a.id === toId) ?? null;
   const currency = from?.currency ?? base;
 
+  function reject(msg: string) {
+    haptic.warn();
+    setErr(msg);
+  }
+
   async function save() {
     setErr(null);
     if (!from || !to) {
-      setErr(`Pick where the money comes ${mode === "in" ? "from" : "out of"} and where it goes`);
+      reject(`Pick where the money comes ${mode === "in" ? "from" : "out of"} and where it goes`);
       return;
     }
     if (from.id === to.id) {
-      setErr("Pick two different accounts");
+      reject("Pick two different accounts");
       return;
     }
     // Both legs post in the source currency; cross-currency needs an fx_rate
     // this screen does not collect yet, and the server rejects the entry.
     if (from.currency !== to.currency) {
-      setErr(`Both sides must use the same currency — ${from.name} is ${from.currency}, ${to.name} is ${to.currency}`);
+      reject(`Both sides must use the same currency: ${from.name} is ${from.currency}, ${to.name} is ${to.currency}`);
       return;
     }
     const minor = Number(digits || "0");
     if (!Number.isSafeInteger(minor)) {
-      setErr("Enter a valid amount");
+      reject("Enter a valid amount");
       return;
     }
     if (minor <= 0) {
-      setErr("Amount must be greater than zero");
+      reject("Amount must be greater than zero");
       return;
     }
 
@@ -226,9 +252,12 @@ export default function EntryNew() {
       } catch (e) {
         console.warn("[entry] sync deferred", e);
       }
+      haptic.success();
+      if (mode !== "in") void database.localStorage.set(LAST_FROM_KEY, from.id);
       router.back();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "save failed");
+      haptic.error();
+      setErr(messageFor(e, "save failed"));
     } finally {
       setBusy(false);
     }
@@ -316,15 +345,32 @@ export default function EntryNew() {
             placeholder="Choose"
             onPress={() => setPicking("from")}
           />
-          <View className="h-px bg-outline-variant" />
-          <PickerRow
-            label={t("into").toLowerCase()}
-            account={to}
-            subtitle={to ? subtitleFor(to) : undefined}
-            placeholder="Choose"
-            onPress={() => setPicking("to")}
-          />
+          {mode !== "out" && (
+            <>
+              <View className="h-px bg-outline-variant" />
+              <PickerRow
+                label={t("into").toLowerCase()}
+                account={to}
+                subtitle={to ? subtitleFor(to) : undefined}
+                placeholder="Choose"
+                onPress={() => setPicking("to")}
+              />
+            </>
+          )}
         </View>
+
+        {mode === "out" && toOptions.length > 0 && (
+          <CategoryRail
+            label={t("into").toLowerCase()}
+            options={toOptions}
+            selectedId={toId}
+            onSelect={(id) => {
+              haptic.tap();
+              setToId(id);
+            }}
+            onAdd={() => setNewCatOpen(true)}
+          />
+        )}
 
         {showSides && from && to && (
           <View className="flex-row items-center justify-between bg-surface-container rounded-lg px-3.5 py-2.5">
@@ -369,6 +415,41 @@ export default function EntryNew() {
         ))}
       </Sheet>
 
+      <Sheet visible={newCatOpen} onClose={() => setNewCatOpen(false)} title="New category">
+        <TextInput
+          value={newCatName}
+          onChangeText={setNewCatName}
+          placeholder="Groceries, rent, transport…"
+          placeholderTextColor={C.disabled}
+          autoFocus
+          className="bg-surface-container rounded-lg px-4 py-3 min-h-touch text-body font-sans-medium text-ink"
+        />
+        <View className="mt-4">
+          <Button
+            label="Add category"
+            busy={newCatBusy}
+            disabled={!newCatName.trim()}
+            onPress={async () => {
+              setNewCatBusy(true);
+              try {
+                // Must match the source pocket's currency or Save rejects the pair.
+                const id = await createAccount("expense", newCatName.trim(), currency);
+                haptic.success();
+                setToId(id);
+                setNewCatOpen(false);
+                setNewCatName("");
+              } catch (e) {
+                haptic.error();
+                setErr(messageFor(e, "couldn't add the category"));
+                setNewCatOpen(false);
+              } finally {
+                setNewCatBusy(false);
+              }
+            }}
+          />
+        </View>
+      </Sheet>
+
       <Sheet visible={noteOpen} onClose={() => setNoteOpen(false)} title="Note">
         <TextInput
           value={memo}
@@ -383,6 +464,66 @@ export default function EntryNew() {
         </View>
       </Sheet>
     </SafeAreaView>
+  );
+}
+
+function CategoryRail({
+  label,
+  options,
+  selectedId,
+  onSelect,
+  onAdd,
+}: {
+  label: string;
+  options: Account[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  onAdd: () => void;
+}) {
+  return (
+    <View style={{ gap: 8 }}>
+      <Text className="text-overline font-sans-semibold text-faint uppercase px-1">{label}</Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ gap: 8, paddingRight: 4 }}
+      >
+        {options.map((a) => {
+          const active = a.id === selectedId;
+          return (
+            <Pressable
+              key={a.id}
+              onPress={() => onSelect(a.id)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              accessibilityLabel={`Category ${a.name}`}
+              className={`items-center rounded-xl border px-2 py-2 ${
+                active ? "border-primary bg-surface-container" : "border-outline bg-surface"
+              }`}
+              style={{ width: 76, gap: 6 }}
+            >
+              <IconBox glyph={accountGlyph(a.name, a.type)} slot={categorySlot(a.id)} size={32} />
+              <Text
+                className={`text-caption font-sans-semibold ${active ? "text-ink" : "text-dim"}`}
+                numberOfLines={1}
+              >
+                {a.name}
+              </Text>
+            </Pressable>
+          );
+        })}
+        <Pressable
+          onPress={onAdd}
+          accessibilityRole="button"
+          accessibilityLabel="New category"
+          className="items-center justify-center rounded-xl border border-outline bg-surface px-2 py-2"
+          style={{ width: 76, gap: 6 }}
+        >
+          <IconBox glyph={Plus} size={32} />
+          <Text className="text-caption font-sans-semibold text-dim">New</Text>
+        </Pressable>
+      </ScrollView>
+    </View>
   );
 }
 

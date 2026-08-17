@@ -130,6 +130,49 @@ export function useSetupState(accounts: Account[], entries: Entry[], lines: Jour
   };
 }
 
+// Ad-hoc account create. Dedupes on (type, name); revives an archived match.
+export async function createAccount(
+  type: AccountType,
+  name: string,
+  currency: string,
+): Promise<string> {
+  const existing = (await database.get<Account>("accounts").query().fetch()).find(
+    (a) => a.type === type && a.name === name,
+  );
+  if (existing) {
+    if (existing.archived) {
+      await database.write(() =>
+        existing.update((a) => {
+          a.archived = false;
+        }),
+      );
+    } else {
+      return existing.id;
+    }
+  }
+
+  const id = existing
+    ? existing.id
+    : (
+        await database.write(() =>
+          database.get<Account>("accounts").create((a) => {
+            a.type = type;
+            a.currency = currency;
+            a.name = name;
+            a.parentId = null;
+            a.archived = false;
+          }),
+        )
+      ).id;
+
+  try {
+    await syncDatabase();
+  } catch (e) {
+    console.warn("[setup] sync deferred", e);
+  }
+  return id;
+}
+
 /**
  * Create the picked starter accounts locally, then push if there is a server.
  *

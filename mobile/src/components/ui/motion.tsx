@@ -1,7 +1,60 @@
+import { useEffect } from "react";
 import { Pressable } from "react-native";
-import Animated from "react-native-reanimated";
+import Animated, {
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 
-// DESIGN.md press-scale token. Discrete affordances only, not full-width rows.
+import { DURATION, EASING } from "./tokens";
+
+// ─── Motion (DESIGN.md → Motion) ────────────────────────────────────────────
+// Short, physical, never decorative. Reduced-motion keeps opacity and drops
+// transform and width animation, so every primitive here takes that branch
+// rather than leaving it to each caller to remember.
+
+// DESIGN.md press-scale token. Discrete affordances only, not full-width rows —
+// a whole row shrinking reads as the card flinching, and it is the exact path
+// that costs the most on low-end Android.
 export const PRESS_SCALE = 0.97;
 
 export const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+export { useReducedMotion };
+
+/**
+ * Cross-fade a figure when it changes. Never counts up: a balance ticking
+ * through numbers it was never worth is a lie about money, however briefly.
+ */
+export function useValueFade(value: number) {
+  const opacity = useSharedValue(1);
+  const reduced = useReducedMotion();
+
+  useEffect(() => {
+    // Opacity survives reduced-motion; only the timing tightens.
+    opacity.value = withTiming(0, { duration: DURATION.fast / 2, easing: EASING.linear }, () => {
+      opacity.value = withTiming(1, { duration: DURATION.fast / 2, easing: EASING.linear });
+    });
+  }, [value, opacity]);
+
+  return useAnimatedStyle(() => ({ opacity: reduced ? 1 : opacity.value }));
+}
+
+/**
+ * Animate a bar's fill to its new ratio. Width is a layout property, so
+ * reduced-motion snaps it rather than easing it.
+ */
+export function useBarWidth(pct: number) {
+  const clipped = Math.max(0, Math.min(pct, 100));
+  const width = useSharedValue(clipped);
+  const reduced = useReducedMotion();
+
+  useEffect(() => {
+    width.value = reduced
+      ? clipped
+      : withTiming(clipped, { duration: DURATION.base, easing: EASING.standard });
+  }, [clipped, reduced, width]);
+
+  return useAnimatedStyle(() => ({ width: `${width.value}%` }));
+}

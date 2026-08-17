@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 import { useColorScheme } from "nativewind";
+import { Easing } from "react-native-reanimated";
 import {
   ArrowLeftRight,
   Banknote,
@@ -154,13 +155,27 @@ export const ICON = {
   xxl: 24,
 } as const;
 
-// Motion. RN has no CSS easing tokens, so only the durations travel; press
-// feedback uses opacity/tone rather than a timing curve.
+// Motion. RN has no CSS easing tokens, so the curves are expressed as the cubic
+// béziers DESIGN.md names and passed to `withTiming` directly.
 export const DURATION = {
   instant: 90,
   fast: 160,
   base: 240,
   slow: 360,
+} as const;
+
+/**
+ * The four curves from DESIGN.md → Motion.
+ *
+ * `standard` enters, `exit` leaves faster than it arrived, `emphasized` is
+ * reserved for the FAB → add-entry transition alone, and `linear` is for
+ * cross-fades where an eased opacity reads as a flicker.
+ */
+export const EASING = {
+  standard: Easing.bezier(0.2, 0, 0, 1),
+  exit: Easing.bezier(0.3, 0, 1, 1),
+  emphasized: Easing.bezier(0.05, 0.7, 0.1, 1),
+  linear: Easing.linear,
 } as const;
 
 /**

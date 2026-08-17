@@ -65,7 +65,7 @@ catalog.budgets.periodTitle(d)  // "August" via monthLabel
 - "Other (8)" becomes "Everything else" with the count moved to the legend value line.
 - Receipt placeholder: remove until the feature exists (DESIGN.md open-gaps row stays as the record of intent).
 
-Exit test: grep screens for string literals finds only accessibility labels and test IDs; no `[A-Z]{3} ` raw-code amount patterns; no ISO dates in rendered output.
+Exit test: grep screens for string literals finds only accessibility labels and test IDs; no raw-code amount patterns (a bare `[A-Z]{3}` followed by a space and a number); no ISO dates in rendered output.
 
 ### H2: Voice pass and acknowledgment moments
 

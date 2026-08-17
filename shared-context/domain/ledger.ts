@@ -134,9 +134,17 @@ export function monthKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
-export function monthLabel(key: string): string {
+/**
+ * `2026-08` as a person says it. The year drops where the surrounding screen
+ * already establishes it — a budget card is always about the month you're in,
+ * and "August 2026" there reads like a filing reference.
+ */
+export function monthLabel(key: string, { year = true }: { year?: boolean } = {}): string {
   const [y, m] = key.split("-").map(Number);
-  return new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  return new Date(y, m - 1, 1).toLocaleDateString(undefined, {
+    month: "long",
+    ...(year ? { year: "numeric" as const } : {}),
+  });
 }
 
 /** Rows falling inside the given `YYYY-MM`. */

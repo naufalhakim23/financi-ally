@@ -4,21 +4,17 @@
 // English and ledger English. Double-entry is a mode here, not a default — see
 // the 31 Jul 2026 design-system changelog.
 //
-// Only the mapping lives here. Each client owns its own provider, because
-// persistence differs (WatermelonDB localStorage on mobile, localStorage on
-// web) and a React context is not shareable across React Native and the DOM.
+// The words themselves now live in the string catalog (`strings/terms.ts`),
+// where mode is a dimension of every string rather than a seven-term special
+// case. What stays here is the mode type and the `term()` / `TERM_ROWS` surface:
+// the Wording settings screen teaches the mapping as a table, and the web client
+// still reads terms one at a time. Each client owns its own provider, because
+// persistence differs (WatermelonDB localStorage on mobile, localStorage on web)
+// and a React context is not shareable across React Native and the DOM.
+
+import { terms as TERMS } from "./strings/terms";
 
 export type Wording = "normal" | "finance";
-
-const TERMS = {
-  totalMoney: { normal: "Total money", finance: "Net worth" },
-  history: { normal: "History", finance: "Journal" },
-  buckets: { normal: "Buckets", finance: "Accounts" },
-  addEntry: { normal: "Add money move", finance: "New entry" },
-  outOf: { normal: "Out of", finance: "Credit" },
-  into: { normal: "Into", finance: "Debit" },
-  safeToSpend: { normal: "Safe to spend", finance: "Unallocated" },
-} as const;
 
 export type TermKey = keyof typeof TERMS;
 

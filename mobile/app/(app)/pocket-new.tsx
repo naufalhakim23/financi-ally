@@ -12,6 +12,7 @@ import {
 } from "../../src/components/ui";
 import { useAuth } from "../../src/lib/auth";
 import { database } from "../../src/lib/db";
+import { messageFor } from "../../src/lib/errors";
 import { isAlpha3, toMinor } from "../../src/lib/money";
 import { syncDatabase } from "../../src/lib/sync";
 import { useObservable } from "../../src/lib/useObserve";
@@ -125,7 +126,7 @@ export default function PocketNew() {
       }
       router.back();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "could not create the pocket");
+      setErr(messageFor(e, "could not create the pocket"));
     } finally {
       setBusy(false);
     }

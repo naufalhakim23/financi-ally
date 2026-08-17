@@ -157,7 +157,7 @@ export default function Budgets() {
       closeForm();
       void fetchBudgets();
     } catch (e) {
-      setFormErr(e instanceof Error ? e.message : "save failed");
+      setFormErr(messageFor(e, "save failed"));
     } finally {
       setFormBusy(false);
     }

@@ -10,6 +10,7 @@ import {
   type LedgerMembership,
 } from "../../src/lib/api";
 import { useAuth } from "../../src/lib/auth";
+import { messageFor } from "../../src/lib/errors";
 import { switchLedger } from "../../src/lib/ledgers";
 import { useLedgerState } from "../../src/lib/ledgerStore";
 import {
@@ -64,7 +65,7 @@ export default function Ledgers() {
     try {
       setBooks(await authedApi.listLedgers());
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "couldn't load your books");
+      setErr(messageFor(e, "couldn't load your books"));
     }
   }, []);
 
@@ -119,7 +120,7 @@ export default function Ledgers() {
       load();
     } catch (e) {
       setPendingSwitch(null);
-      setErr(e instanceof Error ? e.message : "couldn't switch books");
+      setErr(messageFor(e, "couldn't switch books"));
     } finally {
       setSwitching(false);
     }
@@ -145,7 +146,7 @@ export default function Ledgers() {
       setNotice("Book created. Switch to it to start adding entries");
       load();
     } catch (e) {
-      setCreateErr(e instanceof Error ? e.message : "couldn't create the book");
+      setCreateErr(messageFor(e, "couldn't create the book"));
     } finally {
       setCreateBusy(false);
     }
@@ -171,7 +172,7 @@ export default function Ledgers() {
       setNotice(`Joined ${joined.name}. Switch to it to see the shared entries`);
       load();
     } catch (e) {
-      setJoinErr(e instanceof Error ? e.message : "couldn't join with that code");
+      setJoinErr(messageFor(e, "couldn't join with that code"));
     } finally {
       setJoinBusy(false);
     }
@@ -189,7 +190,7 @@ export default function Ledgers() {
       const inv = await authedApi.createLedgerInvite(current.ledger.id);
       setInvite({ code: inv.code, expires: inv.expires_at });
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "couldn't create an invite code");
+      setErr(messageFor(e, "couldn't create an invite code"));
     } finally {
       setInviteBusy(false);
     }
@@ -214,7 +215,7 @@ export default function Ledgers() {
       load();
     } catch (e) {
       setPendingLeave(false);
-      setErr(e instanceof Error ? e.message : "couldn't leave the book");
+      setErr(messageFor(e, "couldn't leave the book"));
     } finally {
       setLeaveBusy(false);
     }

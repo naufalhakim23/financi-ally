@@ -7,6 +7,7 @@ import { STARTER_STEPS, defaultSelection } from "@financially/domain/starter";
 
 import { Button, Chip, SectionLabel } from "../../src/components/ui";
 import { useAuth } from "../../src/lib/auth";
+import { messageFor } from "../../src/lib/errors";
 import { seedStarterAccounts } from "../../src/lib/setup";
 
 // First-run setup, the same three steps and the same catalog as the web wizard.
@@ -49,7 +50,7 @@ export default function Setup() {
       await seedStarterAccounts(selection, baseCurrency);
       leave();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Couldn't create your accounts");
+      setErr(messageFor(e, "Couldn't create your accounts"));
     } finally {
       setBusy(false);
     }

@@ -197,7 +197,7 @@ export default function Recurring() {
       setShowForm(false);
       void fetchRules();
     } catch (e) {
-      setFormErr(e instanceof Error ? e.message : "save failed");
+      setFormErr(messageFor(e, "save failed"));
     } finally {
       setFormBusy(false);
     }
@@ -212,7 +212,7 @@ export default function Recurring() {
       setPendingDelete(null);
       void fetchRules();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "delete failed");
+      setErr(messageFor(e, "delete failed"));
       setPendingDelete(null);
     } finally {
       setDeleteBusy(false);
@@ -230,7 +230,7 @@ export default function Recurring() {
       setNotice(res.count > 0 ? `Posted ${res.count} entr${res.count === 1 ? "y" : "ies"}` : "Nothing due right now");
       void fetchRules();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "run failed");
+      setErr(messageFor(e, "run failed"));
     } finally {
       setRunning(false);
     }

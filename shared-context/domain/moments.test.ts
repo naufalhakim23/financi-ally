@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { daysLoggedLastWeek, momentFor, type MomentInput, type MomentKey } from "./moments";
+import {
+  daysLoggedLastWeek,
+  loggedEntries,
+  momentFor,
+  type MomentInput,
+  type MomentKey,
+} from "./moments";
 
 // Nothing to acknowledge: a mid-month day, a plan already blown, a lone
 // logging day. Each case overrides only what it is actually about.
@@ -98,6 +104,12 @@ describe("daysLoggedLastWeek", () => {
     { name: "the eighth day back falls outside the window", stamps: [at(10)], want: 0 },
     { name: "the seventh day back is inside it", stamps: [at(11)], want: 1 },
     { name: "gaps are not counted", stamps: [at(11), at(14), at(17)], want: 3 },
+    { name: "a future-dated entry is not a day logged", stamps: [at(18), at(19)], want: 0 },
+    {
+      name: "future dates cannot pad a week",
+      stamps: [at(17), ...[18, 19, 20, 21, 22, 23].map((d) => at(d))],
+      want: 1,
+    },
   ];
 
   for (const c of cases) {
@@ -105,4 +117,28 @@ describe("daysLoggedLastWeek", () => {
       expect(daysLoggedLastWeek(c.stamps, now)).toBe(c.want);
     });
   }
+});
+
+describe("loggedEntries", () => {
+  const entries = [{ id: "opening" }, { id: "coffee" }];
+  const lines = [
+    { entryId: "opening", accountId: "bca" },
+    { entryId: "opening", accountId: "equity" },
+    { entryId: "coffee", accountId: "bca" },
+    { entryId: "coffee", accountId: "food" },
+  ];
+
+  it("drops the entry that opened a pocket", () => {
+    expect(loggedEntries(entries, lines, new Set(["equity"]))).toEqual([{ id: "coffee" }]);
+  });
+
+  it("keeps everything when the book has no equity account", () => {
+    expect(loggedEntries(entries, lines, new Set())).toEqual(entries);
+  });
+
+  it("leaves an ordinary entry alone", () => {
+    expect(loggedEntries([{ id: "coffee" }], lines, new Set(["equity"]))).toEqual([
+      { id: "coffee" },
+    ]);
+  });
 });

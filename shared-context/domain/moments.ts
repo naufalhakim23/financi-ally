@@ -65,14 +65,38 @@ export function momentFor(input: MomentInput): MomentKey | null {
  *
  * Takes timestamps rather than entries so the domain stays storage-free — the
  * caller owns whatever record shape it reads them off.
+ *
+ * Bounded at both ends. An entry dated in the future is not a day the user has
+ * logged, and one can arrive from another device or a skewed clock; without the
+ * upper bound six of them plus today would read as a full week.
  */
 export function daysLoggedLastWeek(timestamps: number[], now: Date): number {
   const cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (FULL_WEEK_DAYS - 1));
   const days = new Set<string>();
   for (const ts of timestamps) {
     const d = new Date(ts);
-    if (d < cutoff) continue;
+    if (d < cutoff || d > now) continue;
     days.add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
   }
   return days.size;
+}
+
+/**
+ * The entries a person actually logged.
+ *
+ * An opening balance is a real posted entry, but nobody logged it — it is the
+ * ledger's way of saying a pocket already had money in it, and it is the only
+ * kind of entry that touches an equity account. Counting it would greet someone
+ * who has just created their first pocket with "that's your first one logged"
+ * over an empty ledger.
+ */
+export function loggedEntries<E extends { id: string }>(
+  entries: E[],
+  lines: { entryId: string; accountId: string }[],
+  equityAccountIds: Set<string>,
+): E[] {
+  if (equityAccountIds.size === 0) return entries;
+  const opening = new Set<string>();
+  for (const l of lines) if (equityAccountIds.has(l.accountId)) opening.add(l.entryId);
+  return entries.filter((e) => !opening.has(e.id));
 }

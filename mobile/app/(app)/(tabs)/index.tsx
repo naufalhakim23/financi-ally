@@ -17,7 +17,7 @@ import {
 } from "../../../src/lib/buckets";
 import { database } from "../../../src/lib/db";
 import { EMPTY_RATES, ageHours, convert, rateCaption, type RateTable } from "../../../src/lib/fx";
-import { daysLoggedLastWeek, momentFor } from "@financially/domain/moments";
+import { daysLoggedLastWeek, loggedEntries, momentFor } from "@financially/domain/moments";
 import { useLedgerState } from "../../../src/lib/ledgerStore";
 import { useSyncState } from "../../../src/lib/syncState";
 import { useObservable } from "../../../src/lib/useObserve";
@@ -196,10 +196,15 @@ export default function HomeScreen() {
   // never stack. One pass over the entries, the same shape as the month filter
   // above it; no memo, because `spendingRows` is rebuilt each render anyway and
   // a cache keyed on it would never hit.
+  const logged = loggedEntries(
+    entries,
+    lines,
+    new Set(accounts.filter((a) => a.type === "equity").map((a) => a.id)),
+  );
   const moment = momentFor({
-    entryCount: entries.length,
+    entryCount: logged.length,
     daysLoggedLastWeek: daysLoggedLastWeek(
-      entries.map((e) => new Date(e.txnDate).getTime()),
+      logged.map((e) => new Date(e.txnDate).getTime()),
       now,
     ),
     dayOfMonth: now.getDate(),

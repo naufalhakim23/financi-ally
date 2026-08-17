@@ -6,6 +6,7 @@ import { Check } from "lucide-react-native";
 
 import { useAuth } from "../../../src/lib/auth";
 import { database } from "../../../src/lib/db";
+import { useLedgerState } from "../../../src/lib/ledgerStore";
 import { buildEntryViews, monthKey, monthLabel } from "../../../src/lib/ledger";
 import { syncDatabase } from "../../../src/lib/sync";
 import { useObservable } from "../../../src/lib/useObserve";
@@ -33,6 +34,7 @@ export default function EntryDetail() {
   const { baseCurrency: base } = useAuth();
   const { t, showSides } = useWording();
   const s = useStrings();
+  const activeBook = useLedgerState().active;
   const [confirming, setConfirming] = useState(false);
   const [moving, setMoving] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -109,6 +111,7 @@ export default function EntryDetail() {
         <ScreenHeader
           title={s.entry.detail.title}
           backLabel={s.common.back}
+          backAccessibilityLabel={s.common.back}
           onBack={() => router.back()}
         />
         <View className="px-4">
@@ -137,6 +140,7 @@ export default function EntryDetail() {
       <ScreenHeader
         title={s.entry.detail.title}
         backLabel={monthLabel(monthKey(when), { year: false })}
+        backAccessibilityLabel={s.common.backTo(monthLabel(monthKey(when), { year: false }))}
         onBack={() => router.back()}
       />
 
@@ -175,7 +179,7 @@ export default function EntryDetail() {
                   year: "numeric",
                 }),
                 when.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }),
-                s.common.personalSpace,
+                activeBook?.name ?? s.common.personalSpace,
               )}
             </Text>
           </View>
@@ -272,7 +276,11 @@ export default function EntryDetail() {
       <Sheet
         visible={moving}
         onClose={() => setMoving(false)}
-        title={s.entry.detail.moveTo(category?.type ?? s.entry.detail.moveFallbackKind)}
+        title={s.entry.detail.moveTo(
+          category
+            ? s.entry.detail.moveKind[category.type as keyof typeof s.entry.detail.moveKind]
+            : s.entry.detail.moveFallbackKind,
+        )}
       >
         {moveTargets.map((a, i) => (
           <ListRow

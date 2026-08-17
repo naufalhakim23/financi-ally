@@ -90,6 +90,15 @@ export const entry = {
     move: "Move",
     moveTo: (kind: string) => `Move to another ${kind}`,
     moveFallbackKind: "category",
+    // Account types reach this screen as machine values; the sheet title needs
+    // the word a user would say.
+    moveKind: {
+      expense: "category",
+      income: "income source",
+      asset: "pocket",
+      liability: "pocket",
+      equity: "account",
+    },
 
     confirmDelete: {
       title: "Delete this entry?",

@@ -69,7 +69,11 @@ export function Sheet({
 
   return (
     <Modal visible={mounted} transparent animationType="none" onRequestClose={onClose}>
-      <Animated.View className="flex-1 justify-end" style={[{ backgroundColor: C.scrim }, scrim]}>
+      <Animated.View
+        className="flex-1 justify-end"
+        pointerEvents={visible ? "auto" : "none"}
+        style={[{ backgroundColor: C.scrim }, scrim]}
+      >
         <Pressable className="flex-1" onPress={onClose} accessibilityLabel="Dismiss" />
         <Animated.View
           className="bg-surface rounded-t-2xl pb-10"
@@ -139,6 +143,7 @@ export function Dialog({
     <Modal visible={mounted} transparent animationType="none" onRequestClose={onCancel}>
       <Animated.View
         className="flex-1 items-center justify-center px-6"
+        pointerEvents={visible ? "auto" : "none"}
         style={[{ backgroundColor: C.scrim }, scrim]}
       >
         <Animated.View

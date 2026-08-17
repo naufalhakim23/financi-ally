@@ -85,7 +85,8 @@ export function EntryNewRoute() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const base = user?.base_currency ?? "IDR";
-  const { data: raw, isSuccess } = useAccounts();
+  const accountsQ = useAccounts();
+  const { data: raw, isSuccess } = accountsQ;
   const post = usePostEntry();
 
   const accounts = useMemo(() => raw ?? [], [raw]);
@@ -174,6 +175,15 @@ export function EntryNewRoute() {
 
         <form onSubmit={onSubmit} className="space-y-4">
           {failure ? <ErrorState message={failure} /> : null}
+          {/* Without this the selects sit disabled forever with nothing to
+              explain why: a failed account query renders the same as one that
+              has not landed yet. */}
+          {accountsQ.isError ? (
+            <ErrorState
+              message="Couldn't load your accounts."
+              onRetry={() => void accountsQ.refetch()}
+            />
+          ) : null}
 
           <div role="radiogroup" aria-label="Direction" className="bg-surface-container inline-flex rounded-md p-0.5">
             {DIRECTIONS.map((d) => (

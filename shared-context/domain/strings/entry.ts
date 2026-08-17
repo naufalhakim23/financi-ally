@@ -17,6 +17,17 @@ export const entry = {
     noteAdded: "Note added",
     notePlaceholder: "What was this for?",
 
+    // The collapsed form's one line. It always names the pocket the money
+    // leaves before Save is reachable, so a remembered default can never post
+    // somewhere the user did not look at.
+    summary: {
+      from: (pocket: string) => `from ${pocket}`,
+      noPocket: "Pick a pocket",
+      today: "today",
+      hasNote: "note",
+      expand: "Change pocket, date or note",
+    },
+
     newCategory: "New category",
     newCategoryPlaceholder: "Groceries, rent, transport…",
     addCategory: "Add category",

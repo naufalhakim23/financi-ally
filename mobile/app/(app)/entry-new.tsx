@@ -39,7 +39,9 @@ import {
 
 type Mode = "out" | "in" | "move";
 
-const LAST_FROM_KEY = "entry.lastFrom";
+// Remembered per mode: the pocket you spend from is rarely the one you move
+// between, and neither is the source your salary arrives from.
+const lastFromKey = (mode: Mode) => `entry.lastFrom.${mode}`;
 
 // Which account types each side of the entry may point at. An entry is always
 // a balanced pair, so the mode fully determines both sides' candidates.
@@ -80,6 +82,7 @@ export default function EntryNew() {
   const [newCatName, setNewCatName] = useState("");
   const [newCatBusy, setNewCatBusy] = useState(false);
   const [picking, setPicking] = useState<"from" | "to" | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -156,9 +159,9 @@ export default function EntryNew() {
 
   // Fills a blank only: a deep-link param or the user's own pick always wins.
   useEffect(() => {
-    if (fromId || mode === "in" || accounts.length === 0) return;
+    if (fromId || accounts.length === 0) return;
     let stale = false;
-    void database.localStorage.get<string>(LAST_FROM_KEY).then((saved) => {
+    void database.localStorage.get<string>(lastFromKey(mode)).then((saved) => {
       if (stale || !saved) return;
       setFromId((cur) => (cur ? cur : fromOptions.some((a) => a.id === saved) ? saved : cur));
     });
@@ -241,7 +244,7 @@ export default function EntryNew() {
         console.warn("[entry] sync deferred", e);
       }
       haptic.success();
-      if (mode !== "in") void database.localStorage.set(LAST_FROM_KEY, from.id);
+      void database.localStorage.set(lastFromKey(mode), from.id);
       router.back();
     } catch (e) {
       haptic.error();
@@ -276,6 +279,12 @@ export default function EntryNew() {
           : ("pocket" as const)
         : null;
   const missing = missingKind ? s.entry.new.need[missingKind] : null;
+
+  // "I spent money, category X" is the common case, and the rail plus a
+  // remembered pocket express it whole — so everything else folds. The other two
+  // modes have no rail, so their destination has nowhere to be picked but the
+  // rows; there the form is simply open.
+  const expanded = detailsOpen || mode !== "out";
 
   return (
     <SafeAreaView edges={["bottom"]} className="flex-1 bg-surface">
@@ -330,28 +339,6 @@ export default function EntryNew() {
           helper={err ?? converted ?? undefined}
         />
 
-        <View className="border border-outline rounded-lg overflow-hidden">
-          <PickerRow
-            label={mode === "in" ? s.entry.new.from : t("outOf").toLowerCase()}
-            account={from}
-            subtitle={from ? subtitleFor(from) : undefined}
-            placeholder={s.entry.new.choose}
-            onPress={() => setPicking("from")}
-          />
-          {mode !== "out" && (
-            <>
-              <View className="h-px bg-outline-variant" />
-              <PickerRow
-                label={t("into").toLowerCase()}
-                account={to}
-                subtitle={to ? subtitleFor(to) : undefined}
-                placeholder={s.entry.new.choose}
-                onPress={() => setPicking("to")}
-              />
-            </>
-          )}
-        </View>
-
         {mode === "out" && toOptions.length > 0 && (
           <CategoryRail
             label={t("into").toLowerCase()}
@@ -365,26 +352,58 @@ export default function EntryNew() {
           />
         )}
 
-        {showSides && from && to && (
-          <View className="flex-row items-center justify-between bg-surface-container rounded-lg px-3.5 py-2.5">
-            <Text className="text-mono-meta font-mono text-dim">
-              Dr {to.name} {formatGrouped(currency, Number(digits || 0))}
-            </Text>
-            <Text className="text-mono-meta font-mono text-dim">
-              Cr {from.name} {formatGrouped(currency, Number(digits || 0))}
-            </Text>
-          </View>
-        )}
+        {expanded ? (
+          <>
+            <View className="border border-outline rounded-lg overflow-hidden">
+              <PickerRow
+                label={mode === "in" ? s.entry.new.from : t("outOf").toLowerCase()}
+                account={from}
+                subtitle={from ? subtitleFor(from) : undefined}
+                placeholder={s.entry.new.choose}
+                onPress={() => setPicking("from")}
+              />
+              {mode !== "out" && (
+                <>
+                  <View className="h-px bg-outline-variant" />
+                  <PickerRow
+                    label={t("into").toLowerCase()}
+                    account={to}
+                    subtitle={to ? subtitleFor(to) : undefined}
+                    placeholder={s.entry.new.choose}
+                    onPress={() => setPicking("to")}
+                  />
+                </>
+              )}
+            </View>
 
-        <View className="flex-row" style={{ gap: 8 }}>
-          <MetaChip glyph={Calendar} label={s.entry.new.today} active />
-          <MetaChip
-            glyph={Plus}
-            label={memo ? s.entry.new.noteAdded : s.entry.new.note}
-            active={!!memo}
-            onPress={() => setNoteOpen(true)}
+            {showSides && from && to && (
+              <View className="flex-row items-center justify-between bg-surface-container rounded-lg px-3.5 py-2.5">
+                <Text className="text-mono-meta font-mono text-dim">
+                  Dr {to.name} {formatGrouped(currency, Number(digits || 0))}
+                </Text>
+                <Text className="text-mono-meta font-mono text-dim">
+                  Cr {from.name} {formatGrouped(currency, Number(digits || 0))}
+                </Text>
+              </View>
+            )}
+
+            <View className="flex-row" style={{ gap: 8 }}>
+              <MetaChip glyph={Calendar} label={s.entry.new.today} active />
+              <MetaChip
+                glyph={Plus}
+                label={memo ? s.entry.new.noteAdded : s.entry.new.note}
+                active={!!memo}
+                onPress={() => setNoteOpen(true)}
+              />
+            </View>
+          </>
+        ) : (
+          <SummaryChip
+            pocket={from?.name ?? null}
+            hasNote={!!memo}
+            onPress={() => setDetailsOpen(true)}
           />
-        </View>
+        )}
 
         <Keypad onKey={(k: KeypadKey) => setDigits((d) => applyKey(d, k))} />
 
@@ -471,6 +490,45 @@ export default function EntryNew() {
         </View>
       </Sheet>
     </SafeAreaView>
+  );
+}
+
+/**
+ * The collapsed form, in one line: where the money leaves, when, and whether a
+ * note is attached. It is the only thing standing between a remembered pocket
+ * and a posted entry, so it always names the pocket — or says none is picked —
+ * and it is never hidden while Save is reachable.
+ */
+function SummaryChip({
+  pocket,
+  hasNote,
+  onPress,
+}: {
+  pocket: string | null;
+  hasNote: boolean;
+  onPress: () => void;
+}) {
+  const { C } = useTheme();
+  const s = useStrings();
+  const parts = [
+    pocket ? s.entry.new.summary.from(pocket) : s.entry.new.summary.noPocket,
+    s.entry.new.summary.today,
+    ...(hasNote ? [s.entry.new.summary.hasNote] : []),
+  ];
+
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={s.entry.new.summary.expand}
+      className="flex-row items-center bg-surface-container rounded-full pl-4 pr-3 py-2.5 min-h-touch self-start"
+      style={{ gap: 6 }}
+    >
+      <Text className={`text-label font-sans-semibold ${pocket ? "text-ink" : "text-error-strong"}`}>
+        {parts.join(" · ")}
+      </Text>
+      <ChevronRight size={ICON.md} color={C.dim} strokeWidth={2} />
+    </Pressable>
   );
 }
 

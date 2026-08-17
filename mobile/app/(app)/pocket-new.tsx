@@ -143,6 +143,7 @@ export default function PocketNew() {
         <ScreenHeader
           title={s.setup.pocket.title}
           backLabel={s.common.back}
+          backAccessibilityLabel={s.common.back}
           onBack={() => router.back()}
         />
       </SafeAreaView>

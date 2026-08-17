@@ -146,6 +146,7 @@ export default function Reports() {
       <ScreenHeader
         title={s.reports.title}
         backLabel={s.reports.backLabel}
+        backAccessibilityLabel={s.common.backTo(s.reports.backLabel)}
         onBack={() => router.back()}
       />
       <ScrollView

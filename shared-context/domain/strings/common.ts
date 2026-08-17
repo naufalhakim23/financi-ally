@@ -7,6 +7,7 @@ export const common = {
   edit: "Edit",
   delete: "Delete",
   back: "Back",
+  backTo: (destination: string) => `Back to ${destination}`,
   done: "Done",
   skip: "Skip",
   continue: "Continue",

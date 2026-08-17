@@ -26,6 +26,7 @@ export default function WordingScreen() {
       <ScreenHeader
         title={s.settings.wording.title}
         backLabel={s.settings.wording.backLabel}
+        backAccessibilityLabel={s.common.backTo(s.settings.wording.backLabel)}
         onBack={() => router.back()}
       />
 

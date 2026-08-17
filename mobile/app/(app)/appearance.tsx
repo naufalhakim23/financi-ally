@@ -26,6 +26,7 @@ export default function AppearanceScreen() {
       <ScreenHeader
         title={s.settings.appearance.title}
         backLabel={s.settings.appearance.backLabel}
+        backAccessibilityLabel={s.common.backTo(s.settings.appearance.backLabel)}
         onBack={() => router.back()}
       />
 

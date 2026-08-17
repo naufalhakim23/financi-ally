@@ -91,6 +91,7 @@ export default function MonthDetail() {
       <ScreenHeader
         title={key ? monthLabel(key) : s.month.fallbackTitle}
         backLabel={t("history")}
+        backAccessibilityLabel={s.common.backTo(t("history"))}
         onBack={() => router.back()}
         actionLabel={inMonth.length > 0 ? s.month.export : undefined}
         onAction={

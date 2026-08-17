@@ -189,6 +189,7 @@ export default function Budgets() {
       <ScreenHeader
         title={s.budgets.title}
         backLabel={s.budgets.backLabel}
+        backAccessibilityLabel={s.common.backTo(s.budgets.backLabel)}
         onBack={() => router.back()}
       />
       <ScrollView

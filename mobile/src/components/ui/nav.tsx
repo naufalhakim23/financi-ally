@@ -110,12 +110,19 @@ function Fab({ onPress, label }: { onPress: () => void; label: string }) {
 export function ScreenHeader({
   title,
   backLabel,
+  backAccessibilityLabel,
   onBack,
   actionLabel,
   onAction,
 }: {
   title: string;
   backLabel?: string;
+  /**
+   * Spoken label for the back affordance. The kit cannot compose "Back to X"
+   * itself without hardcoding English, so callers pass the phrase from the
+   * string catalog; the visible label stands in when they don't.
+   */
+  backAccessibilityLabel?: string;
   onBack?: () => void;
   actionLabel?: string;
   onAction?: () => void;
@@ -128,7 +135,7 @@ export function ScreenHeader({
           <Pressable
             onPress={onBack}
             accessibilityRole="button"
-            accessibilityLabel={backLabel ? `Back to ${backLabel}` : "Back"}
+            accessibilityLabel={backAccessibilityLabel ?? backLabel}
             className="flex-row items-center min-h-touch"
           >
             <ChevronLeft size={ICON.lg} color={C.info} strokeWidth={2} />

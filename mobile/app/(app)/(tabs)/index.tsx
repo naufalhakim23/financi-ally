@@ -3,7 +3,7 @@ import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronDown, Search, TriangleAlert } from "lucide-react-native";
+import { BarChart3, ChevronDown, PieChart, Repeat, Search, TriangleAlert } from "lucide-react-native";
 
 import { authedApi } from "../../../src/lib/api";
 import { useAuth } from "../../../src/lib/auth";
@@ -25,19 +25,24 @@ import { SetupChecklist } from "../../../src/components/setup-checklist";
 import { Account, Budget, Entry, JournalLine } from "../../../src/model/models";
 import {
   Amount,
+  AnimatedPressable,
   Badge,
   Card,
   Chip,
   EmptyState,
   IconButton,
   ListRow,
+  ProgressBar,
   SectionLabel,
+  Skeleton,
   TrendBars,
   Wallet,
   accountGlyph,
   formatGrouped,
   ICON,
+  usePressedScale,
   useTheme,
+  type Glyph,
 } from "../../../src/components/ui";
 
 type Range = "6M" | "1Y" | "All";
@@ -107,6 +112,12 @@ export default function HomeScreen() {
   const spendingRows = spendingForMonth(accounts, lines, monthEntryIds, budgets, base, monthStart);
   const buckets = buildBuckets(accounts, (a) => accountSigned(a, lines), base, rates, spendingRows);
   const safe = safeToSpend(spendingRows);
+
+  // Three categories closest to (or past) target.
+  const planPeek = spendingRows
+    .filter((r) => r.target != null && r.target > 0)
+    .sort((a, b) => b.spent / (b.target ?? 1) - a.spent / (a.target ?? 1))
+    .slice(0, 3);
 
   const points = seriesQuery.data?.points ?? [];
 
@@ -251,11 +262,16 @@ export default function HomeScreen() {
             </Text>
           </View>
 
-          {worthSeries.length > 0 && (
+          {worthSeries.length > 0 ? (
             <View className="mt-3.5">
               <TrendBars points={worthSeries} height={64} gap={4} showLabels={false} />
             </View>
-          )}
+          ) : seriesQuery.isLoading && !guest ? (
+            // Only the server-fed trend pulses; local figures already painted.
+            <View className="mt-3.5">
+              <Skeleton className="h-16 w-full" />
+            </View>
+          ) : null}
 
           <View className="flex-row items-center justify-between mt-3.5">
             <View className="flex-row" style={{ gap: 6 }}>
@@ -329,7 +345,80 @@ export default function HomeScreen() {
             <Amount minor={safe} currency={base} size="lg" tone="neutral" />
           </View>
         </Card>
+
+        {/* One-tap peek at the plan; full screen lives under More. */}
+        {planPeek.length > 0 && (
+          <>
+            <View className="flex-row items-center justify-between mt-1">
+              <SectionLabel>the plan this month</SectionLabel>
+              <Text
+                className="text-label font-sans-semibold text-info"
+                onPress={() => router.push("/(app)/budgets")}
+              >
+                See all
+              </Text>
+            </View>
+            <Card>
+              <View style={{ gap: 12 }}>
+                {planPeek.map((r) => {
+                  const used = r.target ? Math.round((r.spent / r.target) * 100) : 0;
+                  return (
+                    <View key={r.account.id} style={{ gap: 6 }}>
+                      <View className="flex-row items-baseline justify-between">
+                        <Text className="text-body font-sans-medium text-ink" numberOfLines={1}>
+                          {r.account.name}
+                        </Text>
+                        <Text className="text-mono-meta font-mono text-faint">
+                          {formatGrouped(base, r.spent)} of {formatGrouped(base, r.target ?? 0)}
+                        </Text>
+                      </View>
+                      <ProgressBar pct={used} />
+                    </View>
+                  );
+                })}
+              </View>
+            </Card>
+          </>
+        )}
+
+        <View className="flex-row mt-1" style={{ gap: 8 }}>
+          <QuickAction
+            glyph={PieChart}
+            label="The plan"
+            onPress={() => router.push(guest ? "/register" : "/(app)/budgets")}
+          />
+          <QuickAction
+            glyph={BarChart3}
+            label="Reports"
+            onPress={() => router.push(guest ? "/register" : "/(app)/reports")}
+          />
+          <QuickAction
+            glyph={Repeat}
+            label="Repeating"
+            onPress={() => router.push(guest ? "/register" : "/(app)/recurring")}
+          />
+        </View>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function QuickAction({ glyph: G, label, onPress }: { glyph: Glyph; label: string; onPress: () => void }) {
+  const { C, ELEVATION } = useTheme();
+  const { pressed, pressStyle, handlers } = usePressedScale("tap");
+  return (
+    <AnimatedPressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      {...handlers}
+      className={`flex-1 items-center rounded-2xl border border-outline py-3 ${
+        pressed ? "bg-surface-pressed" : "bg-surface"
+      }`}
+      style={[ELEVATION.card, pressStyle, { gap: 6 }]}
+    >
+      <G size={ICON.xl} color={C.dim} strokeWidth={1.75} />
+      <Text className="text-label font-sans-semibold text-ink">{label}</Text>
+    </AnimatedPressable>
   );
 }

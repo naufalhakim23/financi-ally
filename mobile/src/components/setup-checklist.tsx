@@ -77,10 +77,10 @@ export function SetupChecklist({
                 className={`text-body font-sans-medium ${item.done ? "text-dim" : "text-ink"}`}
                 numberOfLines={1}
               >
-                {item.label}
+                {s.setup.checklist.items[item.key].label}
               </Text>
               <Text className="text-caption font-sans-medium text-faint" numberOfLines={1}>
-                {item.hint}
+                {s.setup.checklist.items[item.key].hint}
               </Text>
             </View>
             {!item.done && (

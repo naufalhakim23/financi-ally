@@ -9,6 +9,12 @@ export const setup = {
     dismiss: "Dismiss setup checklist",
     progress: (done: number, total: number) => `${done} of ${total}`,
     add: "Add",
+    items: {
+      pocket: { label: "Add a pocket", hint: "cash, bank, e-wallet" },
+      category: { label: "Add a category", hint: "what you spend on" },
+      income: { label: "Add an income source", hint: "where money comes from" },
+      entry: { label: "Record your first entry", hint: "and the numbers start moving" },
+    },
   },
 
   pocket: {

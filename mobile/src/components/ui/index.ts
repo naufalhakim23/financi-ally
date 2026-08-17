@@ -13,6 +13,8 @@
 // stays one import and the internal split can move without touching screens.
 
 export * from "./tokens";
+export * from "./haptics";
+export * from "./motion";
 export * from "./core";
 export * from "./lists";
 export * from "./forms";

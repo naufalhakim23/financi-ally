@@ -31,6 +31,7 @@ import { recurring } from "./recurring";
 import { reports } from "./reports";
 import { settings } from "./settings";
 import { setup } from "./setup";
+import { sync } from "./sync";
 import { terms } from "./terms";
 
 export const catalog = {
@@ -49,6 +50,7 @@ export const catalog = {
   reports,
   settings,
   setup,
+  sync,
   terms,
 };
 

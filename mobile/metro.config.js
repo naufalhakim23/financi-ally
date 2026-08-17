@@ -1,3 +1,4 @@
+const fs = require("fs");
 const path = require("path");
 
 const { getDefaultConfig } = require("expo/metro-config");
@@ -21,7 +22,9 @@ config.watchFolders = [DOMAIN];
 const upstream = config.resolver.resolveRequest;
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (moduleName.startsWith(PREFIX)) {
-    return { type: "sourceFile", filePath: path.join(DOMAIN, `${moduleName.slice(PREFIX.length)}.ts`) };
+    const base = path.join(DOMAIN, moduleName.slice(PREFIX.length));
+    const filePath = fs.existsSync(`${base}.ts`) ? `${base}.ts` : path.join(base, "index.ts");
+    return { type: "sourceFile", filePath };
   }
   return (upstream ?? context.resolveRequest)(context, moduleName, platform);
 };

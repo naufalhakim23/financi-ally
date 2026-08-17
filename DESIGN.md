@@ -449,8 +449,20 @@ Short, physical, never decorative. Enter with `duration-base` + `ease-standard`;
 transition. Number changes cross-fade (`duration-fast`) rather than counting up. Progress bars animate width
 at `duration-base`. Honour reduced-motion: keep opacity, drop transform and width animation.
 
-React Native has no CSS easing token, so in code only the durations travel (`DURATION` in `tokens.ts`);
-press feedback is expressed as a tone change rather than a timing curve.
+React Native has no CSS easing token, so the curves are cubic béziers in code: `DURATION` and `EASING`
+in `tokens.ts`, passed to `withTiming` directly.
+
+**Press-scale is for discrete affordances only** — Button, Fab, Chip, RowAction, quick actions. Full-width
+list rows stay tone-only (`surface-pressed`): a whole row shrinking reads as the card flinching, and it is
+the path that costs the most on low-end Android.
+
+The add-entry screen is a native `formSheet` presentation, so react-native-screens owns its transition —
+that platform sheet *is* the FAB → add-sheet emphasized curve, and a JS animation layered over it would
+only fight the OS.
+
+Reduced-motion is handled once, inside the motion primitives (`useValueFade`, `useBarWidth`,
+`usePressedScale`, and the overlay transitions), rather than left to each caller: opacity survives,
+transform and width animation drop.
 
 ## Components
 
@@ -641,7 +653,7 @@ eighth hi-fi screen. What remains is below.
 | Category slot persistence | A category's slot is assigned once and persisted, so its list tint matches its chart slice | `categorySlot()` derives the slot from the account id — stable across sessions without a migration, but it won't match the rank-ordered slice color in Reports | Med |
 | Destructive actions in a row of three | Never alone under the thumb | Entry detail pairs Duplicate + Delete; `Dialog` pairs Cancel + Destructive | Low |
 | Chart ramp in dark mode | Ramp re-validated against dark `surface` `#171B23` | Validated on `#FFFFFF` only; the ramp and its 12% tints are shared across both themes unchanged | Med |
-| Motion | Enter/exit/press durations and easings applied | Only `Modal` defaults animate; press feedback is a tone change | Low |
+| Motion | Enter/exit/press durations and easings applied | **Closed on mobile.** `EASING` sits beside `DURATION`; sheets and dialogs animate in/out on the tokens, headline figures cross-fade, progress bars ease their width, press-scale is on every discrete affordance, and reduced-motion is honoured in the primitives. Web is unchanged | Low |
 | Platform-adaptive chrome | — | Unified, iOS-flavored on both | Low |
 | Brand mark | — | None exists; the wordmark is set in Outfit Bold wherever a logo would go | Low |
 

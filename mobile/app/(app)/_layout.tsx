@@ -4,7 +4,7 @@ import { router, Stack } from "expo-router";
 
 import { useTheme } from "../../src/components/ui";
 import { refreshPending, useSyncState } from "../../src/lib/syncState";
-import { useStrings, WordingProvider } from "../../src/lib/wording";
+import { useStrings } from "../../src/lib/wording";
 
 // Authed shell. The tab group owns the four destinations; everything pushed on
 // top of them — details, the add sheet, settings — lives here so it arrives
@@ -14,16 +14,6 @@ import { useStrings, WordingProvider } from "../../src/lib/wording";
 // navigator's: direction 2a puts a back label, a title and an action on one
 // row, which the stock header cannot lay out.
 export default function AppLayout() {
-  return (
-    <WordingProvider>
-    <AppShell />
-    </WordingProvider>
-  );
-}
-
-// Split from the layout so the shell can read the string catalog: `useStrings`
-// needs the provider that AppLayout is the one mounting.
-function AppShell() {
   const sync = useSyncState();
   const s = useStrings();
   const { C } = useTheme();

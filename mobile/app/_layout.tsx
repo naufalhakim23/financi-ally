@@ -20,6 +20,7 @@ import {
 
 import { AuthProvider } from "../src/lib/auth";
 import { hydrateTheme } from "../src/lib/theme";
+import { WordingProvider } from "../src/lib/wording";
 
 // Single QueryClient for the app lifetime (module scope, not per-render).
 const queryClient = new QueryClient();
@@ -57,6 +58,10 @@ export default function RootLayout() {
       <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
+          {/* Above the Stack, not inside (app): the unauthenticated screens read the
+              string catalog too, and under the old placement they silently got the
+              default context instead of the provider. */}
+          <WordingProvider>
           <StatusBar style="auto" />
           {/* Every screen draws its own chrome — the app screens via
               ScreenHeader/TitleBar, the unauthenticated ones via AuthScreen.
@@ -71,6 +76,7 @@ export default function RootLayout() {
             <Stack.Screen name="forgot-password" />
             <Stack.Screen name="reset-password" />
           </Stack>
+          </WordingProvider>
         </AuthProvider>
       </QueryClientProvider>
       </SafeAreaProvider>

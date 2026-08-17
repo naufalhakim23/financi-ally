@@ -38,8 +38,8 @@ export default function WordingScreen() {
           value={mode}
           onChange={(m) => setMode(m as Wording)}
           options={[
-            { value: "normal", label: s.settings.wording.normal },
-            { value: "finance", label: s.settings.wording.finance },
+            { value: "normal", label: s.settings.wording.normalLabel },
+            { value: "finance", label: s.settings.wording.financeLabel },
           ]}
         />
         <Text className="text-caption font-sans-medium text-dim">

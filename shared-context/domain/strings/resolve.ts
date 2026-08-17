@@ -10,16 +10,35 @@ import type { Wording } from "../wording";
 
 type Leaf = string | ((...args: never[]) => string);
 
+type ModeKey = "normal" | "finance";
+
 /** A leaf that says the same thing two ways. Both sides are the same shape. */
 export type ModePair<T extends Leaf = Leaf> = { normal: T; finance: T };
 
 export type Node = Leaf | ModePair | { [key: string]: Node };
 
+/**
+ * Exactly the two mode keys and nothing else, matching what `isModePair` checks
+ * at runtime.
+ *
+ * A plain `T extends ModePair` is structural, so it also swallows any group that
+ * merely happens to contain `normal` and `finance` among its keys — which
+ * `settings.wording` does. That mismatch typed a ten-key group as `string` while
+ * resolving to the whole object, and the two only disagreed at the call site.
+ */
+type IsModePair<T> = [keyof T] extends [ModeKey]
+  ? [ModeKey] extends [keyof T]
+    ? true
+    : false
+  : false;
+
 /** The catalog as a screen sees it: every mode pair collapsed to one side. */
-export type Resolved<T> = T extends ModePair<infer L>
-  ? L
-  : T extends Leaf
-    ? T
+export type Resolved<T> = T extends Leaf
+  ? T
+  : IsModePair<T> extends true
+    ? T extends ModePair<infer L>
+      ? L
+      : never
     : { [K in keyof T]: Resolved<T[K]> };
 
 // A group whose only two keys are the mode names would be indistinguishable

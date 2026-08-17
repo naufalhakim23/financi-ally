@@ -2,8 +2,10 @@ export const settings = {
   wording: {
     title: "How it is worded",
     backLabel: "More",
-    normal: "Normal",
-    finance: "Finance",
+    // Not `normal` / `finance`: a group whose only two keys are the mode names
+    // is indistinguishable from a mode pair, and this one is a group.
+    normalLabel: "Normal",
+    financeLabel: "Finance",
     explainer:
       "Same data, same screens — only the words change, plus one extra line on each entry. Switch back any time.",
     columnNormal: "normal",

@@ -180,7 +180,15 @@ export function useSeedAccounts() {
         }
       }
       if (created > 0) {
-        await queryClient.invalidateQueries({ queryKey: qk.book(activeLedgerId()) });
+        // `refetchType: "all"`, not the default "active": the wizard renders
+        // outside AppLayout, so the accounts query has no mounted observer
+        // while it runs. The default would mark it stale and resolve without
+        // fetching, and the empty-ledger guard would read that stale [] the
+        // moment we navigate back and bounce the user into the wizard again.
+        await queryClient.invalidateQueries({
+          queryKey: qk.book(activeLedgerId()),
+          refetchType: "all",
+        });
       }
       return { created, attempted: items.length, error };
     },

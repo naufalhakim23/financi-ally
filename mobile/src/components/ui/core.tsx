@@ -151,7 +151,10 @@ const BUTTON_STYLE: Record<
   },
 };
 
-const spinnerColor = (C: Palette): Record<ButtonVariant, string> => ({
+// Both the spinner and the glyph take the label's color. Lucide's default is
+// `currentColor`, which react-native-svg has no cascade for — an unset glyph
+// renders black on every variant, in both themes.
+const labelColor = (C: Palette): Record<ButtonVariant, string> => ({
   primary: C.onPrimary,
   secondary: C.ink,
   destructive: C.error,
@@ -207,10 +210,12 @@ export function Button({
       ].join(" ")}
     >
       {busy ? (
-        <ActivityIndicator color={spinnerColor(C)[variant]} />
+        <ActivityIndicator color={labelColor(C)[variant]} />
       ) : (
         <>
-          {G && <G size={ICON.lg} color={off ? C.disabled : undefined} strokeWidth={1.75} />}
+          {G && (
+            <G size={ICON.lg} color={off ? C.disabled : labelColor(C)[variant]} strokeWidth={1.75} />
+          )}
           <Text
             className={`${tertiary ? "text-label" : "text-body-strong"} font-sans-semibold ${textColor} ${G ? "ml-2" : ""}`}
           >

@@ -59,8 +59,15 @@ export function NewAccountDialog({
   function onOpenChange(next: boolean) {
     setOpen(next);
     // Reopening from a different checklist row must offer that row's kind, not
-    // whatever was picked last time.
-    if (next) setType(defaultType);
+    // whatever was picked last time. Cancelling leaves the rest behind too: a
+    // reopened dialog showing the last attempt's error banner, its name, and
+    // validation already firing reads as a failure the user has not made yet.
+    if (next) {
+      setType(defaultType);
+      setName("");
+      setTouched(false);
+      setFailure(null);
+    }
   }
 
   async function onSubmit(e: React.FormEvent) {

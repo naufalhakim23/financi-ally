@@ -4,7 +4,17 @@ import Animated from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
-import { BarChart3, ChevronDown, PieChart, Repeat, Search, TriangleAlert } from "lucide-react-native";
+import {
+  BarChart3,
+  BookOpen,
+  ChevronDown,
+  PieChart,
+  Repeat,
+  Search,
+  TrendingDown,
+  TrendingUp,
+  TriangleAlert,
+} from "lucide-react-native";
 
 import { authedApi } from "../../../src/lib/api";
 import { useAuth } from "../../../src/lib/auth";
@@ -32,6 +42,7 @@ import {
   Card,
   Chip,
   EmptyState,
+  IconBox,
   IconButton,
   ListRow,
   ProgressBar,
@@ -178,17 +189,18 @@ export default function HomeScreen() {
 
   const initials = (user?.email ?? "?").slice(0, 2).toUpperCase();
 
-  // Anything needing attention takes the greeting's slot.
   const hour = now.getHours();
   const greeting =
     hour < 12 ? s.home.greeting.morning : hour < 18 ? s.home.greeting.afternoon : s.home.greeting.evening;
   const rateAge = ageHours(rates);
-  const opener =
+  // The greeting owns the title; anything needing attention takes the line
+  // under it, where the date would otherwise sit.
+  const subline =
     sync.status === "error"
       ? s.home.status.offline
       : fxCaption && rateAge != null && rateAge > STALE_RATE_HOURS
         ? s.home.status.staleRates
-        : greeting;
+        : now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
 
   // No memo: `spendingRows` is rebuilt each render, so a cache on it never hits.
   const logged = loggedEntries(
@@ -232,9 +244,10 @@ export default function HomeScreen() {
           onPress={() => router.push("/(app)/ledgers")}
           accessibilityRole="button"
           accessibilityLabel={s.home.bookSwitcher(active?.name ?? s.common.personalSpace)}
-          className="flex-row items-center bg-secondary rounded-full px-3 py-2 min-h-touch"
+          className="flex-row items-center bg-surface border border-outline rounded-full px-3 py-2 min-h-touch"
           style={{ gap: 6 }}
         >
+          <BookOpen size={ICON.md} color={C.dim} strokeWidth={1.75} />
           <Text className="text-label font-sans-semibold text-on-secondary" numberOfLines={1}>
             {active?.name ?? s.common.personalSpace}
           </Text>
@@ -253,8 +266,8 @@ export default function HomeScreen() {
               })
             }
           />
-          <View className="w-10 h-10 rounded-full bg-surface-container-high items-center justify-center">
-            <Text className="text-label font-sans-semibold text-dim">{initials}</Text>
+          <View className="w-10 h-10 rounded-full bg-accent-wash items-center justify-center">
+            <Text className="text-label font-sans-semibold text-accent-strong">{initials}</Text>
           </View>
         </View>
       </View>
@@ -269,9 +282,12 @@ export default function HomeScreen() {
             three tables, and its own subscriptions doubled the work here. */}
         <SetupChecklist accounts={accounts} entries={entries} lines={lines} />
 
-        <Text className="text-body font-sans-medium text-dim px-1">{opener}</Text>
+        <View className="px-1">
+          <Text className="text-title font-sans-bold text-ink">{greeting}</Text>
+          <Text className="text-label font-sans-medium text-faint mt-0.5">{subline}</Text>
+        </View>
 
-        <Card>
+        <Card hero>
           <View className="flex-row items-center justify-between">
             <SectionLabel>
               {t("totalMoney")} · {base}
@@ -283,40 +299,57 @@ export default function HomeScreen() {
             )}
           </View>
 
-          <Animated.View style={worthFade}>
-            <Text className="text-amount-hero font-mono-bold text-ink mt-2">
-              {formatGrouped(base, worth)}
-            </Text>
-          </Animated.View>
-          <View className="flex-row items-baseline mt-1" style={{ gap: 8 }}>
-            <Text
-              className={`text-amount-sm font-mono-medium ${
-                thisMonthNet < 0 ? "text-error-strong" : "text-success-strong"
-              }`}
-            >
-              {thisMonthNet < 0 ? "−" : "+"}
-              {formatGrouped(base, thisMonthNet)}
-            </Text>
-            <Text className="text-caption font-sans-medium text-faint">
-              {s.home.changeThisMonth(pct)}
-              {worthAbroad != null && foreignCurrency
-                ? ` · ≈ ${foreignCurrency} ${formatGrouped(foreignCurrency, worthAbroad)}`
-                : ""}
-            </Text>
+          <View className="flex-row items-end justify-between mt-2" style={{ gap: 12 }}>
+            <View className="flex-1">
+              <Animated.View style={worthFade}>
+                <Text className="text-amount-hero font-mono-bold text-ink">
+                  {formatGrouped(base, worth)}
+                </Text>
+              </Animated.View>
+              <View className="flex-row items-center mt-2" style={{ gap: 4 }}>
+                {thisMonthNet < 0 ? (
+                  <TrendingDown size={ICON.md} color={C.error} strokeWidth={2} />
+                ) : (
+                  <TrendingUp size={ICON.md} color={C.success} strokeWidth={2} />
+                )}
+                <Text
+                  className={`text-amount-sm font-mono-medium ${
+                    thisMonthNet < 0 ? "text-error-strong" : "text-success-strong"
+                  }`}
+                >
+                  {thisMonthNet < 0 ? "−" : "+"}
+                  {formatGrouped(base, thisMonthNet)}
+                </Text>
+                <Text className="text-caption font-sans-medium text-faint" numberOfLines={1}>
+                  {s.home.changeThisMonth(pct)}
+                </Text>
+              </View>
+            </View>
+
+            {/* Beside the figure rather than under it. The box is fixed so the
+                bars thin out as the range widens instead of pushing the amount. */}
+            {worthSeries.length > 0 ? (
+              <View style={{ width: 96 }}>
+                <TrendBars
+                  points={worthSeries}
+                  height={52}
+                  gap={worthSeries.length > 12 ? 1 : 4}
+                  showLabels={false}
+                />
+              </View>
+            ) : seriesQuery.isLoading && !guest ? (
+              // Only the server-fed trend pulses; local figures already painted.
+              <Skeleton className="h-[52px] w-24" />
+            ) : null}
           </View>
 
-          {worthSeries.length > 0 ? (
-            <View className="mt-3.5">
-              <TrendBars points={worthSeries} height={64} gap={4} showLabels={false} />
-            </View>
-          ) : seriesQuery.isLoading && !guest ? (
-            // Only the server-fed trend pulses; local figures already painted.
-            <View className="mt-3.5">
-              <Skeleton className="h-16 w-full" />
-            </View>
-          ) : null}
+          {worthAbroad != null && foreignCurrency && (
+            <Text className="text-amount-sm font-mono-medium text-faint mt-1.5">
+              ≈ {foreignCurrency}&nbsp;{formatGrouped(foreignCurrency, worthAbroad)}
+            </Text>
+          )}
 
-          <View className="flex-row items-center justify-between mt-3.5">
+          <View className="flex-row items-center justify-between mt-4">
             <View className="flex-row" style={{ gap: 6 }}>
               {(["6M", "1Y", "All"] as Range[]).map((r) => (
                 <Chip key={r} label={r} active={r === range} onPress={() => setRange(r)} />
@@ -327,12 +360,37 @@ export default function HomeScreen() {
             )}
           </View>
 
-          {fxCaption && (
+          {(moment || fxCaption) && (
             <>
               <View className="h-px bg-outline-variant my-3.5" />
-              <Text className="text-mono-meta font-mono text-faint">{fxCaption}</Text>
+              {moment && (
+                <Text className="text-caption font-sans-medium text-dim">{s.moments[moment]}</Text>
+              )}
+              {fxCaption && (
+                <Text className={`text-mono-meta font-mono text-faint ${moment ? "mt-1.5" : ""}`}>
+                  {fxCaption}
+                </Text>
+              )}
             </>
           )}
+        </Card>
+
+        <Card>
+          <View className="flex-row items-center" style={{ gap: 12 }}>
+            <IconBox glyph={Wallet} tone="accent" />
+            <View className="flex-1">
+              <Text className="text-body-strong font-sans-semibold text-ink">{t("safeToSpend")}</Text>
+              <Text className="text-caption font-sans-medium text-faint mt-0.5">
+                {s.home.daysLeft(
+                  daysLeftInMonth(now),
+                  now.toLocaleDateString(undefined, { month: "long" }),
+                )}
+              </Text>
+            </View>
+            <Animated.View style={safeFade}>
+              <Amount minor={safe} currency={base} size="lg" tone="neutral" />
+            </Animated.View>
+          </View>
         </Card>
 
         <View className="flex-row items-center justify-between mt-1">
@@ -342,7 +400,7 @@ export default function HomeScreen() {
             hitSlop={12}
             onPress={() => router.push("/(app)/(tabs)/buckets")}
           >
-            <Text className="text-label font-sans-semibold text-info">{s.home.manage}</Text>
+            <Text className="text-label font-sans-semibold text-accent-strong">{s.home.manage}</Text>
           </Pressable>
         </View>
 
@@ -354,7 +412,6 @@ export default function HomeScreen() {
                 key={b.id}
                 divider={i > 0}
                 glyph={accountGlyph(b.title, b.id === "owed" ? "liability" : "asset")}
-                slot={b.slot}
                 title={b.title}
                 subtitle={b.subtitle}
                 subtitleTone={b.converted ? "warning" : "faint"}
@@ -377,28 +434,6 @@ export default function HomeScreen() {
             ))}
         </Card>
 
-        <Card>
-          <View className="flex-row items-center" style={{ gap: 12 }}>
-            <View className="flex-1">
-              <Text className="text-body-strong font-sans-semibold text-ink">{t("safeToSpend")}</Text>
-              <Text className="text-caption font-sans-medium text-faint mt-0.5">
-                {s.home.daysLeft(
-                  daysLeftInMonth(now),
-                  now.toLocaleDateString(undefined, { month: "long" }),
-                )}
-              </Text>
-            </View>
-            <Animated.View style={safeFade}>
-              <Amount minor={safe} currency={base} size="lg" tone="neutral" />
-            </Animated.View>
-          </View>
-          {moment && (
-            <Text className="text-caption font-sans-medium text-dim mt-3">
-              {s.moments[moment]}
-            </Text>
-          )}
-        </Card>
-
         {/* One-tap peek at the plan; full screen lives under More. */}
         {planPeek.length > 0 && (
           <>
@@ -409,7 +444,7 @@ export default function HomeScreen() {
                 hitSlop={12}
                 onPress={() => router.push(guest ? "/register" : "/(app)/budgets")}
               >
-                <Text className="text-label font-sans-semibold text-info">{s.home.seeAll}</Text>
+                <Text className="text-label font-sans-semibold text-accent-strong">{s.home.seeAll}</Text>
               </Pressable>
             </View>
             <Card>

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Pressable } from "react-native";
 import Animated, {
   useAnimatedStyle,
@@ -35,11 +35,22 @@ export { useReducedMotion };
 export function useValueFade(value: number) {
   const opacity = useSharedValue(1);
   const reduced = useReducedMotion();
+  // A figure arriving on screen has not changed, it has appeared. Without this
+  // the first commit fades too, so every mount of the screen (a tab switch, a
+  // back-navigation) blinks the balance to nothing and back.
+  const settled = useRef(false);
 
   useEffect(() => {
-    // Opacity survives reduced-motion; only the timing tightens.
-    opacity.value = withTiming(0, { duration: DURATION.fast / 2, easing: EASING.linear }, () => {
-      opacity.value = withTiming(1, { duration: DURATION.fast / 2, easing: EASING.linear });
+    if (!settled.current) {
+      settled.current = true;
+      return;
+    }
+    const half = { duration: DURATION.fast / 2, easing: EASING.linear };
+    opacity.value = withTiming(0, half, (done) => {
+      "worklet";
+      // An interrupted fade already has a successor running; scheduling the
+      // fade back in would overwrite it and make rapid changes stutter.
+      if (done) opacity.value = withTiming(1, half);
     });
   }, [value, opacity]);
 

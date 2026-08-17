@@ -1,14 +1,16 @@
 import { createContext, createElement, useContext, useEffect, useMemo, useState } from "react";
 
+import { strings, type Strings } from "@financially/domain/strings";
 import { term, type TermKey, type Wording } from "@financially/domain/wording";
 import { database } from "./db";
 
-// The mobile wording provider. The vocabulary itself lives in
-// shared-context/domain/wording.ts and is shared with web; only persistence and
+// The mobile wording provider. The strings themselves live in
+// shared-context/domain/strings/ and are shared with web; only persistence and
 // the React context are per-client — WatermelonDB's key/value store keeps the
 // choice across restarts without adding a storage dependency.
 
 export * from "@financially/domain/wording";
+export type { Strings } from "@financially/domain/strings";
 
 const MODE_KEY = "wording_mode";
 const SIDES_KEY = "wording_show_sides";
@@ -21,6 +23,8 @@ type WordingState = {
   setShowSides: (v: boolean) => void;
   /** Shorthand: `t("history")` in the active mode. */
   t: (key: TermKey) => string;
+  /** The whole string catalog, resolved for the active mode. */
+  s: Strings;
 };
 
 const WordingContext = createContext<WordingState>({
@@ -29,6 +33,7 @@ const WordingContext = createContext<WordingState>({
   setMode: () => {},
   setShowSides: () => {},
   t: (key) => term(key, "normal"),
+  s: strings("normal"),
 });
 
 export function WordingProvider({ children }: { children: React.ReactNode }) {
@@ -74,6 +79,7 @@ export function WordingProvider({ children }: { children: React.ReactNode }) {
         void database.localStorage.set(SIDES_KEY, v ? "1" : "0");
       },
       t: (key) => term(key, mode),
+      s: strings(mode),
     }),
     [mode, showSides],
   );
@@ -83,4 +89,9 @@ export function WordingProvider({ children }: { children: React.ReactNode }) {
 
 export function useWording(): WordingState {
   return useContext(WordingContext);
+}
+
+/** The string catalog for the active wording mode. What screens read. */
+export function useStrings(): Strings {
+  return useContext(WordingContext).s;
 }

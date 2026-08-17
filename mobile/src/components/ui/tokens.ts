@@ -39,44 +39,59 @@ import {
 
 /** Semantic colors needed as raw values (props, not className). */
 const LIGHT = {
-  primary: "#1A1F2E",
-  primaryPressed: "#2A3140",
+  primary: "#201E1B",
+  primaryPressed: "#38342E",
   onPrimary: "#FFFFFF",
-  background: "#F2F3F7",
+  // Accent (v2.0 sea-glass): chrome punctuation only, never on amounts.
+  // White text sits on accentStrong; the base fill is glyph-contrast only.
+  accent: "#0E8A7B",
+  accentStrong: "#0B7268",
+  accentPressed: "#0A675C",
+  accentWash: "#EBF4F2",
+  accentEdge: "#CDE4E0",
+  onAccent: "#FFFFFF",
+  background: "#F6F5F3",
   surface: "#FFFFFF",
-  surfaceContainer: "#F0F1F6",
-  surfaceContainerHigh: "#E8EAF2",
-  ink: "#1A1F2E",
-  dim: "#5A6379",
-  faint: "#737C91",
-  disabled: "#98A1B5",
-  outline: "#E2E6F0",
-  outlineVariant: "#F0F1F6",
-  outlineStrong: "#C0C7DA",
-  chevron: "#C0C7DA",
+  surfaceContainer: "#F1EFEC",
+  surfaceContainerHigh: "#E8E5E0",
+  ink: "#201E1B",
+  dim: "#5D5952",
+  faint: "#726C64",
+  disabled: "#A8A29A",
+  outline: "#E5E2DD",
+  outlineVariant: "#EFEDE9",
+  outlineStrong: "#CFCBC4",
+  chevron: "#CFCBC4",
   success: "#16A34A",
   warning: "#D97706",
   error: "#DC2626",
   info: "#2563EB",
-  scrim: "rgba(15,18,24,0.44)",
+  scrim: "rgba(21,19,17,0.44)",
 };
 
 const DARK: typeof LIGHT = {
-  primary: "#EEF0F6",
-  primaryPressed: "#C0C7DA",
-  onPrimary: "#131722",
-  background: "#0F1218",
-  surface: "#171B23",
-  surfaceContainer: "#1E232D",
-  surfaceContainerHigh: "#262C38",
-  ink: "#EDEFF4",
-  dim: "#A7AFC0",
-  faint: "#8A93A8",
-  disabled: "#5A6379",
-  outline: "#2C3340",
-  outlineVariant: "#232935",
-  outlineStrong: "#3B4453",
-  chevron: "#5A6379",
+  primary: "#EDEAE5",
+  primaryPressed: "#CFCBC4",
+  onPrimary: "#151311",
+  // Accent lightens and converges with accentStrong on dark, same rule as status.
+  accent: "#3FB3A2",
+  accentStrong: "#3FB3A2",
+  accentPressed: "#58C4B4",
+  accentWash: "#122622",
+  accentEdge: "#1E413B",
+  onAccent: "#151311",
+  background: "#141210",
+  surface: "#1C1917",
+  surfaceContainer: "#242019",
+  surfaceContainerHigh: "#2C2823",
+  ink: "#EDEAE5",
+  dim: "#ADA79F",
+  faint: "#8C867D",
+  disabled: "#5D5952",
+  outline: "#322E28",
+  outlineVariant: "#2A2620",
+  outlineStrong: "#453F37",
+  chevron: "#5D5952",
   success: "#3DBB6E",
   warning: "#E8A33D",
   error: "#F0666B",
@@ -92,21 +107,21 @@ export type Palette = typeof LIGHT;
 // outline hairline carry the depth instead.
 const LIGHT_ELEVATION = {
   card: {
-    shadowColor: "#1A1F2E",
+    shadowColor: "#201E1B",
     shadowOffset: { width: 0, height: 1 },
     shadowRadius: 4,
     shadowOpacity: 0.06,
     elevation: 1,
   },
   raised: {
-    shadowColor: "#1A1F2E",
+    shadowColor: "#201E1B",
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 12,
     shadowOpacity: 0.08,
     elevation: 3,
   },
   float: {
-    shadowColor: "#1A1F2E",
+    shadowColor: "#201E1B",
     shadowOffset: { width: 0, height: 8 },
     shadowRadius: 24,
     shadowOpacity: 0.14,
@@ -129,11 +144,33 @@ const DARK_ELEVATION: typeof LIGHT_ELEVATION = {
 export type Elevation = typeof LIGHT_ELEVATION;
 
 /**
+ * `elevation.hero-light` — the one sanctioned gradient (DESIGN.md → Elevation &
+ * depth). Its own constant rather than a palette entry because it is a stop
+ * list, and it has no dark counterpart: dark heroes stay flat.
+ */
+export const HERO_LIGHT = {
+  colors: ["#FFFFFF", "#FCFDFC", "#F3F8F7"] as const,
+  locations: [0, 0.55, 1] as const,
+  // 168deg: near-vertical, drifting a touch to the left.
+  start: { x: 0.54, y: 0 },
+  end: { x: 0.46, y: 1 },
+};
+
+/**
  * The active palette and shadow set for the device color scheme.
  *
  * A hook rather than a constant because these are read during render — a module
  * constant would freeze whichever scheme was active when the bundle loaded.
  */
+/**
+ * The FAB's float, tinted with the accent it is filled with — a neutral shadow
+ * under a saturated disc reads as dirt. Dark keeps the plain black float: a
+ * colored glow on a dark surface is haze, not lift.
+ */
+export function fabShadow(C: Palette, ELEVATION: Elevation, dark: boolean) {
+  return dark ? ELEVATION.float : { ...ELEVATION.float, shadowColor: C.accent, shadowOpacity: 0.35 };
+}
+
 export function useTheme(): { C: Palette; ELEVATION: Elevation; dark: boolean } {
   const { colorScheme } = useColorScheme();
   const dark = colorScheme === "dark";

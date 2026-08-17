@@ -101,7 +101,7 @@ export const Field = forwardRef<TextInput, {
   return (
     <FieldShell label={label} helper={helper} error={error}>
       <View
-        className={`flex-row items-center bg-surface-container rounded-lg pl-4 min-h-touch ${
+        className={`flex-row items-center bg-surface-container rounded-xl pl-4 min-h-touch ${
           secure ? "pr-1" : "pr-4"
         } ${error ? "border border-error-edge" : ""}`}
       >
@@ -183,7 +183,7 @@ export function AmountField({
   return (
     <FieldShell label={label} helper={helper} error={error}>
       <View
-        className={`flex-row items-center bg-surface-container rounded-lg px-4 py-3 min-h-touch ${
+        className={`flex-row items-center bg-surface-container rounded-xl px-4 py-3 min-h-touch ${
           error ? "border border-error-edge" : ""
         }`}
       >
@@ -236,7 +236,7 @@ export function Select<T extends string>({
         accessibilityRole="button"
         accessibilityLabel={label}
         {...handlers}
-        className={`flex-row items-center justify-between rounded-lg px-4 py-3 min-h-touch ${
+        className={`flex-row items-center justify-between rounded-xl px-4 py-3 min-h-touch ${
           pressed ? "bg-surface-pressed" : "bg-surface-container"
         } ${error ? "border border-error-edge" : ""}`}
       >
@@ -266,7 +266,7 @@ export function Select<T extends string>({
               }}
               trailing={
                 o.value === value ? (
-                  <Text className="text-label font-sans-semibold text-info">Selected</Text>
+                  <Text className="text-label font-sans-semibold text-accent-strong">Selected</Text>
                 ) : undefined
               }
             />
@@ -337,7 +337,7 @@ export function SegmentedControl<T extends string>({
 }) {
   const { ELEVATION } = useTheme();
   return (
-    <View className="flex-row rounded-lg bg-surface-container p-track-inset">
+    <View className="flex-row rounded-xl bg-surface-container p-track-inset">
       {options.map((o) => {
         const active = o.value === value;
         const tone = o.tone ?? "neutral";
@@ -353,7 +353,7 @@ export function SegmentedControl<T extends string>({
             className={`flex-1 py-2.5 items-center ${active ? "bg-surface" : ""}`}
             // The thumb sits 2px inside the track, so its radius is the track's
             // less the padding — there is no token for a derived inner radius.
-            style={active ? [{ borderRadius: 10 }, ELEVATION.card] : undefined}
+            style={active ? [{ borderRadius: 15 }, ELEVATION.card] : undefined}
           >
             <Text
               className={`text-body-strong font-sans-semibold ${
@@ -431,7 +431,7 @@ function KeypadButton({ value, onPress }: { value: KeypadKey; onPress: () => voi
       accessibilityRole="button"
       accessibilityLabel={value === "back" ? "Delete last digit" : value}
       {...handlers}
-      className={`rounded-lg items-center justify-center py-3.5 ${
+      className={`rounded-xl items-center justify-center py-3.5 ${
         pressed ? "bg-surface-container-high" : "bg-surface-container"
       }`}
       // Three per row with two 8px gaps between them.
@@ -454,7 +454,7 @@ function KeypadButton({ value, onPress }: { value: KeypadKey; onPress: () => voi
   );
 }
 
-/** Labelled switch row. Track is primary when on, container-high when off. */
+/** Labelled switch row. Track is accent when on, container-high when off. */
 export function SwitchRow({
   label,
   helper,
@@ -479,7 +479,7 @@ export function SwitchRow({
         value={value}
         onValueChange={onChange}
         accessibilityLabel={label}
-        trackColor={{ false: C.surfaceContainerHigh, true: C.primary }}
+        trackColor={{ false: C.surfaceContainerHigh, true: C.accent }}
         thumbColor={C.surface}
       />
     </View>

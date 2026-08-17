@@ -335,7 +335,7 @@ export default function Budgets() {
             <Text className="text-label font-sans-semibold text-ink mb-1.5">
               {s.budgets.category}
             </Text>
-            <View className="bg-surface-container rounded-lg px-4 py-3 min-h-touch justify-center">
+            <View className="bg-surface-container rounded-xl px-4 py-3 min-h-touch justify-center">
               <Text className="text-body font-sans-medium text-ink">
                 {nameFor(formAccountId ?? "")}
               </Text>

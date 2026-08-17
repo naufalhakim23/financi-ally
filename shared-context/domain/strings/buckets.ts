@@ -14,5 +14,5 @@ export const buckets = {
   },
 
   addTo: (name: string) => `Add to ${name}`,
-  moveIn: (name: string) => `Move money in ${name}`,
+  moveIn: (name: string) => `Move money into ${name}`,
 };

@@ -27,6 +27,12 @@ export const recurring = {
   editRule: "Edit recurring",
   howOften: "How often",
   freq: { daily: "Daily", weekly: "Weekly", monthly: "Monthly" },
+  weekdays: { MO: "Mon", TU: "Tue", WE: "Wed", TH: "Thu", FR: "Fri", SA: "Sat", SU: "Sun" },
+  schedule: {
+    daily: "Every day",
+    weekly: (day: string) => `Every ${day}`,
+    monthly: (day: string) => `Monthly on the ${day}`,
+  },
   on: "On",
   dayOfMonth: "Day of month",
   category: "Category",

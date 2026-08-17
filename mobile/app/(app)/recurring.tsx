@@ -11,7 +11,7 @@ import {
   MAX_MONTH_DAY,
   WEEKDAYS,
   buildRRule,
-  describeRRule,
+  ordinal,
   parseRRule,
   type Freq,
 } from "../../src/lib/recurrence";
@@ -68,6 +68,23 @@ export default function Recurring() {
   const { user, baseCurrency: base } = useAuth();
   const s = useStrings();
   const { C } = useTheme();
+
+  // `recurrence` owns the RRULE grammar, not the words for it: schedule text and
+  // weekday names come from the catalog so the wording switch reaches them.
+  const weekdayOptions = WEEKDAYS.map((d) => ({
+    value: d.value,
+    label: s.recurring.weekdays[d.value as keyof typeof s.recurring.weekdays] ?? d.label,
+  }));
+  const describeSchedule = (rrule: string) => {
+    const { freq, monthDay, weekDay } = parseRRule(rrule);
+    if (freq === "daily") return s.recurring.schedule.daily;
+    if (freq === "weekly") {
+      return s.recurring.schedule.weekly(
+        s.recurring.weekdays[weekDay as keyof typeof s.recurring.weekdays] ?? weekDay,
+      );
+    }
+    return s.recurring.schedule.monthly(`${monthDay}${ordinal(monthDay)}`);
+  };
 
   const [rules, setRules] = useState<RecurringRule[]>([]);
   const [err, setErr] = useState<string | null>(null);
@@ -247,6 +264,7 @@ export default function Recurring() {
       <ScreenHeader
         title={s.recurring.title}
         backLabel={s.recurring.backLabel}
+        backAccessibilityLabel={s.common.backTo(s.recurring.backLabel)}
         onBack={() => router.back()}
       />
       <ScrollView
@@ -321,7 +339,7 @@ export default function Recurring() {
                         </Text>
                         <Text className="text-faint text-caption font-sans-medium">
                           {s.recurring.ruleFrom(
-                            describeRRule(rule.rrule),
+                            describeSchedule(rule.rrule),
                             nameFor(credit?.account_id ?? ""),
                           )}
                         </Text>
@@ -393,7 +411,12 @@ export default function Recurring() {
         />
 
         {freq === "weekly" && (
-          <ChipGroup label={s.recurring.on} value={weekDay} options={WEEKDAYS} onSelect={setWeekDay} />
+          <ChipGroup
+            label={s.recurring.on}
+            value={weekDay}
+            options={weekdayOptions}
+            onSelect={setWeekDay}
+          />
         )}
 
         {freq === "monthly" && (

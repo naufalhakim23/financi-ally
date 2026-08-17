@@ -125,8 +125,17 @@ export function EntryNewRoute() {
     }
   }
 
+  // `from.id !== to.id` because the "Into" list filters out the chosen source:
+  // picking Into first and then the same account as Out of leaves the stale
+  // `toId` selected but off-screen, and both legs would post to one account.
   const ready =
-    !!from && !!to && !!currency && !!amount.trim() && !amountError && !currencyMismatch;
+    !!from &&
+    !!to &&
+    from.id !== to.id &&
+    !!currency &&
+    !!amount.trim() &&
+    !amountError &&
+    !currencyMismatch;
 
   function changeDirection(next: Direction) {
     setDirection(next);

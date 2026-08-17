@@ -450,12 +450,15 @@ export default function EntryNew() {
           <Button
             label={s.entry.new.addCategory}
             busy={newCatBusy}
-            disabled={!newCatName.trim()}
+            disabled={!newCatName.trim() || !from}
             onPress={async () => {
+              if (!from) return;
               setNewCatBusy(true);
               try {
                 // Must match the source pocket's currency or Save rejects the pair.
-                const id = await createAccount("expense", newCatName.trim(), currency);
+                // Read off `from` rather than the base-currency fallback: a
+                // category created in the wrong currency is unusable and sticks.
+                const id = await createAccount("expense", newCatName.trim(), from.currency);
                 haptic.success();
                 setToId(id);
                 setNewCatOpen(false);

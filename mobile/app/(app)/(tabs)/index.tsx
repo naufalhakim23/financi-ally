@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
+import Animated from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
@@ -43,6 +44,7 @@ import {
   ICON,
   usePressedScale,
   useTheme,
+  useValueFade,
   type Glyph,
 } from "../../../src/components/ui";
 
@@ -103,6 +105,7 @@ export default function HomeScreen() {
   const pull = useSyncRefresh(refetchServerReads);
 
   const worth = netWorth(accounts, lines);
+  const worthFade = useValueFade(worth);
 
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -277,9 +280,9 @@ export default function HomeScreen() {
             )}
           </View>
 
-          <Text className="text-amount-hero font-mono-bold text-ink mt-2">
+          <Animated.Text className="text-amount-hero font-mono-bold text-ink mt-2" style={worthFade}>
             {formatGrouped(base, worth)}
-          </Text>
+          </Animated.Text>
           <View className="flex-row items-baseline mt-1" style={{ gap: 8 }}>
             <Text
               className={`text-amount-sm font-mono-medium ${
@@ -379,7 +382,7 @@ export default function HomeScreen() {
                 )}
               </Text>
             </View>
-            <Amount minor={safe} currency={base} size="lg" tone="neutral" />
+            <Amount minor={safe} currency={base} size="lg" tone="neutral" animate />
           </View>
           {/* The screen's one acknowledgment, if there is one. A line in a card
               that already exists, never a surface of its own. */}

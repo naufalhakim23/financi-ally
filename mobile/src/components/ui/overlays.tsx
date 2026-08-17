@@ -19,13 +19,8 @@ import { DURATION, EASING, useTheme } from "./tokens";
 const ENTER: WithTimingConfig = { duration: DURATION.base, easing: EASING.standard };
 const EXIT: WithTimingConfig = { duration: DURATION.fast, easing: EASING.exit };
 
-/**
- * Keeps the Modal mounted through its own exit animation.
- *
- * RN's `Modal` unmounts the moment `visible` flips, so an exit written against
- * `visible` never renders. This holds the native modal open until the timing
- * finishes and only then lets it go.
- */
+// RN's Modal unmounts as soon as `visible` flips, so an exit written against it
+// never renders. This holds the modal open until the timing finishes.
 function useOverlayTransition(visible: boolean) {
   const [mounted, setMounted] = useState(visible);
   const progress = useSharedValue(visible ? 1 : 0);
@@ -36,8 +31,6 @@ function useOverlayTransition(visible: boolean) {
       progress.value = withTiming(1, ENTER);
       return;
     }
-    // The completion callback runs on the UI thread, so the unmount has to hop
-    // back to JS — that hop is what keeps the exit from tearing down mid-flight.
     progress.value = withTiming(0, EXIT, (done) => {
       "worklet";
       if (done) runOnJS(setMounted)(false);
@@ -71,7 +64,6 @@ export function Sheet({
   const scrim = useAnimatedStyle(() => ({ opacity: progress.value }));
   const panel = useAnimatedStyle(() => ({
     opacity: progress.value,
-    // Reduced motion keeps the fade and drops the slide, per canon.
     transform: reduced ? [] : [{ translateY: (1 - progress.value) * height * 0.3 }],
   }));
 

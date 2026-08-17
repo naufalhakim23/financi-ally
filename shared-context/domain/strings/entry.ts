@@ -1,7 +1,6 @@
 import { terms } from "./terms";
 
 export const entry = {
-  // ── Composing a new entry ────────────────────────────────────────────────
   new: {
     title: terms.addEntry,
     save: "Save",
@@ -17,9 +16,8 @@ export const entry = {
     noteAdded: "Note added",
     notePlaceholder: "What was this for?",
 
-    // The collapsed form's one line. It always names the pocket the money
-    // leaves before Save is reachable, so a remembered default can never post
-    // somewhere the user did not look at.
+    // Names the pocket before Save is reachable, so a remembered default can
+    // never post somewhere unseen.
     summary: {
       from: (pocket: string) => `from ${pocket}`,
       noPocket: "Pick a pocket",
@@ -38,7 +36,6 @@ export const entry = {
     pickFrom: "Where from",
     pickTo: "Where to",
 
-    /** What a pocket row says it has left, or a category row says it has used. */
     pocketLeft: (balance: string) => `${balance} left`,
     categorySpent: (spent: string) => `${spent} this month`,
     categoryOfTarget: (spent: string, target: string) => `${spent} of ${target} this month`,
@@ -57,7 +54,6 @@ export const entry = {
       saveFailed: "That didn't save. Try again",
     },
 
-    // What to say, and where to send them, when a side has nothing to offer.
     need: {
       pocket: {
         title: "Set up a pocket first",
@@ -77,7 +73,6 @@ export const entry = {
     },
   },
 
-  // ── An entry that already exists ─────────────────────────────────────────
   detail: {
     title: "Entry",
     fallbackName: "Entry",
@@ -102,7 +97,6 @@ export const entry = {
     },
   },
 
-  // ── A row in a ledger list ───────────────────────────────────────────────
   row: {
     fallbackTitle: "Entry",
     unsynced: "unsynced",

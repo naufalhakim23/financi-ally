@@ -39,8 +39,7 @@ import {
 
 type Mode = "out" | "in" | "move";
 
-// Remembered per mode: the pocket you spend from is rarely the one you move
-// between, and neither is the source your salary arrives from.
+// Per mode: the pocket you spend from is rarely the one you move between.
 const lastFromKey = (mode: Mode) => `entry.lastFrom.${mode}`;
 
 // Which account types each side of the entry may point at. An entry is always
@@ -51,9 +50,7 @@ const SIDES: Record<Mode, { from: string[]; to: string[] }> = {
   move: { from: ["asset", "liability"], to: ["asset", "liability"] },
 };
 
-// Where to send them when a side has nothing to offer. Categories and income
-// sources have no create screen of their own on this client — the setup wizard
-// is where they come from. The copy lives in the catalog under `entry.new.need`.
+// Where a missing side sends them. Copy is at `entry.new.need`.
 const NEED_HREF = {
   pocket: "/(app)/pocket-new",
   expense: "/(app)/setup",
@@ -158,12 +155,7 @@ export default function EntryNew() {
   }, [mode, accounts]);
 
   // Fills a blank only: a deep-link param or the user's own pick always wins.
-  //
-  // `fromId` is a dependency, not just a guard. Switching mode clears it in the
-  // effect above, and both effects run in the same commit — so without it here
-  // this one reads the pre-clear value, bails, and never runs again. That left
-  // the remembered pocket restored on first mount only, which is the one case
-  // it is least needed in.
+  // `fromId` is a dep, not just a guard: the effect above clears it in the same commit.
   useEffect(() => {
     if (fromId || accounts.length === 0) return;
     let stale = false;
@@ -286,10 +278,8 @@ export default function EntryNew() {
         : null;
   const missing = missingKind ? s.entry.new.need[missingKind] : null;
 
-  // "I spent money, category X" is the common case, and the rail plus a
-  // remembered pocket express it whole — so everything else folds. The other two
-  // modes have no rail, so their destination has nowhere to be picked but the
-  // rows; there the form is simply open.
+  // Out is expressible by rail + remembered pocket, so the rest folds. The other
+  // modes have no rail, so their destination needs the rows.
   const expanded = detailsOpen || mode !== "out";
 
   return (
@@ -499,12 +489,8 @@ export default function EntryNew() {
   );
 }
 
-/**
- * The collapsed form, in one line: where the money leaves, when, and whether a
- * note is attached. It is the only thing standing between a remembered pocket
- * and a posted entry, so it always names the pocket — or says none is picked —
- * and it is never hidden while Save is reachable.
- */
+// The collapsed form in one line. Always names the pocket, since it is all that
+// stands between a remembered default and a posted entry.
 function SummaryChip({
   pocket,
   hasNote,

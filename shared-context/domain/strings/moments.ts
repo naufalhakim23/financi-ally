@@ -1,6 +1,4 @@
-// Acknowledgment copy. One quiet observation, in `dim`, inside a card that
-// already exists. The app notices; it does not cheer — so these are statements
-// of fact in the second person, never praise, never a streak.
+// One quiet observation in `dim`, inside an existing card. Never praise.
 
 export const moments = {
   firstEntry: "That's your first one logged. It gets quicker from here.",

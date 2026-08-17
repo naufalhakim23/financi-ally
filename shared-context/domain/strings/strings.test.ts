@@ -3,14 +3,8 @@ import { describe, expect, it } from "vitest";
 import { catalog, strings } from "./index";
 import type { Resolved } from "./resolve";
 
-// Compile-time half of the contract, checked by `tsc` rather than by vitest.
-//
-// `Resolved` and the runtime `isModePair` decide "is this a mode pair?"
-// separately. When they first disagreed, the catalog still resolved correctly
-// and every test passed — only the screens reading it stopped compiling, because
-// a group that merely contained `normal` and `finance` among its keys was typed
-// as `string`. No runtime assertion can see that, so these exercise the type
-// directly rather than through whatever shape the catalog happens to have today.
+// Checked by tsc, not vitest: `Resolved` and `isModePair` decide "mode pair?"
+// separately, and only the type half can go wrong silently.
 type ExactPair = Resolved<{ normal: "a"; finance: "b" }>;
 type GroupWithModeKeys = Resolved<{ normal: string; finance: string; title: string }>;
 

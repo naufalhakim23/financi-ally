@@ -1,7 +1,5 @@
-// The seven words the wording switch was built around, and the ones the Wording
-// settings screen shows side by side. They live here rather than in wording.ts
-// so the catalog owns every user-facing string exactly once; wording.ts reads
-// them back out to keep `term()` and `TERM_ROWS` working for the web client.
+// The seven words the wording switch was built around. wording.ts reads them
+// back out for `term()` and `TERM_ROWS`.
 
 export const terms = {
   totalMoney: { normal: "Total money", finance: "Net worth" },

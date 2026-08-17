@@ -1,17 +1,6 @@
-// The string catalog: the only place a user-facing string is written.
-//
-// A screen reads `strings(mode)` and indexes it. It never holds a literal, and
-// it never carries the wording mode into a lookup — the tree it gets back is
-// already resolved for the active mode.
-//
-// Two things deliberately stay outside:
-//
-//   - Domain modules that already own their copy (`starter`, `recurrence`,
-//     `validate`, `buckets`, `ledger`). They are catalogs already, shaped by the
-//     data rather than by the screen, and both clients read the same values.
-//   - Defaults baked into `src/components/ui/` ("Choose", "Try again"). The kit
-//     is a design system and stays ignorant of the domain; those are component
-//     defaults a screen can always override with a catalog string.
+// Every user-facing string. Screens read `strings(mode)` and index it.
+// Outside on purpose: `starter`/`recurrence`/`validate`, which own their copy,
+// and `src/components/ui/` defaults, since the kit stays domain-ignorant.
 
 import type { Wording } from "../wording";
 import { resolve, type Resolved } from "./resolve";
@@ -54,12 +43,9 @@ export const catalog = {
   terms,
 };
 
-/** The catalog as a screen sees it: mode already applied. */
 export type Strings = Resolved<typeof catalog>;
 
-// Both modes are resolved once at load. There are only two, the tree is small,
-// and doing it here means `strings()` is a lookup rather than a walk on every
-// render — no memo bookkeeping in the provider.
+// Both modes resolved once at load, so `strings()` is a lookup, not a walk.
 const BY_MODE: Record<Wording, Strings> = {
   normal: resolve(catalog, "normal"),
   finance: resolve(catalog, "finance"),

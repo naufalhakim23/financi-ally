@@ -2,8 +2,7 @@ export const settings = {
   wording: {
     title: "How it is worded",
     backLabel: "More",
-    // Not `normal` / `finance`: a group whose only two keys are the mode names
-    // is indistinguishable from a mode pair, and this one is a group.
+    // Not `normal`/`finance`: that exact key pair reads as a mode pair.
     normalLabel: "Normal",
     financeLabel: "Finance",
     explainer:

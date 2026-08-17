@@ -8,8 +8,7 @@ import {
   type MomentKey,
 } from "./moments";
 
-// Nothing to acknowledge: a mid-month day, a plan already blown, a lone
-// logging day. Each case overrides only what it is actually about.
+// Nothing to acknowledge. Cases override only what they are about.
 const QUIET: MomentInput = {
   entryCount: 40,
   daysLoggedLastWeek: 1,

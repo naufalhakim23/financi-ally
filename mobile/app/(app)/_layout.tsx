@@ -44,11 +44,8 @@ export default function AppLayout() {
     <View className="flex-1 bg-background">
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: C.background } }}>
         <Stack.Screen name="(tabs)" />
-        {/* The add flow is a sheet in the hi-fi, not a full page: react-native-screens
-            gives us the scrim, the grabber and the rounded top natively, so the
-            screen itself only draws its content. Its transition is the native
-            sheet presentation, which is DESIGN.md's one emphasized curve; a JS
-            animation over the top of it would only fight the platform. */}
+        {/* A sheet, not a page: react-native-screens draws the scrim, grabber and
+            rounded top, and owns the transition. */}
         <Stack.Screen
           name="entry-new"
           options={{

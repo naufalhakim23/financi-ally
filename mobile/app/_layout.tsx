@@ -58,9 +58,7 @@ export default function RootLayout() {
       <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          {/* Above the Stack, not inside (app): the unauthenticated screens read the
-              string catalog too, and under the old placement they silently got the
-              default context instead of the provider. */}
+          {/* Above the Stack: the unauthenticated screens read the catalog too. */}
           <WordingProvider>
           <StatusBar style="auto" />
           {/* Every screen draws its own chrome — the app screens via

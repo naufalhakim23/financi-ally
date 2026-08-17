@@ -155,8 +155,6 @@ export const ICON = {
   xxl: 24,
 } as const;
 
-// Motion. RN has no CSS easing tokens, so the curves are expressed as the cubic
-// béziers DESIGN.md names and passed to `withTiming` directly.
 export const DURATION = {
   instant: 90,
   fast: 160,
@@ -164,13 +162,7 @@ export const DURATION = {
   slow: 360,
 } as const;
 
-/**
- * The four curves from DESIGN.md → Motion.
- *
- * `standard` enters, `exit` leaves faster than it arrived, `emphasized` is
- * reserved for the FAB → add-entry transition alone, and `linear` is for
- * cross-fades where an eased opacity reads as a flicker.
- */
+// RN has no CSS easing token, so curves are béziers. `emphasized` is the FAB → add-entry alone.
 export const EASING = {
   standard: Easing.bezier(0.2, 0, 0, 1),
   exit: Easing.bezier(0.3, 0, 1, 1),

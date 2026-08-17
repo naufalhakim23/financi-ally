@@ -16,11 +16,9 @@ export const reports = {
   spendingByCategory: "Spending by category",
   total: "Total",
 
-  /** Everything past the chart ramp, folded into one slice. */
   otherSlice: "Everything else",
   otherSliceCount: (n: number) => `${n} categories`,
 
-  /** `Net worth · IDR` — the figure's unit, said once above it. */
   withCurrency: (label: string, currency: string) => `${label} · ${currency}`,
 
   empty: {

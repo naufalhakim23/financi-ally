@@ -9,7 +9,7 @@ export const budgets = {
   totalSpent: "Total spent",
   budget: "Budget",
   used: (pct: number) => `${pct}% used`,
-  /** The period a plan covers, from a `YYYY-MM-DD` month start. */
+  /** Takes a `YYYY-MM-DD` month start. */
   periodTitle: (period: string) => monthLabel(period.slice(0, 7), { year: false }),
   spentOfTarget: (currency: string, spent: string, target: string) =>
     `${currency} ${spent} / ${target}`,

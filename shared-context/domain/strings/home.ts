@@ -1,6 +1,5 @@
 export const home = {
-  // One line above the hero. A status line replaces it when something needs
-  // attention — the greeting is never the more important thing on the screen.
+  // A status line replaces the greeting when something needs attention.
   greeting: {
     morning: "Good morning",
     afternoon: "Good afternoon",

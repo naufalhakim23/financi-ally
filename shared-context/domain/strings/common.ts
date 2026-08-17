@@ -1,5 +1,4 @@
-// Words that belong to no one screen: the verbs on buttons, the shared units,
-// the placeholder every dash-for-missing-value renders.
+// Words belonging to no one screen.
 
 export const common = {
   save: "Save",
@@ -20,7 +19,6 @@ export const common = {
   search: "Search",
   filter: "Filter",
   missing: "—",
-  /** The Home tab. Named here because both the tab bar and its preview need it. */
   home: "Home",
   entries: (n: number) => (n === 1 ? "entry" : "entries"),
   months: (n: number) => (n === 1 ? "month" : "months"),

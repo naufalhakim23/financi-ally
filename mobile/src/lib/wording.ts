@@ -4,10 +4,8 @@ import { strings, type Strings } from "@financially/domain/strings";
 import { term, type TermKey, type Wording } from "@financially/domain/wording";
 import { database } from "./db";
 
-// The mobile wording provider. The strings themselves live in
-// shared-context/domain/strings/ and are shared with web; only persistence and
-// the React context are per-client — WatermelonDB's key/value store keeps the
-// choice across restarts without adding a storage dependency.
+// The mobile wording provider. Strings are shared; persistence and the context
+// are per-client, on WatermelonDB's key/value store.
 
 export * from "@financially/domain/wording";
 export type { Strings } from "@financially/domain/strings";
@@ -23,7 +21,6 @@ type WordingState = {
   setShowSides: (v: boolean) => void;
   /** Shorthand: `t("history")` in the active mode. */
   t: (key: TermKey) => string;
-  /** The whole string catalog, resolved for the active mode. */
   s: Strings;
 };
 
@@ -91,7 +88,7 @@ export function useWording(): WordingState {
   return useContext(WordingContext);
 }
 
-/** The string catalog for the active wording mode. What screens read. */
+/** The catalog for the active wording mode. What screens read. */
 export function useStrings(): Strings {
   return useContext(WordingContext).s;
 }

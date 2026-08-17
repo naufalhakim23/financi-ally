@@ -106,8 +106,7 @@ const PREVIEW_GLYPHS = [Home, LineChart, LayoutGrid, MoreHorizontal];
 function TabPreview({ mode, active }: { mode: Wording; active: boolean }) {
   const { C } = useTheme();
   const s = useStrings();
-  // Both rows are shown at once, so the terms are read for the row's own mode
-  // rather than the active one — that side-by-side is the whole point.
+  // Terms read for the row's own mode, not the active one: both rows show at once.
   const labels = [s.common.home, term("history", mode), term("buckets", mode), s.more.title];
   const color = active ? C.ink : C.faint;
 

@@ -39,8 +39,7 @@ export function usePressed() {
 export function usePressedScale(hapticKind?: HapticKind) {
   const [pressed, setPressed] = useState(false);
   const s = useSharedValue(1);
-  // Reduced motion drops the transform; the tone change and the haptic still
-  // land, so the affordance never stops answering a press.
+  // Reduced motion drops the transform; tone and haptic still answer the press.
   const reduced = useReducedMotion();
   const pressStyle = useAnimatedStyle(() => ({ transform: [{ scale: reduced ? 1 : s.value }] }));
   return {
@@ -310,9 +309,7 @@ export function ProgressBar({ pct }: { pct: number }) {
   const fill = useBarWidth(pct);
   return (
     <View className="w-full h-1.5 rounded-full bg-surface-container-high overflow-hidden">
-      {/* The animated view carries only the width; the class-styled child fills
-          it. NativeWind resolves `className` at build time, so keeping classes
-          off animated components is how the rest of the kit does this too. */}
+      {/* NativeWind resolves className at build time, so it stays off animated views. */}
       <Animated.View style={fill}>
         <View className={`h-1.5 w-full rounded-full ${color}`} />
       </Animated.View>

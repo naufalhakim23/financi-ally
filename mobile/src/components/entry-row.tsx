@@ -100,7 +100,6 @@ export type DirFilter = "all" | "in" | "out" | "move";
 
 const DIR_ORDER: DirFilter[] = ["all", "in", "out", "move"];
 
-/** The filter's four words, in chip order. */
 export function dirLabels(s: Strings): Record<DirFilter, string> {
   return s.entry.direction;
 }

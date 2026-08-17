@@ -99,7 +99,7 @@ export type LegendItem = {
   label: string;
   value: number;
   color: string;
-  /** Quiet second line — what a folded "everything else" row actually covers. */
+  /** Second line, e.g. what a folded "everything else" row covers. */
   note?: string;
 };
 

@@ -1,6 +1,4 @@
-// The status strip above the tab bar. It is the one place the app volunteers
-// bad news, so it says what happened and what it means for the user's money,
-// never what the transport did.
+// The status strip above the tab bar.
 
 export const sync = {
   rejected: (n: number) =>

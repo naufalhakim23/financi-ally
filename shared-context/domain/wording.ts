@@ -4,13 +4,8 @@
 // English and ledger English. Double-entry is a mode here, not a default — see
 // the 31 Jul 2026 design-system changelog.
 //
-// The words themselves now live in the string catalog (`strings/terms.ts`),
-// where mode is a dimension of every string rather than a seven-term special
-// case. What stays here is the mode type and the `term()` / `TERM_ROWS` surface:
-// the Wording settings screen teaches the mapping as a table, and the web client
-// still reads terms one at a time. Each client owns its own provider, because
-// persistence differs (WatermelonDB localStorage on mobile, localStorage on web)
-// and a React context is not shareable across React Native and the DOM.
+// Words live in the catalog (`strings/terms.ts`); this keeps the mode type and
+// the `term()` / `TERM_ROWS` surface. Each client owns its own provider.
 
 import { terms as TERMS } from "./strings/terms";
 

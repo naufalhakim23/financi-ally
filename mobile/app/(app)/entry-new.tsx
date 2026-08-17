@@ -158,6 +158,12 @@ export default function EntryNew() {
   }, [mode, accounts]);
 
   // Fills a blank only: a deep-link param or the user's own pick always wins.
+  //
+  // `fromId` is a dependency, not just a guard. Switching mode clears it in the
+  // effect above, and both effects run in the same commit — so without it here
+  // this one reads the pre-clear value, bails, and never runs again. That left
+  // the remembered pocket restored on first mount only, which is the one case
+  // it is least needed in.
   useEffect(() => {
     if (fromId || accounts.length === 0) return;
     let stale = false;
@@ -168,7 +174,7 @@ export default function EntryNew() {
     return () => {
       stale = true;
     };
-  }, [accounts.length, mode]);
+  }, [accounts.length, mode, fromId]);
 
   // Resolved against the options, not all accounts: an id that arrived by deep
   // link or went stale when an account was archived resolves to null and never

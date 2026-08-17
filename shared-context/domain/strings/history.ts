@@ -14,12 +14,12 @@ export const history = {
   monthClosing: (balance: string) => `end ${balance}`,
 
   empty: {
-    title: "No entries yet",
-    body: "Every money move you log shows up here, newest first.",
+    title: "Nothing logged yet",
+    body: "Your first coffee, bus ticket, anything. Log it and this fills in.",
   },
   noMatches: {
-    title: "No matches",
-    body: "Nothing here fits the search and filters.",
+    title: "Nothing matches",
+    body: "Try a different word, or clear the filters.",
   },
 
   filterSheet: {

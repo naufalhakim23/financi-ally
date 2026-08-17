@@ -27,6 +27,6 @@ export const setup = {
     noName: "Give the pocket a name",
     badCurrency: "Currency must be a 3-letter code (e.g. IDR)",
     badOpening: "Enter a valid opening balance",
-    failed: "could not create the pocket",
+    failed: "That pocket didn't save. Try again",
   },
 };

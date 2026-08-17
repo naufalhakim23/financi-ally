@@ -2,8 +2,8 @@ export const recurring = {
   title: "Repeating entries",
   backLabel: "More",
   loadFailed: "Couldn't load your repeating entries",
-  deleteFailed: "delete failed",
-  runFailed: "run failed",
+  deleteFailed: "That didn't delete. Try again",
+  runFailed: "Couldn't run them just now. Try again",
 
   scheduled: "Scheduled",
   activeCount: (n: number) => `${n} active`,
@@ -40,8 +40,8 @@ export const recurring = {
     noPocket: "Select a pocket to pay from",
     currencyMismatch: "Category and pocket must use the same currency",
     badAmount: "Enter a valid amount",
-    zeroAmount: "Amount must be greater than zero",
-    saveFailed: "save failed",
+    zeroAmount: "Enter an amount above zero",
+    saveFailed: "That didn't save. Try again",
   },
 
   confirmDelete: {

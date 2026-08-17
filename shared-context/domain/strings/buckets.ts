@@ -9,7 +9,7 @@ export const buckets = {
 
   empty: {
     title: "No buckets yet",
-    body: "Buckets group your accounts and categories. Setup builds you a starter set.",
+    body: "Buckets are where your money sits and where it goes. Setup builds you a starter set.",
     action: "Set up",
   },
 

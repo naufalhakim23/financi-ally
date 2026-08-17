@@ -11,7 +11,7 @@ export const month = {
   otherCategories: "Other",
 
   empty: {
-    title: "Nothing here",
-    body: "No entries in this month match that filter.",
+    title: "Nothing matches",
+    body: "No entries this month fit that filter.",
   },
 };

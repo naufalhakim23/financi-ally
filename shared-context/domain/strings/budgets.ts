@@ -16,8 +16,8 @@ export const budgets = {
   categoryPct: (pct: number) => `${pct}%`,
 
   empty: {
-    title: "No budgets this month",
-    body: "Set a monthly target on a category to see spent-vs-target here.",
+    title: "Nothing planned this month",
+    body: "Give a category a monthly target and you'll see how much of it is left.",
   },
 
   setBudget: "Set budget",
@@ -31,8 +31,8 @@ export const budgets = {
     noCategory: "Select a category",
     noAmount: "Enter a budget amount",
     badAmount: "Enter a valid amount",
-    zeroAmount: "Amount must be greater than zero",
-    saveFailed: "save failed",
+    zeroAmount: "Enter an amount above zero",
+    saveFailed: "That didn't save. Try again",
   },
 
   confirmDelete: {

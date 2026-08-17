@@ -20,7 +20,7 @@ export const entry = {
     newCategory: "New category",
     newCategoryPlaceholder: "Groceries, rent, transport…",
     addCategory: "Add category",
-    addCategoryFailed: "couldn't add the category",
+    addCategoryFailed: "That category didn't save. Try again",
     railNew: "New",
     railCategory: (name: string) => `Category ${name}`,
 
@@ -42,8 +42,8 @@ export const entry = {
       currencyMismatch: (from: string, fromCur: string, to: string, toCur: string) =>
         `Both sides must use the same currency: ${from} is ${fromCur}, ${to} is ${toCur}`,
       badAmount: "Enter a valid amount",
-      zeroAmount: "Amount must be greater than zero",
-      saveFailed: "save failed",
+      zeroAmount: "Enter an amount above zero",
+      saveFailed: "That didn't save. Try again",
     },
 
     // What to say, and where to send them, when a side has nothing to offer.

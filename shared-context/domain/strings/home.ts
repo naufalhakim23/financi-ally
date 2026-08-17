@@ -1,4 +1,16 @@
 export const home = {
+  // One line above the hero. A status line replaces it when something needs
+  // attention — the greeting is never the more important thing on the screen.
+  greeting: {
+    morning: "Good morning",
+    afternoon: "Good afternoon",
+    evening: "Good evening",
+  },
+  status: {
+    offline: "Working offline. Everything you log is saved here.",
+    staleRates: "Rates haven't refreshed today. Converted figures may be off.",
+  },
+
   bookSwitcher: (name: string) => `Book: ${name}. Change book`,
   search: "Search",
   offline: "offline",

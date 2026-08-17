@@ -3,12 +3,12 @@ export const books = {
   backLabel: "More",
   personal: "Personal",
 
-  loadFailed: "couldn't load your books",
-  switchFailed: "couldn't switch books",
-  createFailed: "couldn't create the book",
-  joinFailed: "couldn't join with that code",
-  inviteFailed: "couldn't create an invite code",
-  leaveFailed: "couldn't leave the book",
+  loadFailed: "Couldn't load your books. Pull down to try again",
+  switchFailed: "Couldn't switch books. Try again",
+  createFailed: "That book didn't save. Try again",
+  joinFailed: "That code didn't work. Check it and try again",
+  inviteFailed: "Couldn't make a code just now. Try again",
+  leaveFailed: "Couldn't leave the book. Try again",
 
   currentlyIn: "Currently in",
   sharedWithOthers: (n: number) =>

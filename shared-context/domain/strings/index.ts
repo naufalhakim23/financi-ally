@@ -24,6 +24,7 @@ import { common } from "./common";
 import { entry } from "./entry";
 import { history } from "./history";
 import { home } from "./home";
+import { moments } from "./moments";
 import { month } from "./month";
 import { more } from "./more";
 import { recurring } from "./recurring";
@@ -41,6 +42,7 @@ export const catalog = {
   entry,
   history,
   home,
+  moments,
   month,
   more,
   recurring,

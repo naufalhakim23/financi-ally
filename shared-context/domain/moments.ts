@@ -39,13 +39,22 @@ export function momentFor(input: MomentInput): MomentKey | null {
   return null;
 }
 
+// `txn_date` is a SQL DATE, which sync sends as midnight UTC. Reading it with
+// the local getters lands on the previous day in any zone west of UTC, so the
+// calendar day comes off the UTC side and is rebuilt against the local clock
+// that `now` and `cutoff` are measured in.
+function calendarDay(msAtUTCMidnight: number): Date {
+  const d = new Date(msAtUTCMidnight);
+  return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+}
+
 // Bounded above too: future-dated entries arrive by sync or clock skew, and six
 // of them plus today would otherwise read as a full week.
 export function daysLoggedLastWeek(timestamps: number[], now: Date): number {
   const cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (FULL_WEEK_DAYS - 1));
   const days = new Set<string>();
   for (const ts of timestamps) {
-    const d = new Date(ts);
+    const d = calendarDay(ts);
     if (d < cutoff || d > now) continue;
     days.add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
   }

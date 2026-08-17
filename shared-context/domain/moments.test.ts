@@ -94,11 +94,12 @@ describe("momentFor", () => {
 
 describe("daysLoggedLastWeek", () => {
   const now = new Date(2026, 7, 17, 10, 0, 0); // Mon 17 Aug 2026
-  const at = (day: number, hour = 9) => new Date(2026, 7, day, hour).getTime();
+  // Sync delivers txn_date as midnight UTC, which is what the function reads.
+  const at = (day: number) => Date.UTC(2026, 7, day);
 
   const cases: { name: string; stamps: number[]; want: number }[] = [
     { name: "no entries", stamps: [], want: 0 },
-    { name: "several entries on one day count once", stamps: [at(17, 8), at(17, 12), at(17, 20)], want: 1 },
+    { name: "several entries on one day count once", stamps: [at(17), at(17), at(17)], want: 1 },
     { name: "a full week", stamps: [11, 12, 13, 14, 15, 16, 17].map((d) => at(d)), want: 7 },
     { name: "the eighth day back falls outside the window", stamps: [at(10)], want: 0 },
     { name: "the seventh day back is inside it", stamps: [at(11)], want: 1 },

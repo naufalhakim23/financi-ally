@@ -558,11 +558,16 @@ using the ramp ships a labelled legend** with name + value — identity is never
 
 **Library**: Lucide (`lucide-react-native`), 1.75px stroke, `currentColor`. **No emoji anywhere.**
 
-| Size | Value | Use |
-|---|---|---|
-| Small | 12–14px | Inline with captions, status text, badges |
-| Default | 16–20px | Buttons, headers, list affordances, tab bar |
-| Large | 24px | Icon boxes, empty states, FAB |
+Sizes live in JS as `ICON` in `tokens.ts`, since Lucide takes `size` as a number.
+
+| Size | Token | Value | Use |
+|---|---|---|---|
+| Small | `ICON.xs` / `ICON.sm` | 12 / 14px | Inline with captions, status text, badges |
+| Default | `ICON.md` / `ICON.lg` / `ICON.xl` | 16 / 18 / 20px | Buttons, headers, list affordances |
+| Large | `ICON.xxl` | 24px | Icon boxes, empty states, FAB |
+
+Off-scale on purpose, literal at the call site: 22px tab glyph, 17px list callout,
+13px currency chevron, 32/56px avatar marks (illustration, not iconography).
 
 - Category and account glyphs live in a 40px `IconBox` tinted from the category's chart slot at
   `tint-alpha`, glyph in the slot's base color. The keyword → glyph table is `accountGlyph()` in `tokens.ts`;

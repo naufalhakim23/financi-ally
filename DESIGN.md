@@ -1,8 +1,8 @@
 ---
-version: 1.1
+version: 2.0
 name: Financi-Ally
 description: Offline-first personal expense & budget tracker — double-entry ledger, multi-currency, mobile (iOS + Android).
-supersedes: DESIGN.md alpha, and v1.0 (JetBrains Mono numerals — see Retired directions)
+supersedes: DESIGN.md alpha, v1.0 (JetBrains Mono numerals), and v1.x (cool slate ramp, chrome blue — see Retired directions). Sea-glass identity per docs/rfc/0002.
 
 # ─────────────────────────────────────────────────────────────
 # TOKENS — normative. Two layers: raw scales, then semantic
@@ -10,19 +10,31 @@ supersedes: DESIGN.md alpha, and v1.0 (JetBrains Mono numerals — see Retired d
 # ─────────────────────────────────────────────────────────────
 
 palette:
-  # Neutral ramp (single family — cool-tinted slate; the whole UI is built from it)
+  # Neutral ramp (single family — warm gray since v2.0; the whole UI is built from it)
   neutral-0: "#FFFFFF"
-  neutral-50: "#F7F8FB"
-  neutral-100: "#F2F3F7"
-  neutral-150: "#EEF0F6"
-  neutral-200: "#E2E6F0"
-  neutral-300: "#C0C7DA"
-  neutral-400: "#98A1B5"
-  neutral-500: "#737C91"
-  neutral-600: "#5A6379"
-  neutral-800: "#2A3140"
-  neutral-900: "#1A1F2E"
-  neutral-950: "#0F1218"
+  neutral-50: "#FAF9F7"
+  neutral-100: "#F6F5F3"
+  neutral-150: "#F1EFEC"
+  neutral-175: "#EFEDE9"
+  neutral-200: "#E8E5E0"
+  neutral-250: "#E5E2DD"
+  neutral-300: "#CFCBC4"
+  neutral-400: "#A8A29A"
+  neutral-500: "#726C64"
+  neutral-600: "#5D5952"
+  neutral-800: "#38342E"
+  neutral-900: "#201E1B"
+  neutral-950: "#151311"
+  # Accent (sea-glass teal, v2.0) — brand punctuation, never money-semantic
+  teal-500: "#0E8A7B"
+  teal-600: "#0B7268"
+  teal-700: "#0A675C"
+  teal-050: "#EBF4F2"
+  teal-edge: "#CDE4E0"
+  teal-dark: "#3FB3A2"
+  teal-dark-pressed: "#58C4B4"
+  teal-dark-wash: "#122622"
+  teal-dark-edge: "#1E413B"
   # Semantic hues — three steps each: base (marks/text), wash (fill), edge (border)
   green-600: "#15803D"
   green-500: "#16A34A"
@@ -43,33 +55,43 @@ palette:
 
 colors:
   # Brand — neutral primary. Green is never a brand color.
-  primary: "#1A1F2E"
-  primary-pressed: "#2A3140"
+  primary: "#201E1B"
+  primary-pressed: "#38342E"
   on-primary: "#FFFFFF"
-  secondary: "#EEF0F6"
-  on-secondary: "#1A1F2E"
+  secondary: "#F1EFEC"
+  on-secondary: "#201E1B"
+
+  # Accent (v2.0) — brand punctuation: FAB, tab-active, selected chips, links,
+  # focus, switch on-track. Never on amounts, never replaces primary buttons.
+  # A fill that carries white TEXT (not just a glyph) uses accent-strong.
+  accent: "#0E8A7B"
+  accent-strong: "#0B7268"   # accent as text — 5.8:1 on surface
+  accent-pressed: "#0A675C"
+  accent-wash: "#EBF4F2"
+  accent-edge: "#CDE4E0"
+  on-accent: "#FFFFFF"       # glyphs on accent (3:1+); text needs accent-strong fill
 
   # Surfaces (tonal ladder, low → high)
-  background: "#F2F3F7"
+  background: "#F6F5F3"
   surface: "#FFFFFF"
-  surface-container: "#F0F1F6"
-  surface-container-high: "#E8EAF2"
-  surface-pressed: "#EEF0F6"
-  scrim: "rgba(15,18,24,0.44)"
+  surface-container: "#F1EFEC"
+  surface-container-high: "#E8E5E0"
+  surface-pressed: "#EFEDE9"
+  scrim: "rgba(21,19,17,0.44)"
 
   # Text roles
-  ink: "#1A1F2E"        # primary text, AA on surface & background
-  dim: "#5A6379"        # secondary text, AA at all sizes
-  faint: "#737C91"      # meta/labels ≥12px, AA on surface
-  disabled: "#98A1B5"   # non-text / disabled labels only
-  on-inverse: "#F7F8FB" # text on primary / dark surfaces
+  ink: "#201E1B"        # primary text, AA on surface & background
+  dim: "#5D5952"        # secondary text, AA at all sizes
+  faint: "#726C64"      # meta/labels ≥12px, AA on surface, background and wells
+  disabled: "#A8A29A"   # non-text / disabled labels only
+  on-inverse: "#FAF9F7" # text on primary / dark surfaces
 
   # Lines & low-emphasis
-  outline: "#E2E6F0"
-  outline-variant: "#F0F1F6"
-  outline-strong: "#C0C7DA"
-  chevron: "#C0C7DA"
-  focus-ring: "#2563EB"
+  outline: "#E5E2DD"
+  outline-variant: "#EFEDE9"
+  outline-strong: "#CFCBC4"
+  chevron: "#CFCBC4"
+  focus-ring: "#0E8A7B"
 
   # Status — semantic only, never decorative
   # base = fills and glyphs; strong = the same hue as *text on a surface*,
@@ -97,28 +119,36 @@ colors:
   on-info: "#FFFFFF"
 
 # Dark mode is defined, not deferred. Same semantic names.
+# v2.0 dark: warm dark ramp; accent lightens to teal-dark and holds 6.8:1 as
+# text on surface, so accent and accent-strong converge (same rule as status).
 colors-dark:
-  primary: "#EEF0F6"
-  primary-pressed: "#C0C7DA"
-  on-primary: "#131722"
-  secondary: "#262C38"
-  on-secondary: "#EDEFF4"
-  background: "#0F1218"
-  surface: "#171B23"
-  surface-container: "#1E232D"
-  surface-container-high: "#262C38"
-  surface-pressed: "#20252F"
+  primary: "#EDEAE5"
+  primary-pressed: "#CFCBC4"
+  on-primary: "#151311"
+  secondary: "#2C2823"
+  on-secondary: "#EDEAE5"
+  accent: "#3FB3A2"
+  accent-strong: "#3FB3A2"
+  accent-pressed: "#58C4B4"
+  accent-wash: "#122622"
+  accent-edge: "#1E413B"
+  on-accent: "#151311"
+  background: "#141210"
+  surface: "#1C1917"
+  surface-container: "#242019"
+  surface-container-high: "#2C2823"
+  surface-pressed: "#221F1B"
   scrim: "rgba(0,0,0,0.60)"
-  ink: "#EDEFF4"
-  dim: "#A7AFC0"
-  faint: "#8A93A8"
-  disabled: "#5A6379"
-  on-inverse: "#131722"
-  outline: "#2C3340"
-  outline-variant: "#232935"
-  outline-strong: "#3B4453"
-  chevron: "#5A6379"
-  focus-ring: "#5B9CF8"
+  ink: "#EDEAE5"
+  dim: "#ADA79F"
+  faint: "#8C867D"
+  disabled: "#5D5952"
+  on-inverse: "#151311"
+  outline: "#322E28"
+  outline-variant: "#2A2620"
+  outline-strong: "#453F37"
+  chevron: "#5D5952"
+  focus-ring: "#3FB3A2"
   success: "#3DBB6E"
   success-wash: "#12271C"
   success-edge: "#1F4530"
@@ -156,12 +186,14 @@ typography:
   mono-meta:  { fontFamily: IBMPlexMono, fontSize: 11px, fontWeight: 400, lineHeight: 1.35 }
 
 rounded:
+  # v2.0: one step softer. Buttons/inputs xl, cards 2xl, icon tiles their own step.
   none: 0
   sm: 6px
   md: 8px
   lg: 12px
-  xl: 16px
-  2xl: 20px
+  tile: 14px
+  xl: 18px
+  2xl: 24px
   full: 9999px
 
 spacing:
@@ -180,12 +212,15 @@ spacing:
   row-height-fx: 72px
 
 elevation:
-  # Depth is tonal + hairline; shadows are near-invisible.
+  # Depth is tonal + hairline; shadows are near-invisible (warm-tinted since v2.0).
   flat: "none"
-  card: "0 1px 4px rgba(26,31,46,0.06)"
-  raised: "0 4px 12px rgba(26,31,46,0.08)"
-  float: "0 8px 24px rgba(26,31,46,0.14)"   # FAB, bottom sheet
-  inset: "inset 0 1px 2px rgba(26,31,46,0.05)"
+  card: "0 1px 4px rgba(32,30,27,0.06)"
+  raised: "0 4px 12px rgba(32,30,27,0.08)"
+  float: "0 8px 24px rgba(32,30,27,0.14)"   # FAB, bottom sheet
+  inset: "inset 0 1px 2px rgba(32,30,27,0.05)"
+  # Hero light (v2.0): the one sanctioned gradient. Hero cards only (Total money,
+  # cash flow), one per screen, light theme only — dark uses the tonal ladder.
+  hero-light: "linear-gradient(168deg, #FFFFFF 0%, #FCFDFC 55%, #F3F8F7 100%)"
 
 motion:
   duration-instant: 90ms
@@ -207,8 +242,8 @@ chart:
   slot-6: "#008300"
   slot-7: "#4a3aa7"
   slot-8: "#e34948"   # also the "Other" bucket
-  grid: "#EEF0F6"
-  axis-label: "#737C91"
+  grid: "#EFEDE9"
+  axis-label: "#726C64"
   tint-alpha: 0.12    # same hue at 12% alpha = category tile / chip fill
 
 components:
@@ -235,7 +270,7 @@ components:
     padding: "14px {spacing.md}"
   button-tertiary:
     backgroundColor: transparent
-    textColor: "{colors.info}"
+    textColor: "{colors.accent-strong}"
     typography: "{typography.label}"
     padding: "{spacing.xs} {spacing.sm}"
   card:
@@ -253,7 +288,7 @@ components:
     backgroundColor: "{colors.surface-container}"
     textColor: "{colors.ink}"
     typography: "{typography.body}"
-    rounded: "{rounded.lg}"
+    rounded: "{rounded.xl}"
     padding: "12px {spacing.md}"
     minHeight: "{spacing.touch-min}"
   badge:
@@ -265,15 +300,15 @@ components:
   icon-box:
     size: 40px
     backgroundColor: "{colors.secondary}"
-    rounded: "{rounded.xl}"
+    rounded: "{rounded.tile}"
   progress-bar:
     height: 6px
     track: "{colors.surface-container-high}"
     rounded: "{rounded.full}"
   fab:
     size: 56px
-    backgroundColor: "{colors.primary}"
-    textColor: "{colors.on-primary}"
+    backgroundColor: "{colors.accent}"
+    textColor: "{colors.on-accent}"
     rounded: "{rounded.full}"
     shadow: "{elevation.float}"
 ---
@@ -286,15 +321,17 @@ components:
 ## Overview
 
 Financi-Ally is an offline-first personal expense & budget tracker built on a double-entry ledger with
-multi-currency support. The UI should feel like a calm, trustworthy financial tool — closer to a private
-banking statement than a gamified spending app. **Restraint is the aesthetic**: generous whitespace,
-monospaced numerals that line up, color used surgically to signal meaning rather than to decorate.
+multi-currency support. The UI should feel like **a well-made tool that is glad you opened it** — warm but
+still calm, precise without being cold. Restraint remains the backbone: generous whitespace, monospaced
+numerals that line up, color used surgically to signal meaning. Since v2.0 (sea-glass, RFC 0002) warmth is
+part of the spec, not a violation of it: warm-gray neutrals, one teal accent used as punctuation, and light
+on hero surfaces.
 
-- **Personality**: precise, calm, trustworthy
+- **Personality**: warm, calm, precise (trustworthy is the product of all three)
 - **Audience**: an individual managing personal finances across accounts and currencies; base currency is
   frequently IDR, with foreign-currency accounts converted to base for a unified net worth
-- **Style direction**: editorial minimalism with financial-services calm — tonal surfaces, hairline borders,
-  one neutral primary, semantic color only
+- **Style direction**: sea-glass — editorial minimalism warmed up; tonal surfaces, hairline borders, warm
+  neutrals, one accent as punctuation, semantic color untouched
 
 ## Where this lives in code
 
@@ -337,37 +374,65 @@ an atom here first** — not to hand-roll it in the screen.
 | 10 | **Category color mapping unified with the chart ramp** (`chart.tint-alpha`) | Categories were tinted ad-hoc, so a category's color in a list didn't match its slice in a chart. |
 | 11 | **Destructive actions go through a `Dialog`** | Budgets and recurring rules deleted on a single tap of a tiny `DELETE` link. |
 
+### What changed in v2.0 (sea-glass, and why)
+
+Chosen from three prototyped directions in `design-explore/01-humane-visual/`; rationale in
+`docs/rfc/0002-sea-glass-visual.md` and DECISION.md there.
+
+| # | Change | Why |
+|---|---|---|
+| 1 | **Neutral ramp goes warm** (cool slate → warm gray; same alias names, new values) | The slate ramp read as a cold terminal. Warm grays keep the banking-statement crispness while losing the chill; every text pairing re-validated AA in both themes. |
+| 2 | **Accent family added** (`accent`/`-strong`/`-pressed`/`-wash`/`-edge`, teal) | The system had zero brand hue, so nothing on screen ever felt owned. Teal enters as punctuation only — FAB, tab-active, selected chips, links, focus, switch-on — never on amounts, never replacing `primary` buttons. |
+| 3 | **Info retires from chrome** | Links, focus and tertiary buttons were info-blue by default, diluting blue's meaning. They now run on accent; `info` keeps one job — transfers and neutral notices — with the same strictness as green/red/amber. |
+| 4 | **Radii one step softer** (buttons/inputs 18, cards/sheets 24, icon tiles `tile` 14) | Softer shapes carry the warmth without touching layout or density. |
+| 5 | **Hero light** (`elevation.hero-light`) | One sanctioned near-invisible gradient on hero cards reads as light on glass. The no-gradients rule holds everywhere else, and in dark mode entirely. |
+| 6 | **`faint` darkened to `#726C64`** | The straight warm translation of the old value fell to 4.26:1 on `background`; the darker step passes 4.5 on background, surface and wells. |
+| 7 | **White text needs `accent-strong` fill** | White on `accent` is 4.25:1 — enough for the FAB glyph (3:1 graphical), not for a 13px label. Any accent fill carrying text uses `accent-strong` (5.8:1). |
+
 ## Colors
 
-The palette is intentionally quiet so the numbers do the talking. A near-black neutral (`primary`) carries
-every structural action — primary buttons, tab-active, FAB — so the eye never mistakes a brand flourish for
-a semantic signal. **Green appears only on income/gains; red only on expenses/losses; amber only on budget
-caution.** This strict separation is the single most important color rule in the system.
+The palette is quiet so the numbers do the talking, and warm so the quiet doesn't read as cold. A
+near-black neutral (`primary`) still carries primary buttons and high-emphasis fills; the teal `accent`
+carries the brand moments — FAB, tab-active, selected chips, links, focus, switch-on. **Green appears only
+on income/gains; red only on expenses/losses; amber only on budget caution.** This strict separation is
+the single most important color rule in the system, and the accent obeys it too:
+
+- **Accent never touches money.** No amount, sign, progress-by-ratio or status meaning ever renders in
+  accent. If a figure is teal, that is a bug.
+- **Accent is punctuation, not paint.** One accent moment per screen region; accent fills never sit
+  adjacent to success-green fills — a hairline or neutral surface always separates the two hues.
+- **Accent does not replace primary.** Primary buttons stay near-black; accent takes the places gray and
+  blue chrome used to sit, not the places ink sits.
+- **White text sits on `accent-strong`, not `accent`.** The base fill only clears 3:1 — enough for the FAB
+  glyph, not for a label.
 
 **Structure.** `palette` holds raw ramps; `colors` holds the semantic aliases UI code consumes. Never
 reference a `palette` value directly in a component — add a semantic alias instead. Each status hue has
 three steps: **base** (text/marks), **wash** (fill), **edge** (border). A tinted container is always
 wash + edge + base text, never base at partial opacity.
 
-- **Primary** `#1A1F2E` — primary actions, tab-active, FAB, high-emphasis text (`ink` is the same value).
-- **Secondary** `#EEF0F6` — soft neutral fills: icon boxes, quiet chips, segmented tracks.
-- **Surfaces** — `background` `#F2F3F7` → `surface` `#FFFFFF` → `surface-container` `#F0F1F6` (recessed
-  wells) → `surface-container-high` `#E8EAF2` (tracks, quiet badges).
+- **Primary** `#201E1B` — primary actions and high-emphasis text (`ink` is the same value).
+- **Accent** `#0E8A7B` (text step `#0B7268`) — FAB, tab-active, selected chips, links, focus, switch-on.
+  Tinted accent containers are `accent-wash` + `accent-edge` + `accent-strong` text, same trio rule as status.
+- **Secondary** `#F1EFEC` — soft neutral fills: icon boxes, quiet chips, segmented tracks.
+- **Surfaces** — `background` `#F6F5F3` → `surface` `#FFFFFF` → `surface-container` `#F1EFEC` (recessed
+  wells) → `surface-container-high` `#E8E5E0` (tracks, quiet badges).
 - **Text** — `ink` for primary, `dim` for secondary/supporting sentences, `faint` for meta and ALL-CAPS
   labels (≥12px only), `disabled` for disabled labels and non-text marks.
 - **Lines** — `outline` for card borders and section dividers, `outline-variant` for in-card hairlines,
   `outline-strong` for a border that must read against `surface-container` (and the sheet grab handle),
   `chevron` for affordance glyphs.
-- **Focus** — `focus-ring` `#2563EB`, 2px outline + 2px offset. Always visible on keyboard/switch-control focus.
+- **Focus** — `focus-ring` `#0E8A7B` (accent), 2px outline + 2px offset. Always visible on
+  keyboard/switch-control focus.
 
 **Status colors carry meaning — never decorative:** `success` income, gains, synced, under budget ·
 `warning` budget ≥75%, stale FX rate, offline-but-usable · `error` expenses, over budget, destructive,
-validation failure · `info` transfers, inline links, neutral notices.
+validation failure · `info` transfers and neutral notices only (links moved to accent in v2.0).
 
 **Dark mode.** `colors-dark` mirrors every semantic name. Rules that change: `primary` inverts to a light
-neutral with dark `on-primary`; status hues lighten to hold ≥4.5:1 on `surface` `#171B23`; shadows are
-inert on dark — depth comes from the tonal ladder and `outline` only. **Defined but not yet wired** — see
-Open gaps.
+neutral with dark `on-primary`; `accent` lightens to `#3FB3A2` and converges with `accent-strong` (6.8:1 as
+text on `surface` `#1C1917`); status hues hold ≥4.5:1 on the warm dark surface; shadows and `hero-light`
+are inert on dark — depth comes from the tonal ladder and `outline` only.
 
 ## Typography
 
@@ -435,12 +500,16 @@ Mobile-first, single-column, scrollable canvases on tonal `background` with whit
 - Inputs/wells: recessed — `surface-container`, no border, optional `elevation.inset`; they read carved-in.
 - Only genuinely floating affordances get `elevation.float`: the FAB and bottom sheets. Nothing else.
 - Pressed states darken the surface tone (`surface-pressed`).
+- **Hero light (v2.0)**: hero cards (Total money, cash flow) may carry `elevation.hero-light`, a
+  near-invisible white-to-accent-tint gradient that reads as light on glass. One per screen, hero cards
+  only, light theme only. Every other gradient remains banned.
 
 ## Shapes
 
-Softly rounded, one language per view. Buttons `xl` (16px) · cards & containers `2xl` (20px) ·
-inputs & wells `lg` (12px) · icon tiles `xl` · pills, badges, avatars, FAB `full` · hero amounts have no
-container — type carries them. **Do not introduce sharp rectangles**, and don't mix radii on one surface.
+Softly rounded — one step softer since v2.0 — one language per view. Buttons & inputs `xl` (18px) ·
+cards, containers & sheets `2xl` (24px) · icon tiles `tile` (14px) · keypad keys `xl` · pills, badges,
+avatars, FAB `full` · hero amounts have no container — type carries them. `lg` (12px) survives for small
+interior wells. **Do not introduce sharp rectangles**, and don't mix radii on one surface.
 
 ## Motion
 
@@ -474,10 +543,10 @@ Every interactive component defines: **resting, pressed, disabled, loading**.
 | Primary | `primary` | `on-primary` | — | `primary-pressed` | `secondary` fill, `disabled` text |
 | Secondary | `surface` | `ink` | 1px `outline` | `surface-pressed` | `surface` fill, `disabled` text, `outline-variant` border |
 | Destructive | `error-wash` | `error` | 1px `error-edge` | `error-edge` fill | `surface-container`, `disabled` text |
-| Tertiary / link | none | `info` (or `ink`) | — | 60% opacity | `disabled` text |
+| Tertiary / link | none | `accent-strong` (or `ink`) | — | 60% opacity | `disabled` text |
 
 One Primary per screen; demote everything else. **Never a green primary** — green means money-positive,
-not "go". Full-width buttons in forms and sheets; inline auto-width (`fullWidth={false}`) in headers and
+not "go" — **and never an accent primary**: accent is chrome punctuation, not an action fill. Full-width buttons in forms and sheets; inline auto-width (`fullWidth={false}`) in headers and
 row actions. Loading = label swaps for a spinner at the label's color, width held constant.
 
 ### Cards
@@ -486,24 +555,25 @@ their row padding). Cards group related content; never nest a card in a card. Li
 `outline-variant` hairlines, inset to the text column (68px) when rows have icon boxes.
 
 ### List rows
-Icon box (40px, `xl`, `secondary` or category tint) · title `body-strong` in `ink` · subtitle `caption` in
+Icon box (40px, `tile`, `secondary` or category tint) · title `body-strong` in `ink` · subtitle `caption` in
 `faint` · trailing amount (mono, semantic color) with optional `amount-sm` conversion line beneath ·
 optional `chevron` at 16px. Whole row is the touch target; pressed = `surface-pressed`.
 
 ### Input fields
-`surface-container` well, `lg`, padding 12/16, min-height 44. Label above in `label`/`ink`; helper below in
+`surface-container` well, `xl`, padding 12/16, min-height 44. Label above in `label`/`ink`; helper below in
 `caption`/`faint`; error state turns helper and value `error` and adds a 1px `error-edge` border. Amount
 inputs use mono, right-aligned, with the currency code as a `faint` prefix.
 
 ### Selects, switches, segmented controls
-Select = input well + `chevron`, opens a bottom sheet (no native dropdown). Switch track `primary` when on /
+Select = input well + `chevron`, opens a bottom sheet (no native dropdown). Switch track `accent` when on /
 `surface-container-high` when off, knob `surface`. Segmented control = `surface-container` track, `full`
 radius, active thumb `surface`, active label `ink`, inactive `faint`.
 
 ### Badges & chips
 Badge: `surface-container-high` fill, `dim` text, `full`, `caption`, 3/10 padding. Status badge swaps to the
 matching wash/edge/base trio **and always carries a word or glyph** — never color alone. Filter chip:
-inactive = `surface` + `outline`; active = `primary` fill + `on-primary`.
+inactive = `surface` + `outline`; active = `accent-strong` fill + white label (the base `accent` fill
+doesn't clear AA for 13px text).
 
 ### Progress bars
 6px track (`surface-container-high`), `full`, fill semantic **by ratio**: `success` <75%, `warning` 75–99%,
@@ -526,8 +596,8 @@ the tab bar. Stale FX: `warning` `mono-meta` under the converted figure. Loading
 skeleton blocks at the real element's size and radius — never a full-screen spinner.
 
 ### Bottom tab bar
-`surface`, 1px top `outline`, Lucide glyph + label per tab. Active = `primary`, inactive = `faint`. Labels
-always visible. Slots are Home · History · **FAB** · Buckets · More, with a 56px `primary` FAB (`+`)
+`surface`, 1px top `outline`, Lucide glyph + label per tab. Active = `accent-strong`, inactive = `faint`.
+Labels always visible. Slots are Home · History · **FAB** · Buckets · More, with a 56px `accent` FAB (`+`)
 breaking the top edge. Built as `TabBar` in `src/components/ui/nav.tsx` — a hand-laid bar rather than
 expo-router's default, since the FAB is not a route.
 
@@ -547,8 +617,9 @@ using the ramp ships a labelled legend** with name + value — identity is never
 - Series color belongs to marks only; values, labels and legends stay `ink`/`dim`/`faint`.
 - A category's list tint and its chart slice should come from the same slot (`tint-alpha` 0.12) — see
   Open gaps for where the implementation currently diverges.
-- Single-series charts use `primary` for the current period and `surface-container-high` for the rest — no
-  ramp, no legend.
+- Single-series charts use `accent` (or `ink`) for the emphasized period and `surface-container-high` for
+  the rest — no ramp, no legend. The emphasized mark is the one chart element accent may color; it still
+  never encodes gain/loss.
 - Never a second y-axis; two measures of different scale get two charts. Grid and axes stay recessive.
 
 ## Do's and don'ts
@@ -560,7 +631,11 @@ using the ramp ships a labelled legend** with name + value — identity is never
 - **Do** add a semantic alias when you need a new color role — not a raw hex at the call site.
 - **Do** add an atom to `src/components/ui/` before hand-rolling a new visual in a screen.
 - **Don't** use status colors decoratively; a red badge means error/expense, full stop.
-- **Don't** introduce hard drop shadows, gradients, or textures. Depth is tonal + hairline.
+- **Do** treat accent as punctuation: one accent moment per screen region, never on an amount, never a
+  button fill, never adjacent to a success-green fill.
+- **Do** put white text on `accent-strong`, never on `accent` — the base fill is glyph-only contrast.
+- **Don't** introduce hard drop shadows, gradients, or textures. Depth is tonal + hairline. The one
+  exception is `hero-light` on hero cards, light theme only.
 - **Don't** signal state with color alone — pair with sign, glyph, or text.
 - **Don't** mix radii, or introduce a second typeface.
 - **Don't** reach for an arbitrary size (`text-[13px]`) — if no type role fits, the scale is wrong; fix it here.
@@ -644,6 +719,7 @@ eighth hi-fi screen. What remains is below.
 
 | Gap | Canon | Current | Priority |
 |---|---|---|---|
+| Sea-glass tokens in code | v2.0 tokens above (warm ramp, accent, radii, hero-light) | **Closed on mobile** (RFC 0002 rollout steps 2–3: tokens, accent adoption, hero-light); the web client still carries v1.x values in `index.css` and follows in its own pass | High |
 | Spaces (personal / shared / freelance) | Sharing boundary; totals never mix | No concept in the model or UI; Home and Buckets show a single inert "Personal" chip | High |
 | Wording mode covers every string | One switch renames the whole app | **Closed on mobile.** Every mobile string is in the catalog and mode is a dimension of it; the web client still holds its own literals and migrates in its own pass | Med |
 | Bucket reorder and hide | Press and hold to reorder; hidden means quiet, not excluded | Buckets are derived from account `type` + `currency`, so their order is fixed and none can be hidden — the hi-fi's "press and hold to reorder" hint is deliberately absent rather than inert | Med |
@@ -652,7 +728,7 @@ eighth hi-fi screen. What remains is below.
 | Foreign bucket totals | Converted at the ledger's rate | Converted client-side from `/fx/rates` for display; the row says `converted at cached rate`, and an unconvertible child collapses the whole total to `rate unavailable` | Med |
 | Category slot persistence | A category's slot is assigned once and persisted, so its list tint matches its chart slice | `categorySlot()` derives the slot from the account id — stable across sessions without a migration, but it won't match the rank-ordered slice color in Reports | Med |
 | Destructive actions in a row of three | Never alone under the thumb | Entry detail pairs Duplicate + Delete; `Dialog` pairs Cancel + Destructive | Low |
-| Chart ramp in dark mode | Ramp re-validated against dark `surface` `#171B23` | Validated on `#FFFFFF` only; the ramp and its 12% tints are shared across both themes unchanged | Med |
+| Chart ramp in dark mode | Ramp re-validated against dark `surface` `#1C1917` | Validated on `#FFFFFF` only; the ramp and its 12% tints are shared across both themes unchanged | Med |
 | Motion | Enter/exit/press durations and easings applied | **Closed on mobile.** `EASING` sits beside `DURATION`; sheets and dialogs animate in/out on the tokens, headline figures cross-fade, progress bars ease their width, press-scale is on every discrete affordance, and reduced-motion is honoured in the primitives. Web is unchanged | Low |
 | Platform-adaptive chrome | — | Unified, iOS-flavored on both | Low |
 | Brand mark | — | None exists; the wordmark is set in Outfit Bold wherever a logo would go | Low |
@@ -661,9 +737,19 @@ eighth hi-fi screen. What remains is below.
 
 **Numeral face** was JetBrains Mono through v1.0; replaced by IBM Plex Mono on 2026-07-31 (see Typography).
 
+**Cool slate neutrals** (`#F2F3F7` background / `#1A1F2E` ink family) were the ramp through v1.3; replaced
+by the warm-gray sea-glass ramp on 2026-08-17 (RFC 0002). Same alias names, so the swap is values-only.
+
+**Chrome blue** — info-blue links, focus ring and tertiary buttons — retired 2026-08-17; the accent family
+took those roles, and `info` narrowed to transfers and neutral notices.
+
+**Rejected accent candidates** from the sea-glass round: warm indigo `#5B5BD6` (morning-air, drifted too
+soft with its cream neutrals) and mulberry `#8E4585` (plum-hearth, accent-led, spent the color budget).
+Prototypes preserved in `design-explore/01-humane-visual/variants/`.
+
 ---
 
-**Last updated**: 2026-08-01 · **Version**: 1.3
+**Last updated**: 2026-08-17 · **Version**: 2.0
 **How AI agents should read this**: tokens above are normative — use them verbatim. Prose is rationale — it
 answers "why" so judgment calls during implementation match the brand's intent. When prose and tokens
 disagree, tokens win.

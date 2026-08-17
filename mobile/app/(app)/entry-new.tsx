@@ -261,11 +261,15 @@ export default function EntryNew() {
         <Text className="text-headline font-sans-semibold text-ink">{t("addEntry")}</Text>
         <Pressable
           onPress={save}
-          disabled={busy}
+          disabled={busy || !!missing}
           accessibilityRole="button"
           className="min-h-touch justify-center"
         >
-          <Text className="text-body-strong font-sans-semibold text-info">Save</Text>
+          <Text
+            className={`text-body-strong font-sans-semibold ${missing ? "text-disabled" : "text-info"}`}
+          >
+            Save
+          </Text>
         </Pressable>
       </View>
 

@@ -158,26 +158,28 @@ export default function EntryNew() {
   useEffect(() => {
     setFromId((cur) => (cur && fromOptions.some((a) => a.id === cur) ? cur : null));
     setToId((cur) => (cur && toOptions.some((a) => a.id === cur) ? cur : null));
-    // Narrow deps on purpose: fromOptions/toOptions are rebuilt every render.
-  }, [mode, accounts.length]);
+  }, [mode, accounts]);
 
-  const from = active.find((a) => a.id === fromId) ?? null;
-  const to = active.find((a) => a.id === toId) ?? null;
+  // Resolved against the options, not all accounts: an id that arrived by deep
+  // link or went stale when an account was archived resolves to null and never
+  // reaches save().
+  const from = fromOptions.find((a) => a.id === fromId) ?? null;
+  const to = toOptions.find((a) => a.id === toId) ?? null;
   const currency = from?.currency ?? base;
 
   async function save() {
     setErr(null);
-    if (!fromId || !toId) {
+    if (!from || !to) {
       setErr(`Pick where the money comes ${mode === "in" ? "from" : "out of"} and where it goes`);
       return;
     }
-    if (fromId === toId) {
+    if (from.id === to.id) {
       setErr("Pick two different accounts");
       return;
     }
     // Both legs post in the source currency; cross-currency needs an fx_rate
     // this screen does not collect yet, and the server rejects the entry.
-    if (from && to && from.currency !== to.currency) {
+    if (from.currency !== to.currency) {
       setErr(`Both sides must use the same currency — ${from.name} is ${from.currency}, ${to.name} is ${to.currency}`);
       return;
     }
@@ -206,14 +208,14 @@ export default function EntryNew() {
         });
         await database.get("journal_lines").create((l: any) => {
           l.entryId = entry.id;
-          l.accountId = toId;
+          l.accountId = to.id;
           l.dc = "debit";
           l.amountMinor = minor;
           l.currency = currency;
         });
         await database.get("journal_lines").create((l: any) => {
           l.entryId = entry.id;
-          l.accountId = fromId;
+          l.accountId = from.id;
           l.dc = "credit";
           l.amountMinor = minor;
           l.currency = currency;

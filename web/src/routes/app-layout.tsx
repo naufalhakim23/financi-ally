@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/lib/auth";
 import { useAccounts } from "@/lib/queries";
-import { setupSkipped } from "@/lib/setup";
+import { setupDismissed, setupSkipped } from "@/lib/setup";
 import { useOnline } from "@/lib/use-online";
 import { cn } from "@/lib/utils";
 import { useWording } from "@/lib/wording";
@@ -198,7 +198,7 @@ export function AppLayout() {
 function EmptyLedgerRedirect() {
   const { isSuccess, accounts } = useAccounts();
 
-  if (setupSkipped()) return null;
+  if (setupSkipped() || setupDismissed()) return null;
   if (!isSuccess || accounts.length > 0) return null;
   return <Navigate to="/app/setup" replace />;
 }

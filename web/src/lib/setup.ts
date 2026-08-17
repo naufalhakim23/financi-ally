@@ -26,6 +26,17 @@ function dismissKey(): string {
   return `${DISMISS_PREFIX}:${activeLedgerId() ?? "personal"}`;
 }
 
+/**
+ * Whether this book already waved the checklist away.
+ *
+ * Exported for the empty-ledger guard: dismissing the card is the same answer
+ * as skipping the wizard, only a lasting one, so a book kept deliberately empty
+ * must not be marched back into onboarding every new session.
+ */
+export function setupDismissed(): boolean {
+  return readDismissed();
+}
+
 function readDismissed(): boolean {
   try {
     return localStorage.getItem(dismissKey()) === "1";

@@ -337,12 +337,13 @@ export default function HomeScreen() {
 
         <View className="flex-row items-center justify-between mt-1">
           <SectionLabel>{t("buckets")}</SectionLabel>
-          <Text
-            className="text-label font-sans-semibold text-info"
+          <Pressable
+            accessibilityRole="button"
+            hitSlop={12}
             onPress={() => router.push("/(app)/(tabs)/buckets")}
           >
-            {s.home.manage}
-          </Text>
+            <Text className="text-label font-sans-semibold text-info">{s.home.manage}</Text>
+          </Pressable>
         </View>
 
         <Card padded={false}>
@@ -403,12 +404,13 @@ export default function HomeScreen() {
           <>
             <View className="flex-row items-center justify-between mt-1">
               <SectionLabel>{s.home.planLabel}</SectionLabel>
-              <Text
-                className="text-label font-sans-semibold text-info"
-                onPress={() => router.push("/(app)/budgets")}
+              <Pressable
+                accessibilityRole="button"
+                hitSlop={12}
+                onPress={() => router.push(guest ? "/register" : "/(app)/budgets")}
               >
-                {s.home.seeAll}
-              </Text>
+                <Text className="text-label font-sans-semibold text-info">{s.home.seeAll}</Text>
+              </Pressable>
             </View>
             <Card>
               <View style={{ gap: 12 }}>

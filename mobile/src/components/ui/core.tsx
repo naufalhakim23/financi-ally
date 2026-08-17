@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { ActivityIndicator, Text, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { Plus } from "lucide-react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 
@@ -7,7 +8,9 @@ import { format } from "../../lib/money";
 import {
   DURATION,
   EASING,
+  HERO_LIGHT,
   ICON,
+  fabShadow,
   type Palette,
   useTheme,
   type Glyph,
@@ -67,22 +70,35 @@ export function usePressedScale(hapticKind?: HapticKind) {
 // composable; screen-specific layout stays in the screen. Every interactive
 // atom defines resting / pressed / disabled / loading.
 
-/** White surface card with hairline border + near-invisible elevation. */
+/**
+ * White surface card with hairline border + near-invisible elevation.
+ *
+ * `hero` is the one card per screen that carries the figure the screen is about:
+ * roomier padding, plus `elevation.hero-light`, the one sanctioned gradient
+ * (DESIGN.md → Elevation & depth). Light theme only — on dark the tonal ladder
+ * carries the depth and a gradient would read as mud.
+ */
 export function Card({
   children,
   className = "",
   padded = true,
+  hero = false,
 }: {
   children: React.ReactNode;
   className?: string;
   padded?: boolean;
+  hero?: boolean;
 }) {
-  const { ELEVATION } = useTheme();
+  const { ELEVATION, dark } = useTheme();
+  const lit = hero && !dark;
   return (
     <View
-      className={`bg-surface rounded-2xl border border-outline ${padded ? "p-4" : ""} ${className}`}
+      className={`bg-surface rounded-2xl border border-outline ${lit ? "overflow-hidden" : ""} ${padded ? (hero ? "p-5" : "p-4") : ""} ${className}`}
       style={ELEVATION.card}
     >
+      {lit && (
+        <LinearGradient {...HERO_LIGHT} style={StyleSheet.absoluteFill} />
+      )}
       {children}
     </View>
   );
@@ -130,7 +146,7 @@ const BUTTON_STYLE: Record<
     base: "",
     pressed: "opacity-60",
     disabled: "",
-    text: "text-info",
+    text: "text-accent-strong",
     disabledText: "text-disabled",
   },
 };
@@ -139,7 +155,7 @@ const spinnerColor = (C: Palette): Record<ButtonVariant, string> => ({
   primary: C.onPrimary,
   secondary: C.ink,
   destructive: C.error,
-  tertiary: C.info,
+  tertiary: C.accentStrong,
 });
 
 /**
@@ -208,7 +224,7 @@ export function Button({
 
 /** Floating add affordance. The only element besides sheets that truly floats. */
 export function Fab({ onPress, size = 56 }: { onPress: () => void; size?: number }) {
-  const { C, ELEVATION } = useTheme();
+  const { C, ELEVATION, dark } = useTheme();
   const { pressed, pressStyle, handlers } = usePressedScale("tapLight");
   return (
     <AnimatedPressable
@@ -216,10 +232,10 @@ export function Fab({ onPress, size = 56 }: { onPress: () => void; size?: number
       accessibilityRole="button"
       accessibilityLabel="Add entry"
       {...handlers}
-      className={`rounded-full items-center justify-center ${pressed ? "bg-primary-pressed" : "bg-primary"}`}
-      style={[{ width: size, height: size }, ELEVATION.float, pressStyle]}
+      className={`rounded-full items-center justify-center ${pressed ? "bg-accent-pressed" : "bg-accent"}`}
+      style={[{ width: size, height: size }, fabShadow(C, ELEVATION, dark), pressStyle]}
     >
-      <Plus size={ICON.xxl} color={C.onPrimary} strokeWidth={1.75} />
+      <Plus size={ICON.xxl} color={C.onAccent} strokeWidth={1.75} />
     </AnimatedPressable>
   );
 }
@@ -320,28 +336,37 @@ export function ProgressBar({ pct }: { pct: number }) {
 /**
  * 40px tinted tile holding a Lucide glyph. `slot` tints it from the chart ramp
  * so a category reads the same color wherever it appears; without a slot it
- * falls back to the quiet neutral fill.
+ * falls back to the quiet neutral fill. Ramp tints belong to categories only —
+ * buckets and other structural rows stay neutral so the ramp keeps meaning
+ * something. `accent` is the one-per-screen brand tile.
  */
 export function IconBox({
   glyph: G,
   slot,
+  tone = "neutral",
   size = 40,
 }: {
   glyph: Glyph;
   slot?: number;
+  tone?: "neutral" | "accent";
   size?: number;
 }) {
   const { C } = useTheme();
   const tinted = slot != null;
+  const fill = tinted ? "" : tone === "accent" ? "bg-accent-wash" : "bg-secondary";
   return (
     <View
-      className={`rounded-xl items-center justify-center shrink-0 ${tinted ? "" : "bg-secondary"}`}
+      className={`rounded-tile items-center justify-center shrink-0 ${fill}`}
       style={[
         { width: size, height: size },
         tinted ? { backgroundColor: slotTint(slot) } : null,
       ]}
     >
-      <G size={ICON.xl} color={tinted ? slotColor(slot) : C.dim} strokeWidth={1.75} />
+      <G
+        size={ICON.xl}
+        color={tinted ? slotColor(slot) : tone === "accent" ? C.accentStrong : C.dim}
+        strokeWidth={1.75}
+      />
     </View>
   );
 }
@@ -380,7 +405,8 @@ export function Badge({
   );
 }
 
-/** Filter chip: inactive is a bordered surface, active fills with primary. */
+/** Filter chip: inactive is a bordered surface, active fills with accent-strong
+ * (the base accent fill doesn't clear AA for 13px text). */
 export function Chip({
   label,
   active = false,
@@ -400,14 +426,14 @@ export function Chip({
       style={pressStyle}
       className={`rounded-full px-3.5 py-2 border ${
         active
-          ? "bg-primary border-primary"
+          ? "bg-accent-strong border-accent-strong"
           : pressed
             ? "bg-surface-pressed border-outline"
             : "bg-surface border-outline"
       }`}
     >
       <Text
-        className={`text-label font-sans-semibold ${active ? "text-on-primary" : "text-ink"}`}
+        className={`text-label font-sans-semibold ${active ? "text-on-accent" : "text-ink"}`}
       >
         {label}
       </Text>

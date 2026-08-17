@@ -191,6 +191,17 @@
   --color-chart-7: var(--chart-7);
   --color-chart-8: var(--chart-8);
 
+  /* 12% wash of the matching slot, for the icon tile behind a category. Derived
+     rather than hand-mixed so a slot and its tile can never drift apart. */
+  --color-chart-1-wash: color-mix(in srgb, var(--chart-1) 12%, transparent);
+  --color-chart-2-wash: color-mix(in srgb, var(--chart-2) 12%, transparent);
+  --color-chart-3-wash: color-mix(in srgb, var(--chart-3) 12%, transparent);
+  --color-chart-4-wash: color-mix(in srgb, var(--chart-4) 12%, transparent);
+  --color-chart-5-wash: color-mix(in srgb, var(--chart-5) 12%, transparent);
+  --color-chart-6-wash: color-mix(in srgb, var(--chart-6) 12%, transparent);
+  --color-chart-7-wash: color-mix(in srgb, var(--chart-7) 12%, transparent);
+  --color-chart-8-wash: color-mix(in srgb, var(--chart-8) 12%, transparent);
+
   /* shadcn/ui aliases, pointed at the roles above so an imported component
      arrives already speaking Financi-Ally. */
   --color-foreground: var(--ink);

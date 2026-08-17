@@ -26,28 +26,33 @@ export function TabBar({
   onAdd: () => void;
   addLabel?: string;
 }) {
+  const { ELEVATION } = useTheme();
   const insets = useSafeAreaInsets();
   const left = slots.slice(0, 2);
   const right = slots.slice(2, 4);
 
   return (
-    <View
-      className="flex-row items-end bg-surface border-t border-outline px-2 pt-2.5"
-      style={{ paddingBottom: Math.max(insets.bottom, 12) }}
-    >
-      {left.map((s) => (
-        <TabItem key={s.name} slot={s} active={s.name === activeName} onPress={() => onSelect(s.name)} />
-      ))}
+    // The island floats clear of the screen edges, so the wrapper carries the
+    // safe-area gap and the inner pill carries the surface.
+    <View className="px-4 pt-1" style={{ paddingBottom: Math.max(insets.bottom, 12) }}>
+      <View
+        className="flex-row items-end bg-surface border border-outline rounded-2xl px-2 pt-2.5 pb-2.5"
+        style={ELEVATION.float}
+      >
+        {left.map((s) => (
+          <TabItem key={s.name} slot={s} active={s.name === activeName} onPress={() => onSelect(s.name)} />
+        ))}
 
-      {/* The FAB overhangs the bar's top edge; the slot keeps its width so the
-          four labels stay evenly spaced. */}
-      <View className="flex-1 items-center">
-        <Fab onPress={onAdd} label={addLabel} />
+        {/* The FAB overhangs the island's top edge; the slot keeps its width so
+            the four labels stay evenly spaced. */}
+        <View className="flex-1 items-center">
+          <Fab onPress={onAdd} label={addLabel} />
+        </View>
+
+        {right.map((s) => (
+          <TabItem key={s.name} slot={s} active={s.name === activeName} onPress={() => onSelect(s.name)} />
+        ))}
       </View>
-
-      {right.map((s) => (
-        <TabItem key={s.name} slot={s} active={s.name === activeName} onPress={() => onSelect(s.name)} />
-      ))}
     </View>
   );
 }

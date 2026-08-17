@@ -198,10 +198,15 @@ export function formatGrouped(currency: string, minor: number): string {
   return grouped(currency, minor);
 }
 
+/** Thousands separators for a run of digits. Display only. */
+export function groupDigits(digits: string): string {
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
 function grouped(currency: string, minor: number): string {
   const raw = format(currency, Math.abs(minor));
   const [intPart, frac = ""] = raw.split(".");
-  const withSeparators = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  const withSeparators = groupDigits(intPart ?? "");
   return frac ? `${withSeparators}.${frac}` : withSeparators;
 }
 

@@ -1,7 +1,17 @@
+import { useEffect } from "react";
 import { Pressable, Text, View } from "react-native";
 import { ArrowLeftRight, ChevronRight, Plus, TriangleAlert } from "lucide-react-native";
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated";
 
-import { Amount, Button, Card, IconBox, usePressed } from "./core";
+import { Amount, Button, Card, IconBox, usePressed, usePressedScale } from "./core";
+import { AnimatedPressable } from "./motion";
 import { ICON, useTheme, type Glyph } from "./tokens";
 
 // ─── List atoms (DESIGN.md v1.0 → List rows, Empty states) ──────────────────
@@ -203,19 +213,20 @@ export function RowAction({
   tone?: "neutral" | "info";
 }) {
   const { C } = useTheme();
-  const { pressed, handlers } = usePressed();
+  const { pressed, pressStyle, handlers } = usePressedScale("tap");
   return (
-    <Pressable
+    <AnimatedPressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
       {...handlers}
+      style={pressStyle}
       className={`w-9 h-9 rounded-xl border border-outline items-center justify-center ${
         pressed ? (tone === "info" ? "bg-info-wash" : "bg-surface-pressed") : "bg-surface"
       }`}
     >
       <G size={17} color={tone === "info" ? C.info : C.ink} strokeWidth={1.75} />
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 
@@ -277,7 +288,22 @@ export function DayHeader({ label, total }: { label: string; total?: string }) {
   );
 }
 
-/** Placeholder block for content still loading. Sized by the caller. */
+// Loading placeholder, sized by the caller. Pulses so it doesn't read as failed content.
 export function Skeleton({ className = "" }: { className?: string }) {
-  return <View className={`bg-surface-container rounded-lg ${className}`} />;
+  const opacity = useSharedValue(1);
+  useEffect(() => {
+    opacity.value = withRepeat(
+      withSequence(
+        withTiming(0.45, { duration: 700, easing: Easing.inOut(Easing.quad) }),
+        withTiming(1, { duration: 700, easing: Easing.inOut(Easing.quad) }),
+      ),
+      -1,
+    );
+  }, [opacity]);
+  const pulse = useAnimatedStyle(() => ({ opacity: opacity.value }));
+  return (
+    <Animated.View style={pulse}>
+      <View className={`bg-surface-container rounded-lg ${className}`} />
+    </Animated.View>
+  );
 }

@@ -1,6 +1,8 @@
+import { useEffect } from "react";
 import { Modal, Pressable, ScrollView, Text, View } from "react-native";
 
 import { Button } from "./core";
+import { haptic } from "./haptics";
 import { useTheme } from "./tokens";
 
 // ─── Overlays (DESIGN.md v1.0 → Bottom sheets & dialogs) ────────────────────
@@ -78,6 +80,9 @@ export function Dialog({
   busy?: boolean;
 }) {
   const { C, ELEVATION } = useTheme();
+  useEffect(() => {
+    if (visible) haptic.warn();
+  }, [visible]);
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
       <View

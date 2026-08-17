@@ -40,9 +40,11 @@ export function SetupChecklist() {
         <div className="flex items-center gap-3">
           <div
             role="progressbar"
+            aria-label="Setup progress"
             aria-valuenow={done}
             aria-valuemin={0}
             aria-valuemax={items.length}
+            aria-valuetext={`${done} of ${items.length} steps done`}
             className="bg-surface-container-high h-2 flex-1 overflow-hidden rounded-full"
           >
             <div

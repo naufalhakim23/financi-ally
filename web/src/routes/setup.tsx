@@ -75,16 +75,20 @@ export function SetupRoute() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-1.5" aria-hidden>
-          {STARTER_STEPS.map((s, i) => (
-            <span
-              key={s.key}
-              className={cn(
-                "size-2 rounded-full",
-                i <= step ? "bg-ink" : "bg-outline-variant",
-              )}
-            />
-          ))}
+        <div className="flex items-center gap-1.5">
+          {/* Dots are decorative; the count next to them is the only step
+              position a screen reader has, so aria-hidden stops at the dots. */}
+          <span className="flex items-center gap-1.5" aria-hidden>
+            {STARTER_STEPS.map((s, i) => (
+              <span
+                key={s.key}
+                className={cn(
+                  "size-2 rounded-full",
+                  i <= step ? "bg-ink" : "bg-outline-variant",
+                )}
+              />
+            ))}
+          </span>
           <span className="text-caption text-faint ml-2">
             Step {step + 1} of {STARTER_STEPS.length}
           </span>

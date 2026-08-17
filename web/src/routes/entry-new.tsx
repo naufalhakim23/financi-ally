@@ -4,6 +4,7 @@ import { useNavigate } from "react-router";
 import { toMinor, scale } from "@financially/domain/money";
 
 import { Field } from "@/components/field";
+import { NewAccountDialog } from "@/components/new-account-dialog";
 import { ErrorState } from "@/components/states";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,7 +22,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { HTTPError, type Account } from "@/lib/api";
+import { HTTPError, type Account, type AccountType } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import { useAccounts, usePostEntry } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 
@@ -41,18 +43,35 @@ function todayISO(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-/** Which accounts belong on each side, given the direction. */
+/**
+ * Which accounts belong on each side, given the direction.
+ *
+ * Each side also carries the kind it wants, so a side with nothing to offer can
+ * say what is missing and create it in place instead of presenting an empty
+ * select that can never be satisfied.
+ */
 function sidesFor(direction: Direction, accounts: Account[]) {
   const money = accounts.filter((a) => MONEY_TYPES.has(a.type) && !a.archived);
   const expense = accounts.filter((a) => a.type === "expense" && !a.archived);
   const income = accounts.filter((a) => a.type === "income" && !a.archived);
+  const pocket = { kind: "asset" as AccountType, missing: "a pocket to pay from" };
+  const pocketIn = { kind: "asset" as AccountType, missing: "a pocket to receive it" };
   switch (direction) {
     case "out":
-      return { from: money, to: expense, fromLabel: "Out of", toLabel: "Into" };
+      return {
+        from: { accounts: money, label: "Out of", ...pocket },
+        to: { accounts: expense, label: "Into", kind: "expense" as AccountType, missing: "a category to spend into" },
+      };
     case "in":
-      return { from: income, to: money, fromLabel: "Source", toLabel: "Into" };
+      return {
+        from: { accounts: income, label: "Source", kind: "income" as AccountType, missing: "an income source" },
+        to: { accounts: money, label: "Into", ...pocketIn },
+      };
     case "move":
-      return { from: money, to: money, fromLabel: "Out of", toLabel: "Into" };
+      return {
+        from: { accounts: money, label: "Out of", ...pocket },
+        to: { accounts: money, label: "Into", ...pocketIn },
+      };
   }
 }
 
@@ -64,7 +83,10 @@ const DIRECTIONS: { value: Direction; label: string }[] = [
 
 export function EntryNewRoute() {
   const navigate = useNavigate();
-  const { data: raw, isPending } = useAccounts();
+  const { user } = useAuth();
+  const base = user?.base_currency ?? "IDR";
+  const accountsQ = useAccounts();
+  const { data: raw, isSuccess } = accountsQ;
   const post = usePostEntry();
 
   const accounts = useMemo(() => raw ?? [], [raw]);
@@ -103,8 +125,17 @@ export function EntryNewRoute() {
     }
   }
 
+  // `from.id !== to.id` because the "Into" list filters out the chosen source:
+  // picking Into first and then the same account as Out of leaves the stale
+  // `toId` selected but off-screen, and both legs would post to one account.
   const ready =
-    !!from && !!to && !!currency && !!amount.trim() && !amountError && !currencyMismatch;
+    !!from &&
+    !!to &&
+    from.id !== to.id &&
+    !!currency &&
+    !!amount.trim() &&
+    !amountError &&
+    !currencyMismatch;
 
   function changeDirection(next: Direction) {
     setDirection(next);
@@ -153,6 +184,15 @@ export function EntryNewRoute() {
 
         <form onSubmit={onSubmit} className="space-y-4">
           {failure ? <ErrorState message={failure} /> : null}
+          {/* Without this the selects sit disabled forever with nothing to
+              explain why: a failed account query renders the same as one that
+              has not landed yet. */}
+          {accountsQ.isError ? (
+            <ErrorState
+              message="Couldn't load your accounts."
+              onRetry={() => void accountsQ.refetch()}
+            />
+          ) : null}
 
           <div role="radiogroup" aria-label="Direction" className="bg-surface-container inline-flex rounded-md p-0.5">
             {DIRECTIONS.map((d) => (
@@ -184,18 +224,18 @@ export function EntryNewRoute() {
           />
 
           <AccountSelect
-            label={sides.fromLabel}
-            accounts={sides.from}
+            side={sides.from}
             value={fromId}
             onChange={setFromId}
-            disabled={isPending}
+            loaded={isSuccess}
+            baseCurrency={base}
           />
           <AccountSelect
-            label={sides.toLabel}
-            accounts={sides.to.filter((a) => a.id !== fromId)}
+            side={{ ...sides.to, accounts: sides.to.accounts.filter((a) => a.id !== fromId) }}
             value={toId}
             onChange={setToId}
-            disabled={isPending}
+            loaded={isSuccess}
+            baseCurrency={base}
           />
 
           {currencyMismatch ? (
@@ -227,25 +267,56 @@ export function EntryNewRoute() {
   );
 }
 
+type Side = { accounts: Account[]; label: string; kind: AccountType; missing: string };
+
 function AccountSelect({
-  label,
-  accounts,
+  side,
   value,
   onChange,
-  disabled,
+  loaded,
+  baseCurrency,
 }: {
-  label: string;
-  accounts: Account[];
+  side: Side;
   value: string;
   onChange: (id: string) => void;
-  disabled?: boolean;
+  /** True once the accounts query has actually succeeded. */
+  loaded: boolean;
+  baseCurrency: string;
 }) {
+  const { accounts, label } = side;
+
+  // An empty select here used to be the end of the road: Save could never
+  // enable and the dialog offered no way to create what was missing.
+  //
+  // Only once the query has landed, though. Empty is also what a pending fetch
+  // and a failed one look like, and claiming "you need a pocket first" at
+  // someone who has six is a worse lie than a disabled select.
+  if (loaded && accounts.length === 0) {
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-label text-ink">{label}</Label>
+        <div className="border-outline flex items-center justify-between gap-3 rounded-md border border-dashed px-3 py-2.5">
+          <p className="text-body text-dim">You need {side.missing} first.</p>
+          <NewAccountDialog
+            baseCurrency={baseCurrency}
+            defaultType={side.kind}
+            trigger={
+              <Button type="button" size="sm" variant="outline">
+                Create one
+              </Button>
+            }
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-1.5">
       <Label className="text-label text-ink">{label}</Label>
-      <Select value={value} onValueChange={onChange} disabled={disabled}>
+      <Select value={value} onValueChange={onChange} disabled={!loaded}>
         <SelectTrigger className="w-full">
-          <SelectValue placeholder={accounts.length ? "Choose an account" : "No accounts yet"} />
+          <SelectValue placeholder="Choose an account" />
         </SelectTrigger>
         <SelectContent>
           {accounts.map((a) => (

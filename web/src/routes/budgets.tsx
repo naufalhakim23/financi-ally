@@ -185,6 +185,15 @@ export function BudgetsRoute() {
         budget={editing}
         period={period}
         available={available}
+        categoriesState={
+          accountsQ.isPending
+            ? "loading"
+            : accountsQ.isError
+              ? "error"
+              : categories.length > 0
+                ? "some"
+                : "none"
+        }
         nameFor={nameFor}
         onClose={() => {
           setCreating(false);
@@ -229,6 +238,15 @@ export function BudgetsRoute() {
 
 type Category = { id: string; name: string; currency: string };
 
+type CategoriesState = "loading" | "error" | "some" | "none";
+
+const CATEGORY_EMPTY: Record<CategoriesState, string> = {
+  loading: "Loading your categories...",
+  error: "Couldn't load your categories. Close this and try again.",
+  none: "You have no categories yet. Add one from Pockets, then set its budget here.",
+  some: "Every category already has a budget.",
+};
+
 /**
  * One dialog for both setting and editing a target.
  *
@@ -240,6 +258,7 @@ function BudgetDialog({
   budget,
   period,
   available,
+  categoriesState,
   nameFor,
   onClose,
 }: {
@@ -247,6 +266,7 @@ function BudgetDialog({
   budget: BudgetWithSpent | null;
   period: string;
   available: Category[];
+  categoriesState: CategoriesState;
   nameFor: (id: string) => string;
   onClose: () => void;
 }) {
@@ -314,7 +334,11 @@ function BudgetDialog({
                 {nameFor(budget.account_id)}
               </p>
             ) : available.length === 0 ? (
-              <p className="text-body text-dim">Every category already has a budget.</p>
+              // Four very different states hid behind one sentence, and the
+              // wrong one was aimed squarely at brand-new users. An in-flight
+              // or failed account query looks exactly like an empty book here,
+              // so it must not borrow the empty book's advice.
+              <p className="text-body text-dim">{CATEGORY_EMPTY[categoriesState]}</p>
             ) : (
               <Select value={accountId ?? undefined} onValueChange={setAccountId}>
                 <SelectTrigger className="w-full">

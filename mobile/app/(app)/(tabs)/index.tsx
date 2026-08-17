@@ -21,6 +21,7 @@ import { useSyncState } from "../../../src/lib/syncState";
 import { useObservable } from "../../../src/lib/useObserve";
 import { useSyncRefresh } from "../../../src/lib/useSyncRefresh";
 import { useWording } from "../../../src/lib/wording";
+import { SetupChecklist } from "../../../src/components/setup-checklist";
 import { Account, Budget, Entry, JournalLine } from "../../../src/model/models";
 import {
   Amount,
@@ -156,17 +157,17 @@ export default function HomeScreen() {
 
   const initials = (user?.email ?? "?").slice(0, 2).toUpperCase();
 
-  // First run: a zeroed home tells a new user nothing. Send them to the one
-  // action that makes every other screen work.
+  // First run: a zeroed home tells a new user nothing. Send them to setup,
+  // which builds a whole starter chart rather than a single pocket.
   if (accounts.length === 0) {
     return (
       <SafeAreaView edges={["top"]} className="flex-1 bg-background justify-center px-4">
         <EmptyState
           glyph={Wallet}
-          title="Create your first pocket"
-          body="A pocket is a bank account, cash, an e-wallet, or a card. Everything else builds on it."
+          title="Set up your money"
+          body="Pick the pockets you keep money in and the things you spend it on. Takes a minute."
           actionLabel="Get started"
-          onAction={() => router.push("/(app)/pocket-new?first=1")}
+          onAction={() => router.push("/(app)/setup")}
         />
       </SafeAreaView>
     );
@@ -201,6 +202,10 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={pull ? <RefreshControl {...pull} tintColor={C.dim} /> : undefined}
       >
+        {/* Fed from this screen's observables: the checklist asks the same
+            three tables, and its own subscriptions doubled the work here. */}
+        <SetupChecklist accounts={accounts} entries={entries} lines={lines} />
+
         <Card>
           <View className="flex-row items-center justify-between">
             <SectionLabel>

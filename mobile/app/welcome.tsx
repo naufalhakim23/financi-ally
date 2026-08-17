@@ -33,7 +33,9 @@ export default function WelcomeScreen() {
     setBusy(true);
     try {
       await startGuest(code);
-      router.replace("/(app)");
+      // Straight into setup — the currency question this screen just asked was
+      // the wizard's missing first step.
+      router.replace("/(app)/setup");
     } catch (e) {
       setError(messageFor(e, "Couldn't start"));
     } finally {

@@ -1,0 +1,119 @@
+import { useState } from "react";
+import { ScrollView, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { router } from "expo-router";
+
+import { STARTER_STEPS, defaultSelection } from "@financially/domain/starter";
+
+import { Button, Chip, SectionLabel } from "../../src/components/ui";
+import { useAuth } from "../../src/lib/auth";
+import { seedStarterAccounts } from "../../src/lib/setup";
+
+// First-run setup, the same three steps and the same catalog as the web wizard.
+// Every step is skippable; the Home checklist catches whoever bails.
+//
+// No currency step: welcome.tsx already asked a guest, registration asked
+// everyone else, and there is no endpoint to change it afterwards.
+
+export default function Setup() {
+  const { baseCurrency } = useAuth();
+
+  const [step, setStep] = useState(0);
+  const [selection, setSelection] = useState<Set<string>>(defaultSelection);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const current = STARTER_STEPS[step];
+  const last = step === STARTER_STEPS.length - 1;
+
+  function toggle(name: string) {
+    setSelection((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(name)) next.add(name);
+      return next;
+    });
+  }
+
+  function leave() {
+    // The wizard is pushed over the tabs on every path into it, so there is
+    // always something behind it to go back to.
+    router.replace("/(app)");
+  }
+
+  async function finish() {
+    setErr(null);
+    if (selection.size === 0) return leave();
+
+    setBusy(true);
+    try {
+      await seedStarterAccounts(selection, baseCurrency);
+      leave();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Couldn't create your accounts");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <SafeAreaView edges={["top", "bottom"]} className="flex-1 bg-background">
+      <View className="flex-row items-center justify-between px-4 pt-2 pb-3">
+        <View className="flex-row items-center" style={{ gap: 6 }}>
+          {STARTER_STEPS.map((s, i) => (
+            <View
+              key={s.key}
+              className={`h-2 w-2 rounded-full ${i <= step ? "bg-ink" : "bg-outline-variant"}`}
+            />
+          ))}
+          <Text className="text-caption font-sans-medium text-faint ml-2">
+            Step {step + 1} of {STARTER_STEPS.length}
+          </Text>
+        </View>
+        <Text
+          className="text-body-strong font-sans-semibold text-dim"
+          accessibilityRole="button"
+          onPress={leave}
+        >
+          Skip
+        </Text>
+      </View>
+
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24, gap: 14 }}
+        showsVerticalScrollIndicator={false}
+      >
+        <View>
+          <Text className="text-headline font-sans-semibold text-ink">{current.title}</Text>
+          <Text className="text-body font-sans-medium text-dim mt-1">{current.hint}</Text>
+        </View>
+
+        <View className="flex-row flex-wrap" style={{ gap: 8 }}>
+          {current.items.map((item) => (
+            <Chip
+              key={item.name}
+              label={item.type === "liability" ? `${item.name} (you owe this)` : item.name}
+              active={selection.has(item.name)}
+              onPress={() => toggle(item.name)}
+            />
+          ))}
+        </View>
+
+        <SectionLabel>All created in {baseCurrency}, your base currency</SectionLabel>
+
+        {!!err && <Text className="text-caption font-sans-semibold text-error-strong">{err}</Text>}
+      </ScrollView>
+
+      <View className="px-4 pb-2" style={{ gap: 8 }}>
+        {last ? (
+          <Button label="Finish" onPress={finish} busy={busy} />
+        ) : (
+          <Button label="Continue" onPress={() => setStep((s) => s + 1)} />
+        )}
+        {step > 0 && (
+          <Button label="Back" variant="secondary" onPress={() => setStep((s) => s - 1)} />
+        )}
+      </View>
+    </SafeAreaView>
+  );
+}

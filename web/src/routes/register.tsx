@@ -40,7 +40,9 @@ export function RegisterRoute() {
     setBusy(true);
     try {
       await signUp(email.trim(), password, currency.trim().toUpperCase() || undefined);
-      navigate("/app", { replace: true });
+      // Straight into setup: a fresh ledger has no accounts, so the dashboard
+      // would only be a screen of zeroes.
+      navigate("/app/setup", { replace: true });
     } catch (err) {
       setFailure(
         err instanceof HTTPError && err.status === 409

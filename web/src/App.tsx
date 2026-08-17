@@ -25,6 +25,7 @@ import { RecurringRoute } from "@/routes/recurring";
 import { RegisterRoute } from "@/routes/register";
 import { ResetPasswordRoute } from "@/routes/reset-password";
 import { SettingsRoute } from "@/routes/settings";
+import { SetupRoute } from "@/routes/setup";
 
 /**
  * Drop every cached figure when the active book changes.
@@ -84,6 +85,7 @@ function AppRoutes() {
           <Route path="recurring" element={<RecurringRoute />} />
           <Route path="books" element={<BooksRoute />} />
           <Route path="settings" element={<SettingsRoute />} />
+          <Route path="setup" element={<SetupRoute />} />
           {/* Reached only without a background, a cold load of an entry URL. */}
           <Route path="entry/new" element={<EntryNewRoute />} />
           <Route path="entry/:id" element={<EntryDetailRoute />} />

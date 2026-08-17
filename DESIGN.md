@@ -552,7 +552,10 @@ using the ramp ships a labelled legend** with name + value — identity is never
 - **Don't** signal state with color alone — pair with sign, glyph, or text.
 - **Don't** mix radii, or introduce a second typeface.
 - **Don't** reach for an arbitrary size (`text-[13px]`) — if no type role fits, the scale is wrong; fix it here.
+- **Do** write time and enums as words a person says — "August", "Added by a repeating entry".
 - **Don't** add a color, token, or component family without updating this file first.
+- **Don't** celebrate. Acknowledgment is a `dim` line, capped at one per screen (see Tone & voice).
+- **Don't** put a user-facing string in a screen; it belongs in the catalog.
 
 ## Iconography
 
@@ -577,11 +580,42 @@ Off-scale on purpose, literal at the call site: 22px tab glyph, 17px list callou
 
 ## Tone & voice
 
-Precise, calm, encouraging but not cheerful. 2nd person for guidance, neutral for labels.
-**Sentence case** for buttons and labels ("Save transaction", not "SAVE"). Helper text is a lowercase
-fragment with no period — "offline · using cached rates". Error text is imperative and corrective —
-"Enter a valid amount". Amounts are always signed and colored, never bare. No exclamation marks, no
-congratulation, no gamified streak language. English first; amounts locale-aware (IDR base typical).
+The product is a competent friend who happens to be great with money. Precision and calm are the
+core; being a person is allowed. Warmth rides on **copy and timing, not decoration** — no
+illustrations, no mascots, no gradients. The whole warmth budget is spent on words, motion, and
+moments of acknowledgment.
+
+- **Acknowledge, never celebrate.** "You're set to finish the month under plan" is a quiet observation
+  in `dim` text — not a modal, not a badge, not confetti. The app notices; it does not cheer.
+  **At most one acknowledgment is visible per screen**, and it lives as a line inside a card that
+  already exists, never on a surface of its own.
+- **Speak to one person.** 2nd person, present tense, contractions allowed ("you're set for the
+  month"). Sentence fragments are allowed where a full sentence would read like a form letter.
+- **Numbers stay cold, sentences get warm.** Amounts keep mono, sign, and semantic color exactly as
+  specified under Amounts. The words around them are where the human lives.
+- **Time is human.** "August", "since March", "2 hours ago". A user never sees `2026-08`, an ISO
+  timestamp, or a raw enum. **A machine string reaching a screen is a bug**, not a style preference.
+- **Sentence case** for buttons and labels ("Save transaction", not "SAVE"). Helper text is a
+  lowercase fragment with no period — "offline · using cached rates".
+- **Error text is imperative and corrective, and never blames** — "That didn't save. Try again", not
+  "Invalid input".
+- **Banned outright:** exclamation marks, emoji, streak language, guilt language ("you overspent
+  again"), celebration modals, decorative status color.
+
+English first; amounts locale-aware (IDR base typical).
+
+### Strings
+
+**The string catalog is the only source of user-facing copy.** It lives in
+`shared-context/domain/strings/`, one file per surface, and wording mode is a dimension of it: a leaf
+is either a plain string, a function that interpolates one, or a `{ normal, finance }` pair that
+resolves to the active mode. Screens read it through `useStrings()`.
+
+A string literal in a screen is a smell. The two deliberate exceptions are accessibility labels and
+component defaults inside `src/components/ui/` — the kit is a design system and stays ignorant of the
+domain, so a screen overrides its defaults with a catalog string rather than the kit reaching for one.
+Domain modules that already own their copy (`starter`, `recurrence`, `validate`) are catalogs in their
+own right and stay where they are.
 
 ## Accessibility
 
@@ -599,9 +633,9 @@ eighth hi-fi screen. What remains is below.
 | Gap | Canon | Current | Priority |
 |---|---|---|---|
 | Spaces (personal / shared / freelance) | Sharing boundary; totals never mix | No concept in the model or UI; Home and Buckets show a single inert "Personal" chip | High |
-| Wording mode covers every string | One switch renames the whole app | The switch drives the tab bar, screen titles and the `out of / into` labels; body copy elsewhere is still plain-only | Med |
+| Wording mode covers every string | One switch renames the whole app | **Closed on mobile.** Every mobile string is in the catalog and mode is a dimension of it; the web client still holds its own literals and migrates in its own pass | Med |
 | Bucket reorder and hide | Press and hold to reorder; hidden means quiet, not excluded | Buckets are derived from account `type` + `currency`, so their order is fixed and none can be hidden — the hi-fi's "press and hold to reorder" hint is deliberately absent rather than inert | Med |
-| Receipt photos | A receipt photo attaches to an entry | Entry detail shows the placeholder; there is no upload path | Med |
+| Receipt photos | A receipt photo attaches to an entry | No upload path. The entry-detail placeholder was removed — it promised a feature that does not exist; this row is the record of intent | Med |
 | Editing an existing entry | Entry detail offers Edit | Detail offers Duplicate + Move + Delete; Move re-files the category, but amount, date and note still cannot be changed after posting | Med |
 | Foreign bucket totals | Converted at the ledger's rate | Converted client-side from `/fx/rates` for display; the row says `converted at cached rate`, and an unconvertible child collapses the whole total to `rate unavailable` | Med |
 | Category slot persistence | A category's slot is assigned once and persisted, so its list tint matches its chart slice | `categorySlot()` derives the slot from the account id — stable across sessions without a migration, but it won't match the rank-ordered slice color in Reports | Med |

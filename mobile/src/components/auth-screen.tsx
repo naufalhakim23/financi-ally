@@ -2,8 +2,15 @@ import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from "react-na
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ChevronLeft } from "lucide-react-native";
 import { Pressable } from "react-native";
+import { router } from "expo-router";
 
 import { ICON, useTheme } from "./ui";
+
+// Reachable from first run (no history) and from gated features (history).
+export function backToWelcome() {
+  if (router.canGoBack()) router.back();
+  else router.replace("/welcome");
+}
 
 /**
  * The shell every unauthenticated screen sits in: safe area, the keyboard
@@ -21,11 +28,7 @@ export function AuthScreen({
 }: {
   /** The line under the wordmark; says what this screen is for. */
   caption: string;
-  /**
-   * Where Back goes. Authoritative, not a fallback: these screens navigate with
-   * `replace`, so the history stack does not describe the flow. Omit on
-   * first-run screens to hide the affordance.
-   */
+  /** Where Back goes; omit on first-run screens to hide the affordance. */
   onBack?: () => void;
   children: React.ReactNode;
   /** Fine print pinned under the form — terms, reassurance, a hint. */

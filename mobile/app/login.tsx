@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { TextInput, View } from "react-native";
 import { router } from "expo-router";
 
-import { AuthScreen, FormError, OrDivider } from "../src/components/auth-screen";
+import { AuthScreen, backToWelcome, FormError, OrDivider } from "../src/components/auth-screen";
 import { useGuestMerge } from "../src/components/guest-merge";
 import { Button, Field } from "../src/components/ui";
 import { useAuth } from "../src/lib/auth";
@@ -60,7 +60,7 @@ export default function LoginScreen() {
   }
 
   return (
-    <AuthScreen caption="Sign in to your account" onBack={() => router.replace("/welcome")}>
+    <AuthScreen caption="Sign in to your account" onBack={backToWelcome}>
       <Field
         label="Email"
         value={email}

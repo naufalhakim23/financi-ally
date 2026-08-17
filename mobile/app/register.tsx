@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { Text, TextInput, View } from "react-native";
 import { router } from "expo-router";
 
-import { AuthScreen, FormError, OrDivider } from "../src/components/auth-screen";
+import { AuthScreen, backToWelcome, FormError, OrDivider } from "../src/components/auth-screen";
 import { useGuestMerge } from "../src/components/guest-merge";
 import { Button, Chip, Field } from "../src/components/ui";
 import { useAuth } from "../src/lib/auth";
@@ -79,7 +79,7 @@ export default function RegisterScreen() {
   }
 
   return (
-    <AuthScreen caption="Create your account" onBack={() => router.replace("/welcome")}>
+    <AuthScreen caption="Create your account" onBack={backToWelcome}>
       <Field
         label="Email"
         value={email}

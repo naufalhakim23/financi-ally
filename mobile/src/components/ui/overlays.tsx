@@ -1,12 +1,51 @@
-import { useEffect } from "react";
-import { Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import { Modal, Pressable, ScrollView, Text, View, useWindowDimensions } from "react-native";
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+  type WithTimingConfig,
+} from "react-native-reanimated";
 
 import { Button } from "./core";
 import { haptic } from "./haptics";
-import { useTheme } from "./tokens";
+import { useReducedMotion } from "./motion";
+import { DURATION, EASING, useTheme } from "./tokens";
 
 // ─── Overlays (DESIGN.md v1.0 → Bottom sheets & dialogs) ────────────────────
 // Sheets and the FAB are the only elements that genuinely float.
+
+const ENTER: WithTimingConfig = { duration: DURATION.base, easing: EASING.standard };
+const EXIT: WithTimingConfig = { duration: DURATION.fast, easing: EASING.exit };
+
+/**
+ * Keeps the Modal mounted through its own exit animation.
+ *
+ * RN's `Modal` unmounts the moment `visible` flips, so an exit written against
+ * `visible` never renders. This holds the native modal open until the timing
+ * finishes and only then lets it go.
+ */
+function useOverlayTransition(visible: boolean) {
+  const [mounted, setMounted] = useState(visible);
+  const progress = useSharedValue(visible ? 1 : 0);
+
+  useEffect(() => {
+    if (visible) {
+      setMounted(true);
+      progress.value = withTiming(1, ENTER);
+      return;
+    }
+    // The completion callback runs on the UI thread, so the unmount has to hop
+    // back to JS — that hop is what keeps the exit from tearing down mid-flight.
+    progress.value = withTiming(0, EXIT, (done) => {
+      "worklet";
+      if (done) runOnJS(setMounted)(false);
+    });
+  }, [visible, progress]);
+
+  return { mounted, progress };
+}
 
 /**
  * Bottom sheet. Carries the grab handle, the scrim, and its own scrolling so
@@ -25,13 +64,24 @@ export function Sheet({
   children: React.ReactNode;
 }) {
   const { C, ELEVATION } = useTheme();
+  const { height } = useWindowDimensions();
+  const reduced = useReducedMotion();
+  const { mounted, progress } = useOverlayTransition(visible);
+
+  const scrim = useAnimatedStyle(() => ({ opacity: progress.value }));
+  const panel = useAnimatedStyle(() => ({
+    opacity: progress.value,
+    // Reduced motion keeps the fade and drops the slide, per canon.
+    transform: reduced ? [] : [{ translateY: (1 - progress.value) * height * 0.3 }],
+  }));
+
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View className="flex-1 justify-end" style={{ backgroundColor: C.scrim }}>
+    <Modal visible={mounted} transparent animationType="none" onRequestClose={onClose}>
+      <Animated.View className="flex-1 justify-end" style={[{ backgroundColor: C.scrim }, scrim]}>
         <Pressable className="flex-1" onPress={onClose} accessibilityLabel="Dismiss" />
-        <View
+        <Animated.View
           className="bg-surface rounded-t-2xl pb-10"
-          style={[{ maxHeight: "85%" }, ELEVATION.float]}
+          style={[{ maxHeight: "85%" }, ELEVATION.float, panel]}
         >
           <View className="items-center py-2.5">
             <View className="h-1 w-9 rounded-full bg-outline-strong" />
@@ -49,8 +99,8 @@ export function Sheet({
           >
             {children}
           </ScrollView>
-        </View>
-      </View>
+        </Animated.View>
+      </Animated.View>
     </Modal>
   );
 }
@@ -80,18 +130,28 @@ export function Dialog({
   busy?: boolean;
 }) {
   const { C, ELEVATION } = useTheme();
+  const reduced = useReducedMotion();
+  const { mounted, progress } = useOverlayTransition(visible);
+
   useEffect(() => {
     if (visible) haptic.warn();
   }, [visible]);
+
+  const scrim = useAnimatedStyle(() => ({ opacity: progress.value }));
+  const panel = useAnimatedStyle(() => ({
+    opacity: progress.value,
+    transform: reduced ? [] : [{ scale: 0.96 + progress.value * 0.04 }],
+  }));
+
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
-      <View
+    <Modal visible={mounted} transparent animationType="none" onRequestClose={onCancel}>
+      <Animated.View
         className="flex-1 items-center justify-center px-6"
-        style={{ backgroundColor: C.scrim }}
+        style={[{ backgroundColor: C.scrim }, scrim]}
       >
-        <View
+        <Animated.View
           className="w-full bg-surface rounded-2xl p-6"
-          style={ELEVATION.float}
+          style={[ELEVATION.float, panel]}
           accessibilityViewIsModal
         >
           <Text className="text-headline font-sans-bold text-ink">{title}</Text>
@@ -109,8 +169,8 @@ export function Dialog({
               />
             </View>
           </View>
-        </View>
-      </View>
+        </Animated.View>
+      </Animated.View>
     </Modal>
   );
 }

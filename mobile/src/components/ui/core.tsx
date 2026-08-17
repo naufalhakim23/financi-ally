@@ -1,12 +1,21 @@
 import { useState } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
 import { Plus } from "lucide-react-native";
-import { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 
 import { format } from "../../lib/money";
-import { DURATION, ICON, type Palette, useTheme, type Glyph, slotColor, slotTint } from "./tokens";
+import {
+  DURATION,
+  EASING,
+  ICON,
+  type Palette,
+  useTheme,
+  type Glyph,
+  slotColor,
+  slotTint,
+} from "./tokens";
 import { haptic, type HapticKind } from "./haptics";
-import { AnimatedPressable, PRESS_SCALE } from "./motion";
+import { AnimatedPressable, PRESS_SCALE, useBarWidth, useReducedMotion, useValueFade } from "./motion";
 
 /**
  * Pressed state as a boolean plus the handlers that drive it.
@@ -30,19 +39,25 @@ export function usePressed() {
 export function usePressedScale(hapticKind?: HapticKind) {
   const [pressed, setPressed] = useState(false);
   const s = useSharedValue(1);
-  const pressStyle = useAnimatedStyle(() => ({ transform: [{ scale: s.value }] }));
+  // Reduced motion drops the transform; the tone change and the haptic still
+  // land, so the affordance never stops answering a press.
+  const reduced = useReducedMotion();
+  const pressStyle = useAnimatedStyle(() => ({ transform: [{ scale: reduced ? 1 : s.value }] }));
   return {
     pressed,
     pressStyle,
     handlers: {
       onPressIn: () => {
         setPressed(true);
-        s.value = withTiming(PRESS_SCALE, { duration: DURATION.instant });
+        s.value = withTiming(PRESS_SCALE, {
+          duration: DURATION.instant,
+          easing: EASING.standard,
+        });
         if (hapticKind) haptic[hapticKind]();
       },
       onPressOut: () => {
         setPressed(false);
-        s.value = withTiming(1, { duration: DURATION.fast });
+        s.value = withTiming(1, { duration: DURATION.fast, easing: EASING.exit });
       },
     },
   };
@@ -251,6 +266,7 @@ export function Amount({
   converted,
   stale = false,
   align = "right",
+  animate = false,
 }: {
   minor: number;
   currency: string;
@@ -259,8 +275,14 @@ export function Amount({
   converted?: { minor: number; currency: string };
   stale?: boolean;
   align?: "left" | "right";
+  /**
+   * Cross-fade the figure when it changes. For headline figures only — a list
+   * of rows all fading at once is noise, not feedback.
+   */
+  animate?: boolean;
 }) {
   const neg = minor < 0;
+  const fade = useValueFade(minor);
   const color =
     tone === "flow"
       ? neg
@@ -273,10 +295,13 @@ export function Amount({
 
   return (
     <View className={align === "right" ? "items-end" : "items-start"}>
-      <Text className={`${AMOUNT_SIZE[size]} ${color}`}>
+      <Animated.Text
+        className={`${AMOUNT_SIZE[size]} ${color}`}
+        style={animate ? fade : undefined}
+      >
         {sign}
         {currency}&nbsp;{grouped(currency, minor)}
-      </Text>
+      </Animated.Text>
       {converted && (
         <Text className="text-amount-sm font-mono-medium text-faint">
           ≈ {converted.currency}&nbsp;{grouped(converted.currency, converted.minor)}
@@ -291,11 +316,11 @@ export function Amount({
 
 /** Semantic progress bar: <75% success, 75–99% warning, 100%+ error. */
 export function ProgressBar({ pct }: { pct: number }) {
-  const clipped = Math.max(0, Math.min(pct, 100));
   const color = pct >= 100 ? "bg-error" : pct >= 75 ? "bg-warning" : "bg-success";
+  const fill = useBarWidth(pct);
   return (
     <View className="w-full h-1.5 rounded-full bg-surface-container-high overflow-hidden">
-      <View className={`h-1.5 rounded-full ${color}`} style={{ width: `${clipped}%` }} />
+      <Animated.View className={`h-1.5 rounded-full ${color}`} style={fill} />
     </View>
   );
 }

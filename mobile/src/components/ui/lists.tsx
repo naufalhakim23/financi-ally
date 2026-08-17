@@ -11,7 +11,7 @@ import Animated, {
 } from "react-native-reanimated";
 
 import { Amount, Button, Card, IconBox, usePressed, usePressedScale } from "./core";
-import { AnimatedPressable } from "./motion";
+import { AnimatedPressable, useReducedMotion } from "./motion";
 import { ICON, useTheme, type Glyph } from "./tokens";
 
 // ─── List atoms (DESIGN.md v1.0 → List rows, Empty states) ──────────────────
@@ -290,8 +290,10 @@ export function DayHeader({ label, total }: { label: string; total?: string }) {
 
 // Loading placeholder, sized by the caller. Pulses so it doesn't read as failed content.
 export function Skeleton({ className = "" }: { className?: string }) {
+  const reduced = useReducedMotion();
   const opacity = useSharedValue(1);
   useEffect(() => {
+    if (reduced) return;
     opacity.value = withRepeat(
       withSequence(
         withTiming(0.45, { duration: 700, easing: Easing.inOut(Easing.quad) }),
@@ -299,7 +301,7 @@ export function Skeleton({ className = "" }: { className?: string }) {
       ),
       -1,
     );
-  }, [opacity]);
+  }, [opacity, reduced]);
   const pulse = useAnimatedStyle(() => ({ opacity: opacity.value }));
   return (
     <Animated.View style={pulse}>

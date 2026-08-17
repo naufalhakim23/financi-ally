@@ -12,7 +12,7 @@ import { ChevronDown, Delete, Eye, EyeOff } from "lucide-react-native";
 import { Chip, groupDigits, usePressed } from "./core";
 import { ListRow } from "./lists";
 import { Sheet } from "./overlays";
-import { useTheme } from "./tokens";
+import { ICON, useTheme } from "./tokens";
 import { KEYPAD_KEYS, type KeypadKey, applyKey } from "../../lib/keypad";
 
 export { applyKey, type KeypadKey };
@@ -142,9 +142,9 @@ export const Field = forwardRef<TextInput, {
             hitSlop={4}
           >
             {revealed ? (
-              <EyeOff size={20} color={C.dim} strokeWidth={1.75} />
+              <EyeOff size={ICON.xl} color={C.dim} strokeWidth={1.75} />
             ) : (
-              <Eye size={20} color={C.dim} strokeWidth={1.75} />
+              <Eye size={ICON.xl} color={C.dim} strokeWidth={1.75} />
             )}
           </Pressable>
         )}
@@ -244,7 +244,7 @@ export function Select<T extends string>({
         >
           {selected?.label ?? placeholder}
         </Text>
-        <ChevronDown size={18} color={C.chevron} strokeWidth={1.75} />
+        <ChevronDown size={ICON.lg} color={C.chevron} strokeWidth={1.75} />
       </Pressable>
 
       <Sheet visible={open} onClose={() => setOpen(false)} title={label}>
@@ -335,7 +335,7 @@ export function SegmentedControl<T extends string>({
 }) {
   const { ELEVATION } = useTheme();
   return (
-    <View className="flex-row rounded-lg bg-surface-container p-[3px]">
+    <View className="flex-row rounded-lg bg-surface-container p-track-inset">
       {options.map((o) => {
         const active = o.value === value;
         const tone = o.tone ?? "neutral";

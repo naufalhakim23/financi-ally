@@ -26,6 +26,7 @@ import {
   accountGlyph,
   categorySlot,
   formatGrouped,
+  ICON,
   useTheme,
 } from "../../../src/components/ui";
 
@@ -219,7 +220,7 @@ export default function EntryDetail() {
         {/* Receipts have no upload path yet; the placeholder says what will
             appear rather than offering an action that does nothing. */}
         <View className="bg-surface border border-dashed border-outline-strong rounded-2xl p-3.5 items-center">
-          <Camera size={24} color={C.disabled} strokeWidth={1.75} />
+          <Camera size={ICON.xxl} color={C.disabled} strokeWidth={1.75} />
           <Text className="text-caption font-sans-medium text-faint mt-1.5">
             A receipt photo you add will appear here
           </Text>

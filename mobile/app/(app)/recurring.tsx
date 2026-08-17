@@ -301,7 +301,7 @@ export default function Recurring() {
               const credit = rule.template.lines.find((l) => l.dc === "credit");
               return (
                 <View key={rule.id}>
-                  {i > 0 && <View className="h-px bg-outline-variant ml-[68px]" />}
+                  {i > 0 && <View className="h-px bg-outline-variant ml-row-inset" />}
                   <View className="px-4 py-3.5">
                     <View className="flex-row items-center gap-card-gap">
                       <IconBox glyph={Repeat} />

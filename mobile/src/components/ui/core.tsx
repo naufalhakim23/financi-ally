@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { Plus } from "lucide-react-native";
 
 import { format } from "../../lib/money";
-import { type Palette, useTheme, type Glyph, slotColor, slotTint } from "./tokens";
+import { ICON, type Palette, useTheme, type Glyph, slotColor, slotTint } from "./tokens";
 
 /**
  * Pressed state as a boolean plus the handlers that drive it.
@@ -154,7 +154,7 @@ export function Button({
         <ActivityIndicator color={spinnerColor(C)[variant]} />
       ) : (
         <>
-          {G && <G size={18} color={off ? C.disabled : undefined} strokeWidth={1.75} />}
+          {G && <G size={ICON.lg} color={off ? C.disabled : undefined} strokeWidth={1.75} />}
           <Text
             className={`${tertiary ? "text-label" : "text-body-strong"} font-sans-semibold ${textColor} ${G ? "ml-2" : ""}`}
           >
@@ -179,7 +179,7 @@ export function Fab({ onPress, size = 56 }: { onPress: () => void; size?: number
       className={`rounded-full items-center justify-center ${pressed ? "bg-primary-pressed" : "bg-primary"}`}
       style={[{ width: size, height: size }, ELEVATION.float]}
     >
-      <Plus size={24} color={C.onPrimary} strokeWidth={1.75} />
+      <Plus size={ICON.xxl} color={C.onPrimary} strokeWidth={1.75} />
     </Pressable>
   );
 }
@@ -298,7 +298,7 @@ export function IconBox({
         tinted ? { backgroundColor: slotTint(slot) } : null,
       ]}
     >
-      <G size={20} color={tinted ? slotColor(slot) : C.dim} strokeWidth={1.75} />
+      <G size={ICON.xl} color={tinted ? slotColor(slot) : C.dim} strokeWidth={1.75} />
     </View>
   );
 }
@@ -329,7 +329,7 @@ export function Badge({
   const t = badgeTone(C)[tone];
   return (
     <View className={`flex-row items-center rounded-full px-2.5 py-0.5 ${t.box}`}>
-      {G && <G size={12} color={t.glyph} strokeWidth={1.75} />}
+      {G && <G size={ICON.xs} color={t.glyph} strokeWidth={1.75} />}
       <Text className={`text-caption font-sans-semibold ${t.text} ${G ? "ml-1" : ""}`}>
         {children}
       </Text>

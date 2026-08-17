@@ -3,7 +3,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { ChevronLeft } from "lucide-react-native";
 import { Pressable } from "react-native";
 
-import { useTheme } from "./ui";
+import { ICON, useTheme } from "./ui";
 
 /**
  * The shell every unauthenticated screen sits in: safe area, the keyboard
@@ -50,7 +50,7 @@ export function AuthScreen({
               className="flex-row items-center self-start min-h-touch px-2"
               hitSlop={4}
             >
-              <ChevronLeft size={20} color={C.info} strokeWidth={2} />
+              <ChevronLeft size={ICON.xl} color={C.info} strokeWidth={2} />
               <Text className="text-body-strong font-sans-semibold text-info ml-0.5">Back</Text>
             </Pressable>
           )}

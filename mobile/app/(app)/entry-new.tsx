@@ -30,6 +30,7 @@ import {
   applyKey,
   categorySlot,
   formatGrouped,
+  ICON,
   useTheme,
 } from "../../src/components/ui";
 
@@ -157,7 +158,7 @@ export default function EntryNew() {
   useEffect(() => {
     setFromId((cur) => (cur && fromOptions.some((a) => a.id === cur) ? cur : null));
     setToId((cur) => (cur && toOptions.some((a) => a.id === cur) ? cur : null));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Narrow deps on purpose: fromOptions/toOptions are rebuilt every render.
   }, [mode, accounts.length]);
 
   const from = active.find((a) => a.id === fromId) ?? null;
@@ -426,7 +427,7 @@ function PickerRow({
           </Text>
         )}
       </View>
-      <ChevronRight size={18} color={C.chevron} strokeWidth={1.75} />
+      <ChevronRight size={ICON.lg} color={C.chevron} strokeWidth={1.75} />
     </Pressable>
   );
 }
@@ -451,7 +452,7 @@ function MetaChip({
       className="flex-row items-center bg-surface-container rounded-full px-3.5 py-2"
       style={{ gap: 6 }}
     >
-      <G size={14} color={active ? C.ink : C.dim} strokeWidth={1.75} />
+      <G size={ICON.sm} color={active ? C.ink : C.dim} strokeWidth={1.75} />
       <Text className={`text-label font-sans-semibold ${active ? "text-ink" : "text-dim"}`}>
         {label}
       </Text>

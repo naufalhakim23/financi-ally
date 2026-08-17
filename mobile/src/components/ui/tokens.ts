@@ -143,6 +143,17 @@ export function useTheme(): { C: Palette; ELEVATION: Elevation; dark: boolean } 
   };
 }
 
+// Glyph sizes. Lives in JS because Lucide takes `size` as a number, not a class.
+// DESIGN.md -> Iconography lists the few deliberate off-scale one-offs.
+export const ICON = {
+  xs: 12,
+  sm: 14,
+  md: 16,
+  lg: 18,
+  xl: 20,
+  xxl: 24,
+} as const;
+
 // Motion. RN has no CSS easing tokens, so only the durations travel; press
 // feedback uses opacity/tone rather than a timing curve.
 export const DURATION = {

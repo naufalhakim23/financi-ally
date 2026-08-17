@@ -3,7 +3,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChevronLeft, Plus } from "lucide-react-native";
 
 import { usePressed } from "./core";
-import { useTheme, type Glyph } from "./tokens";
+import { ICON, useTheme, type Glyph } from "./tokens";
 
 // ─── Navigation chrome (direction 2a) ───────────────────────────────────────
 // Five slots with the centre add affordance breaking the top edge. The FAB is
@@ -92,7 +92,7 @@ function Fab({ onPress, label }: { onPress: () => void; label: string }) {
       }`}
       style={[{ marginTop: -28 }, ELEVATION.float]}
     >
-      <Plus size={24} color={C.onPrimary} strokeWidth={1.75} />
+      <Plus size={ICON.xxl} color={C.onPrimary} strokeWidth={1.75} />
     </Pressable>
   );
 }
@@ -126,7 +126,7 @@ export function ScreenHeader({
             accessibilityLabel={backLabel ? `Back to ${backLabel}` : "Back"}
             className="flex-row items-center min-h-touch"
           >
-            <ChevronLeft size={18} color={C.info} strokeWidth={2} />
+            <ChevronLeft size={ICON.lg} color={C.info} strokeWidth={2} />
             {backLabel && (
               <Text className="text-body-strong font-sans-semibold text-info ml-0.5">{backLabel}</Text>
             )}
@@ -191,7 +191,7 @@ export function IconButton({
       }`}
       style={ELEVATION.card}
     >
-      <G size={20} color={C.dim} strokeWidth={1.75} />
+      <G size={ICON.xl} color={C.dim} strokeWidth={1.75} />
     </Pressable>
   );
 }

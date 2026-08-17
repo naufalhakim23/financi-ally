@@ -1,9 +1,10 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import * as SecureStore from "expo-secure-store";
 
 import { selectedItems } from "@financially/domain/starter";
 
 import { database } from "./db";
+import { activeLedgerId, useLedgerState } from "./ledgerStore";
 import { syncDatabase } from "./sync";
 import { Account, AccountType, Entry, JournalLine } from "../model/models";
 
@@ -18,17 +19,32 @@ import { Account, AccountType, Entry, JournalLine } from "../model/models";
 
 const DISMISS_KEY = "fa_setup_dismissed";
 
-function readDismissed(): boolean {
+// Per book, not per install: a freshly joined shared book is empty and needs
+// the checklist even though the personal one dismissed it months ago. One JSON
+// map under one key rather than a key per ledger, because SecureStore cannot
+// enumerate keys and sign-out has to drop every book's dismissal at once.
+function dismissMap(): Record<string, boolean> {
   try {
-    return SecureStore.getItem(DISMISS_KEY) === "1";
+    const raw = SecureStore.getItem(DISMISS_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : null;
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, boolean>) : {};
   } catch {
     // A keystore this hook cannot read is not a reason to take down the screen
     // it renders on. Undismissed is the safe answer.
-    return false;
+    return {};
   }
 }
 
-/** Forget the dismissal on sign-out — the next account starts its own setup. */
+/** "" is the personal book, the same identity api.ts sends as no header. */
+function bookKey(): string {
+  return activeLedgerId() || "personal";
+}
+
+function readDismissed(): boolean {
+  return dismissMap()[bookKey()] === true;
+}
+
+/** Forget every dismissal on sign-out, so the next account starts its own setup. */
 export function clearSetupState() {
   // Rejection swallowed, not awaited: worst case the card stays hidden for a
   // ledger that wanted it, and the wizard is still reachable from Buckets.
@@ -50,7 +66,14 @@ export type SetupItem = {
  * hottest screen in the app materialise the whole lines table twice.
  */
 export function useSetupState(accounts: Account[], entries: Entry[], lines: JournalLine[]) {
+  const activeId = useLedgerState().active?.id ?? "";
   const [dismissed, setDismissed] = useState(readDismissed);
+
+  // Switching books keeps this hook mounted, so the flag has to be re-read for
+  // the book that is now on screen.
+  useEffect(() => {
+    setDismissed(readDismissed());
+  }, [activeId]);
 
   const has = (type: string) => accounts.some((a) => a.type === type);
 
@@ -91,7 +114,7 @@ export function useSetupState(accounts: Account[], entries: Entry[], lines: Jour
 
   const dismiss = useCallback(() => {
     try {
-      SecureStore.setItem(DISMISS_KEY, "1");
+      SecureStore.setItem(DISMISS_KEY, JSON.stringify({ ...dismissMap(), [bookKey()]: true }));
     } catch {
       // Storage refusal only costs the card reappearing next launch.
     }

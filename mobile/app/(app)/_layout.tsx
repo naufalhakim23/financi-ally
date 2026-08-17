@@ -16,7 +16,7 @@ import { useStrings, WordingProvider } from "../../src/lib/wording";
 export default function AppLayout() {
   return (
     <WordingProvider>
-      <AppShell />
+    <AppShell />
     </WordingProvider>
   );
 }
@@ -51,54 +51,54 @@ function AppShell() {
         : null;
 
   return (
-      <View className="flex-1 bg-background">
-        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: C.background } }}>
-          <Stack.Screen name="(tabs)" />
-          {/* The add flow is a sheet in the hi-fi, not a full page: react-native-screens
-              gives us the scrim, the grabber and the rounded top natively, so the
-              screen itself only draws its content. Its transition is the native
-              sheet presentation — DESIGN.md's one emphasized curve, and a JS
-              animation over the top of it would only fight the platform. */}
-          <Stack.Screen
-            name="entry-new"
-            options={{
-              presentation: "formSheet",
-              sheetAllowedDetents: [0.96],
-              sheetGrabberVisible: true,
-              sheetCornerRadius: 20,
-            }}
-          />
-          <Stack.Screen name="pocket-new" options={{ presentation: "modal" }} />
-          <Stack.Screen name="setup" />
-          <Stack.Screen name="month/[month]" />
-          <Stack.Screen name="entry/[id]" />
-          <Stack.Screen name="wording" />
-          <Stack.Screen name="appearance" />
-          <Stack.Screen name="budgets" />
-          <Stack.Screen name="recurring" />
-          <Stack.Screen name="ledgers" />
-          <Stack.Screen name="reports" />
-        </Stack>
+    <View className="flex-1 bg-background">
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: C.background } }}>
+        <Stack.Screen name="(tabs)" />
+        {/* The add flow is a sheet in the hi-fi, not a full page: react-native-screens
+            gives us the scrim, the grabber and the rounded top natively, so the
+            screen itself only draws its content. Its transition is the native
+            sheet presentation, which is DESIGN.md's one emphasized curve; a JS
+            animation over the top of it would only fight the platform. */}
+        <Stack.Screen
+          name="entry-new"
+          options={{
+            presentation: "formSheet",
+            sheetAllowedDetents: [0.96],
+            sheetGrabberVisible: true,
+            sheetCornerRadius: 20,
+          }}
+        />
+        <Stack.Screen name="pocket-new" options={{ presentation: "modal" }} />
+        <Stack.Screen name="setup" />
+        <Stack.Screen name="month/[month]" />
+        <Stack.Screen name="entry/[id]" />
+        <Stack.Screen name="wording" />
+        <Stack.Screen name="appearance" />
+        <Stack.Screen name="budgets" />
+        <Stack.Screen name="recurring" />
+        <Stack.Screen name="ledgers" />
+        <Stack.Screen name="reports" />
+      </Stack>
 
-        {strip && (
-          // Lands on the entry list, where affected rows carry their own badges.
-          <Pressable
-            onPress={() =>
-              router.push({
-                pathname: "/(app)/(tabs)/history",
-                params: { tab: String(Date.now()) },
-              })
-            }
-            accessibilityRole="button"
-            accessibilityLabel={s.sync.showEntries(strip.message)}
-            className={`absolute left-0 right-0 bottom-[92px] mx-4 rounded-xl border px-3 py-2 ${strip.tone}`}
-            accessibilityLiveRegion="polite"
-          >
-            <Text className={`text-caption font-sans-semibold ${strip.text}`}>
-              {strip.message} · {s.sync.view}
-            </Text>
-          </Pressable>
-        )}
-      </View>
+      {strip && (
+        // Lands on the entry list, where affected rows carry their own badges.
+        <Pressable
+          onPress={() =>
+            router.push({
+              pathname: "/(app)/(tabs)/history",
+              params: { tab: String(Date.now()) },
+            })
+          }
+          accessibilityRole="button"
+          accessibilityLabel={s.sync.showEntries(strip.message)}
+          className={`absolute left-0 right-0 bottom-[92px] mx-4 rounded-xl border px-3 py-2 ${strip.tone}`}
+          accessibilityLiveRegion="polite"
+        >
+          <Text className={`text-caption font-sans-semibold ${strip.text}`}>
+            {strip.message} · {s.sync.view}
+          </Text>
+        </Pressable>
+      )}
+    </View>
   );
 }

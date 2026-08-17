@@ -15,7 +15,7 @@ import {
   slotTint,
 } from "./tokens";
 import { haptic, type HapticKind } from "./haptics";
-import { AnimatedPressable, PRESS_SCALE, useBarWidth, useReducedMotion, useValueFade } from "./motion";
+import { AnimatedPressable, PRESS_SCALE, useBarWidth, useReducedMotion } from "./motion";
 
 /**
  * Pressed state as a boolean plus the handlers that drive it.
@@ -266,7 +266,6 @@ export function Amount({
   converted,
   stale = false,
   align = "right",
-  animate = false,
 }: {
   minor: number;
   currency: string;
@@ -275,14 +274,8 @@ export function Amount({
   converted?: { minor: number; currency: string };
   stale?: boolean;
   align?: "left" | "right";
-  /**
-   * Cross-fade the figure when it changes. For headline figures only — a list
-   * of rows all fading at once is noise, not feedback.
-   */
-  animate?: boolean;
 }) {
   const neg = minor < 0;
-  const fade = useValueFade(minor);
   const color =
     tone === "flow"
       ? neg
@@ -295,13 +288,10 @@ export function Amount({
 
   return (
     <View className={align === "right" ? "items-end" : "items-start"}>
-      <Animated.Text
-        className={`${AMOUNT_SIZE[size]} ${color}`}
-        style={animate ? fade : undefined}
-      >
+      <Text className={`${AMOUNT_SIZE[size]} ${color}`}>
         {sign}
         {currency}&nbsp;{grouped(currency, minor)}
-      </Animated.Text>
+      </Text>
       {converted && (
         <Text className="text-amount-sm font-mono-medium text-faint">
           ≈ {converted.currency}&nbsp;{grouped(converted.currency, converted.minor)}
@@ -320,7 +310,12 @@ export function ProgressBar({ pct }: { pct: number }) {
   const fill = useBarWidth(pct);
   return (
     <View className="w-full h-1.5 rounded-full bg-surface-container-high overflow-hidden">
-      <Animated.View className={`h-1.5 rounded-full ${color}`} style={fill} />
+      {/* The animated view carries only the width; the class-styled child fills
+          it. NativeWind resolves `className` at build time, so keeping classes
+          off animated components is how the rest of the kit does this too. */}
+      <Animated.View style={fill}>
+        <View className={`h-1.5 w-full rounded-full ${color}`} />
+      </Animated.View>
     </View>
   );
 }

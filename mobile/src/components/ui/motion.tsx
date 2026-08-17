@@ -26,6 +26,11 @@ export { useReducedMotion };
 /**
  * Cross-fade a figure when it changes. Never counts up: a balance ticking
  * through numbers it was never worth is a lie about money, however briefly.
+ *
+ * Called by headline figures only, never by `Amount` itself — a ledger screen
+ * renders hundreds of those, and each one would allocate a shared value and an
+ * effect to fade something nobody is watching. Same reason `usePressed` and
+ * `usePressedScale` are two hooks rather than one.
  */
 export function useValueFade(value: number) {
   const opacity = useSharedValue(1);

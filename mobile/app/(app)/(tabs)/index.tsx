@@ -121,6 +121,7 @@ export default function HomeScreen() {
   const spendingRows = spendingForMonth(accounts, lines, monthEntryIds, budgets, base, monthStart);
   const buckets = buildBuckets(accounts, (a) => accountSigned(a, lines), base, rates, spendingRows);
   const safe = safeToSpend(spendingRows);
+  const safeFade = useValueFade(safe);
 
   // Three categories closest to (or past) target.
   const planPeek = spendingRows
@@ -192,7 +193,9 @@ export default function HomeScreen() {
         : greeting;
 
   // At most one acknowledgment per screen, decided in the domain so two can
-  // never stack. Everything it needs is already computed above.
+  // never stack. One pass over the entries, the same shape as the month filter
+  // above it; no memo, because `spendingRows` is rebuilt each render anyway and
+  // a cache keyed on it would never hit.
   const moment = momentFor({
     entryCount: entries.length,
     daysLoggedLastWeek: daysLoggedLastWeek(
@@ -280,9 +283,11 @@ export default function HomeScreen() {
             )}
           </View>
 
-          <Animated.Text className="text-amount-hero font-mono-bold text-ink mt-2" style={worthFade}>
-            {formatGrouped(base, worth)}
-          </Animated.Text>
+          <Animated.View style={worthFade}>
+            <Text className="text-amount-hero font-mono-bold text-ink mt-2">
+              {formatGrouped(base, worth)}
+            </Text>
+          </Animated.View>
           <View className="flex-row items-baseline mt-1" style={{ gap: 8 }}>
             <Text
               className={`text-amount-sm font-mono-medium ${
@@ -382,7 +387,9 @@ export default function HomeScreen() {
                 )}
               </Text>
             </View>
-            <Amount minor={safe} currency={base} size="lg" tone="neutral" animate />
+            <Animated.View style={safeFade}>
+              <Amount minor={safe} currency={base} size="lg" tone="neutral" />
+            </Animated.View>
           </View>
           {/* The screen's one acknowledgment, if there is one. A line in a card
               that already exists, never a surface of its own. */}

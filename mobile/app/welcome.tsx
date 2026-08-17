@@ -7,6 +7,7 @@ import { Button, Chip, Field } from "../src/components/ui";
 import { useAuth } from "../src/lib/auth";
 import { messageFor } from "../src/lib/errors";
 import { currencyError } from "../src/lib/validate";
+import { useStrings } from "../src/lib/wording";
 
 // Common bases, not an exhaustive list — the field below stays authoritative so
 // any ISO code works. Chips are shortcuts, not the choice itself.
@@ -20,6 +21,7 @@ const COMMON = ["IDR", "USD", "EUR", "SGD"];
 // someone recording money in a single tap, not to sell them a sign-up.
 export default function WelcomeScreen() {
   const { startGuest } = useAuth();
+  const s = useStrings();
   const [currency, setCurrency] = useState("IDR");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +39,7 @@ export default function WelcomeScreen() {
       // the wizard's missing first step.
       router.replace("/(app)/setup");
     } catch (e) {
-      setError(messageFor(e, "Couldn't start"));
+      setError(messageFor(e, s.auth.welcome.failed));
     } finally {
       setBusy(false);
     }
@@ -45,16 +47,15 @@ export default function WelcomeScreen() {
 
   return (
     <AuthScreen
-      caption="Track your money on this device. No account needed."
+      caption={s.auth.welcome.caption}
       footer={
         <Text className="text-caption font-sans-medium text-faint text-center">
-          Everything stays on this device until you make an account. Create one later and what you
-          have entered comes with you.
+          {s.auth.welcome.footer}
         </Text>
       }
     >
       <Field
-        label="What currency do you count in?"
+        label={s.auth.welcome.currencyLabel}
         value={currency}
         onChange={setCurrency}
         placeholder="IDR"
@@ -72,11 +73,16 @@ export default function WelcomeScreen() {
 
       <FormError message={error} />
 
-      <Button label="Start tracking" onPress={begin} busy={busy} disabled={!!currencyErr} />
+      <Button
+        label={s.auth.welcome.start}
+        onPress={begin}
+        busy={busy}
+        disabled={!!currencyErr}
+      />
 
       <View className="mt-4" style={{ gap: 4 }}>
         <Button
-          label="I already have an account"
+          label={s.auth.welcome.haveAccount}
           variant="secondary"
           onPress={() => router.push("/login")}
         />

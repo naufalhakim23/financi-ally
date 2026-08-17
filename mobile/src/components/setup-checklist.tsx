@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import { Check, X } from "lucide-react-native";
 
 import { Button, Card, ICON, SectionLabel, useTheme } from "./ui";
+import { useStrings } from "../lib/wording";
 import { useSetupState, type SetupItem } from "../lib/setup";
 import { Account, Entry, JournalLine } from "../model/models";
 
@@ -13,11 +14,11 @@ import { Account, Entry, JournalLine } from "../model/models";
 // Categories and income sources have no dedicated create screen on this client;
 // the wizard is where they come from, and re-running it skips what already
 // exists.
-const ACTION: Record<SetupItem["key"], { label: string; go: () => void }> = {
-  pocket: { label: "Add", go: () => router.push("/(app)/pocket-new") },
-  category: { label: "Add", go: () => router.push("/(app)/setup") },
-  income: { label: "Add", go: () => router.push("/(app)/setup") },
-  entry: { label: "Add", go: () => router.push("/(app)/entry-new") },
+const GO_TO: Record<SetupItem["key"], () => void> = {
+  pocket: () => router.push("/(app)/pocket-new"),
+  category: () => router.push("/(app)/setup"),
+  income: () => router.push("/(app)/setup"),
+  entry: () => router.push("/(app)/entry-new"),
 };
 
 export function SetupChecklist({
@@ -30,6 +31,7 @@ export function SetupChecklist({
   lines: JournalLine[];
 }) {
   const { C } = useTheme();
+  const s = useStrings();
   const { items, done, complete, dismissed, dismiss } = useSetupState(accounts, entries, lines);
 
   if (complete || dismissed) return null;
@@ -37,11 +39,11 @@ export function SetupChecklist({
   return (
     <Card>
       <View className="flex-row items-center justify-between">
-        <SectionLabel>Finish setting up</SectionLabel>
+        <SectionLabel>{s.setup.checklist.title}</SectionLabel>
         <Pressable
           onPress={dismiss}
           accessibilityRole="button"
-          accessibilityLabel="Dismiss setup checklist"
+          accessibilityLabel={s.setup.checklist.dismiss}
           hitSlop={12}
         >
           <X size={ICON.md} color={C.dim} strokeWidth={2} />
@@ -56,7 +58,7 @@ export function SetupChecklist({
           />
         </View>
         <Text className="text-mono-meta font-mono text-faint">
-          {done} of {items.length}
+          {s.setup.checklist.progress(done, items.length)}
         </Text>
       </View>
 
@@ -83,10 +85,10 @@ export function SetupChecklist({
             </View>
             {!item.done && (
               <Button
-                label={ACTION[item.key].label}
+                label={s.setup.checklist.add}
                 variant="tertiary"
                 fullWidth={false}
-                onPress={ACTION[item.key].go}
+                onPress={GO_TO[item.key]}
               />
             )}
           </View>

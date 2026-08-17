@@ -9,11 +9,13 @@ import { useAuth } from "../src/lib/auth";
 import { messageFor } from "../src/lib/errors";
 import { isGuest } from "../src/lib/guestStore";
 import { emailError, passwordError, resetCodeError, MIN_PASSWORD } from "../src/lib/validate";
+import { useStrings } from "../src/lib/wording";
 
 // Step 2 of 2. The server signs the user in on success, so this screen lands
 // straight in the app rather than bouncing back through /login.
 export default function ResetPasswordScreen() {
   const { forgotPassword, resetPassword } = useAuth();
+  const s = useStrings();
   const params = useLocalSearchParams<{ email?: string }>();
   const [email, setEmail] = useState(params.email ?? "");
   const [code, setCode] = useState("");
@@ -42,7 +44,7 @@ export default function ResetPasswordScreen() {
       await resetPassword(email.trim(), code.trim(), password);
       await afterSignIn(wasGuest);
     } catch (e) {
-      setError(messageFor(e, "Couldn't reset your password"));
+      setError(messageFor(e, s.auth.reset.failed));
     } finally {
       setBusy(false);
     }
@@ -61,23 +63,23 @@ export default function ResetPasswordScreen() {
       setCode("");
       setResent(true);
     } catch (e) {
-      setError(messageFor(e, "Couldn't send a new code"));
+      setError(messageFor(e, s.auth.reset.resendFailed));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <AuthScreen caption="Enter your code" onBack={() => router.replace("/forgot-password")}>
+    <AuthScreen caption={s.auth.reset.caption} onBack={() => router.replace("/forgot-password")}>
       <Text className="text-caption font-sans-semibold text-faint uppercase text-center mb-4">
-        step 2 of 2
+        {s.auth.reset.step}
       </Text>
 
       <Field
-        label="Email"
+        label={s.auth.emailLabel}
         value={email}
         onChange={setEmail}
-        placeholder="you@example.com"
+        placeholder={s.auth.emailPlaceholder}
         keyboardType="email-address"
         autoCap="none"
         autoComplete="email"
@@ -85,14 +87,12 @@ export default function ResetPasswordScreen() {
         error={showFieldErrors ? emailErr : null}
       />
       <Field
-        label="Code"
+        label={s.auth.reset.codeLabel}
         value={code}
         onChange={(v) => setCode(v.replace(/\D/g, ""))}
-        placeholder="123456"
+        placeholder={s.auth.reset.codePlaceholder}
         helper={
-          resent
-            ? "A new code is on its way — the previous one no longer works"
-            : "The 6-digit code we emailed you. It expires in 15 minutes."
+          resent ? s.auth.reset.codeResent : s.auth.reset.codeHelper
         }
         keyboardType="number-pad"
         // one-time-code lets iOS/Android offer the code straight from the
@@ -107,10 +107,10 @@ export default function ResetPasswordScreen() {
       />
       <Field
         ref={passwordRef}
-        label="New password"
+        label={s.auth.reset.passwordLabel}
         value={password}
         onChange={setPassword}
-        placeholder={`At least ${MIN_PASSWORD} characters`}
+        placeholder={s.auth.reset.passwordPlaceholder(MIN_PASSWORD)}
         secure
         autoCap="none"
         autoComplete="new-password"
@@ -122,14 +122,14 @@ export default function ResetPasswordScreen() {
 
       <FormError message={error} />
 
-      <Button label="Set new password" onPress={submit} busy={busy} />
+      <Button label={s.auth.reset.submit} onPress={submit} busy={busy} />
 
       <View className="mt-4 self-center">
-        <Button label="Send a new code" variant="tertiary" onPress={resend} disabled={busy} />
+        <Button label={s.auth.reset.resend} variant="tertiary" onPress={resend} disabled={busy} />
       </View>
 
       <Text className="text-caption font-sans-medium text-faint text-center mt-6">
-        Setting a new password signs you out everywhere else.
+        {s.auth.reset.signsYouOut}
       </Text>
 
       {dialog}

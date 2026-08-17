@@ -16,6 +16,7 @@ import {
   type Freq,
 } from "../../src/lib/recurrence";
 import { useObservable } from "../../src/lib/useObserve";
+import { useStrings } from "../../src/lib/wording";
 import { Account } from "../../src/model/models";
 import {
   AmountField,
@@ -33,12 +34,13 @@ import {
   Skeleton,
   Sheet,
   ScreenHeader,
+  formatGrouped,
   useTheme,
 } from "../../src/components/ui";
 import { messageFor } from "../../src/lib/errors";
 
-function formatDate(d?: string | null): string {
-  if (!d) return "—";
+function formatDate(d: string | null | undefined, missing: string): string {
+  if (!d) return missing;
   return new Date(d).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
 }
 
@@ -64,6 +66,7 @@ function buildTemplate(
 
 export default function Recurring() {
   const { user, baseCurrency: base } = useAuth();
+  const s = useStrings();
   const { C } = useTheme();
 
   const [rules, setRules] = useState<RecurringRule[]>([]);
@@ -113,9 +116,9 @@ export default function Recurring() {
       const rows = await authedApi.listRecurring();
       if (mine === gen.current) setRules(rows);
     } catch (e) {
-      if (mine === gen.current) setErr(messageFor(e, "Couldn't load your repeating entries"));
+      if (mine === gen.current) setErr(messageFor(e, s.recurring.loadFailed));
     }
-  }, []);
+  }, [s]);
 
   useEffect(() => {
     let cancelled = false;
@@ -136,7 +139,7 @@ export default function Recurring() {
     setRefreshing(false);
   }
 
-  const nameFor = (id: string) => accounts.find((a) => a.id === id)?.name ?? "—";
+  const nameFor = (id: string) => accounts.find((a) => a.id === id)?.name ?? s.common.missing;
 
   function openNew() {
     setEditingId(null);
@@ -169,20 +172,20 @@ export default function Recurring() {
 
   async function saveRule() {
     setFormErr(null);
-    if (!categoryId) { setFormErr("Select a category"); return; }
-    if (!pocketId) { setFormErr("Select a pocket to pay from"); return; }
+    if (!categoryId) { setFormErr(s.recurring.form.noCategory); return; }
+    if (!pocketId) { setFormErr(s.recurring.form.noPocket); return; }
 
     const currency = accounts.find((a) => a.id === categoryId)?.currency ?? base;
     const pocketCurrency = accounts.find((a) => a.id === pocketId)?.currency;
     if (pocketCurrency && pocketCurrency !== currency) {
-      setFormErr("Category and pocket must use the same currency");
+      setFormErr(s.recurring.form.currencyMismatch);
       return;
     }
     let minor: number;
     try {
       minor = toMinor(currency, amount);
-    } catch { setFormErr("Enter a valid amount"); return; }
-    if (minor <= 0) { setFormErr("Amount must be greater than zero"); return; }
+    } catch { setFormErr(s.recurring.form.badAmount); return; }
+    if (minor <= 0) { setFormErr(s.recurring.form.zeroAmount); return; }
 
     const rrule = buildRRule({ freq, monthDay, weekDay });
     const template = buildTemplate(currency, categoryId, pocketId, minor, memo);
@@ -197,7 +200,7 @@ export default function Recurring() {
       setShowForm(false);
       void fetchRules();
     } catch (e) {
-      setFormErr(messageFor(e, "save failed"));
+      setFormErr(messageFor(e, s.recurring.form.saveFailed));
     } finally {
       setFormBusy(false);
     }
@@ -212,7 +215,7 @@ export default function Recurring() {
       setPendingDelete(null);
       void fetchRules();
     } catch (e) {
-      setErr(messageFor(e, "delete failed"));
+      setErr(messageFor(e, s.recurring.deleteFailed));
       setPendingDelete(null);
     } finally {
       setDeleteBusy(false);
@@ -227,10 +230,10 @@ export default function Recurring() {
     setNotice(null);
     try {
       const res = await authedApi.triggerRecurring();
-      setNotice(res.count > 0 ? `Posted ${res.count} entr${res.count === 1 ? "y" : "ies"}` : "Nothing due right now");
+      setNotice(res.count > 0 ? s.recurring.posted(res.count) : s.recurring.nothingDue);
       void fetchRules();
     } catch (e) {
-      setErr(messageFor(e, "run failed"));
+      setErr(messageFor(e, s.recurring.runFailed));
     } finally {
       setRunning(false);
     }
@@ -241,7 +244,11 @@ export default function Recurring() {
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-background">
-      <ScreenHeader title="Repeating entries" backLabel="More" onBack={() => router.back()} />
+      <ScreenHeader
+        title={s.recurring.title}
+        backLabel={s.recurring.backLabel}
+        onBack={() => router.back()}
+      />
       <ScrollView
         className="flex-1"
         contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
@@ -250,16 +257,16 @@ export default function Recurring() {
         }
       >
         <Card className="mb-card-gap">
-          <SectionLabel>Scheduled</SectionLabel>
+          <SectionLabel>{s.recurring.scheduled}</SectionLabel>
           <Text className="text-ink text-amount-lg font-mono-bold mt-1">
-            {active.length} active
+            {s.recurring.activeCount(active.length)}
           </Text>
           <Text className="text-faint text-caption font-sans-medium mt-1">
-            entries post automatically on their date
+            {s.recurring.postsAutomatically}
           </Text>
           <View className="mt-2 self-start">
             <Button
-              label={running ? "Running…" : "Run due now"}
+              label={running ? s.recurring.running : s.recurring.runDue}
               variant="tertiary"
               fullWidth={false}
               disabled={running}
@@ -288,8 +295,8 @@ export default function Recurring() {
           <View className="mb-card-gap">
             <EmptyState
               glyph={Repeat}
-              title="Nothing recurring yet"
-              body="Add rent, a subscription, or salary and it posts itself on schedule."
+              title={s.recurring.empty.title}
+              body={s.recurring.empty.body}
             />
           </View>
         )}
@@ -313,42 +320,47 @@ export default function Recurring() {
                           {rule.template.memo || nameFor(debit?.account_id ?? "")}
                         </Text>
                         <Text className="text-faint text-caption font-sans-medium">
-                          {describeRRule(rule.rrule)} · from {nameFor(credit?.account_id ?? "")}
+                          {s.recurring.ruleFrom(
+                            describeRRule(rule.rrule),
+                            nameFor(credit?.account_id ?? ""),
+                          )}
                         </Text>
                       </View>
                       <View className="items-end">
                         <Text className="text-ink text-amount-sm font-mono-bold">
                           {rule.template.currency}&nbsp;
-                          {debit ? format(rule.template.currency, debit.amount_minor) : "—"}
+                          {debit
+                            ? formatGrouped(rule.template.currency, debit.amount_minor)
+                            : s.common.missing}
                         </Text>
                         <Text className="text-faint text-mono-meta font-mono mt-0.5">
-                          next {formatDate(rule.next_run)}
+                          {s.recurring.nextRun(formatDate(rule.next_run, s.common.missing))}
                         </Text>
                       </View>
                     </View>
 
                     {!rule.active && (
                       <View className="mt-2 self-start">
-                        <Badge tone="neutral">Paused</Badge>
+                        <Badge tone="neutral">{s.recurring.paused}</Badge>
                       </View>
                     )}
                     {/* A rule that keeps failing (archived account, say) has to be
                         visible here — otherwise it silently stops posting. */}
                     {rule.last_error && (
                       <Text className="text-error text-caption font-sans-medium mt-2">
-                        Last run failed: {rule.last_error}
+                        {s.recurring.lastRunFailed(rule.last_error)}
                       </Text>
                     )}
 
                     <View className="flex-row justify-end mt-1" style={{ gap: 4 }}>
                       <Button
-                        label="Edit"
+                        label={s.common.edit}
                         variant="tertiary"
                         fullWidth={false}
                         onPress={() => openEdit(rule)}
                       />
                       <Button
-                        label="Delete"
+                        label={s.common.delete}
                         variant="tertiary"
                         fullWidth={false}
                         onPress={() => setPendingDelete(rule)}
@@ -361,32 +373,32 @@ export default function Recurring() {
           </Card>
         )}
 
-        <Button label="New recurring" onPress={openNew} />
+        <Button label={s.recurring.newRule} onPress={openNew} />
       </ScrollView>
 
       <Sheet
         visible={showForm}
         onClose={() => setShowForm(false)}
-        title={editingId ? "Edit recurring" : "New recurring"}
+        title={editingId ? s.recurring.editRule : s.recurring.newRule}
       >
         <ChipGroup
-          label="How often"
+          label={s.recurring.howOften}
           value={freq}
           options={[
-            { value: "daily" as Freq, label: "Daily" },
-            { value: "weekly" as Freq, label: "Weekly" },
-            { value: "monthly" as Freq, label: "Monthly" },
+            { value: "daily" as Freq, label: s.recurring.freq.daily },
+            { value: "weekly" as Freq, label: s.recurring.freq.weekly },
+            { value: "monthly" as Freq, label: s.recurring.freq.monthly },
           ]}
           onSelect={setFreq}
         />
 
         {freq === "weekly" && (
-          <ChipGroup label="On" value={weekDay} options={WEEKDAYS} onSelect={setWeekDay} />
+          <ChipGroup label={s.recurring.on} value={weekDay} options={WEEKDAYS} onSelect={setWeekDay} />
         )}
 
         {freq === "monthly" && (
           <ChipGroup
-            label="Day of month"
+            label={s.recurring.dayOfMonth}
             value={String(monthDay)}
             // Capped so every month has the day — no "31st in February"
             // surprises. The cap lives in the shared recurrence module.
@@ -399,40 +411,48 @@ export default function Recurring() {
         )}
 
         <ChipGroup
-          label="Category"
+          label={s.recurring.category}
           value={categoryId}
           options={categories.map((a) => ({ value: a.id, label: a.name }))}
           onSelect={setCategoryId}
         />
 
         <ChipGroup
-          label="Pay from"
+          label={s.recurring.payFrom}
           value={pocketId}
           options={pockets.map((a) => ({ value: a.id, label: a.name }))}
           onSelect={setPocketId}
         />
 
         <AmountField
-          label="Amount"
+          label={s.recurring.amount}
           value={amount}
           onChange={setAmount}
           currency={formCurrency}
         />
 
-        <Field label="Memo" value={memo} onChange={setMemo} placeholder="Rent" error={formErr} />
+        <Field
+          label={s.recurring.memo}
+          value={memo}
+          onChange={setMemo}
+          placeholder={s.recurring.memoPlaceholder}
+          error={formErr}
+        />
 
-        <Button label="Save" onPress={saveRule} busy={formBusy} />
+        <Button label={s.common.save} onPress={saveRule} busy={formBusy} />
       </Sheet>
 
       <Dialog
         visible={pendingDelete != null}
-        title="Delete this rule?"
+        title={s.recurring.confirmDelete.title}
         body={
           pendingDelete
-            ? `"${pendingDelete.template.memo || "This rule"}" stops posting. Entries it already created stay in the ledger.`
+            ? s.recurring.confirmDelete.body(
+                pendingDelete.template.memo || s.recurring.confirmDelete.fallbackName,
+              )
             : undefined
         }
-        confirmLabel="Delete"
+        confirmLabel={s.common.delete}
         busy={deleteBusy}
         onConfirm={confirmDelete}
         onCancel={() => setPendingDelete(null)}

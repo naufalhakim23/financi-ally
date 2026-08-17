@@ -19,7 +19,7 @@ import { useAuth } from "../../../src/lib/auth";
 import { syncDatabase } from "../../../src/lib/sync";
 import { useSyncState } from "../../../src/lib/syncState";
 import { useThemePreference } from "../../../src/lib/theme";
-import { useWording } from "../../../src/lib/wording";
+import { useStrings, useWording } from "../../../src/lib/wording";
 import { Badge, BookOpen, Button, Card, ListRow, SectionLabel, TitleBar, Users } from "../../../src/components/ui";
 import { useLedgerState } from "../../../src/lib/ledgerStore";
 
@@ -28,6 +28,7 @@ import { useLedgerState } from "../../../src/lib/ledgerStore";
 export default function MoreScreen() {
   const { user, guest, logout } = useAuth();
   const { mode } = useWording();
+  const s = useStrings();
   const themePref = useThemePreference();
   // null means the personal book; only a household name is worth showing.
   const { active: activeLedger } = useLedgerState();
@@ -52,7 +53,7 @@ export default function MoreScreen() {
   const gated = (subtitle: string, href: Parameters<typeof router.push>[0]) =>
     guest
       ? {
-          subtitle: "Sign in to unlock",
+          subtitle: s.more.lockedSubtitle,
           chevronGlyph: Lock,
           onPress: () => router.push("/register"),
         }
@@ -60,7 +61,7 @@ export default function MoreScreen() {
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-background">
-      <TitleBar title="More" />
+      <TitleBar title={s.more.title} />
 
       <ScrollView
         className="flex-1"
@@ -70,27 +71,31 @@ export default function MoreScreen() {
         <Card padded={false}>
           <ListRow
             glyph={activeLedger ? Users : BookOpen}
-            title="Books"
+            title={s.more.books}
             chevron
             {...gated(
-              activeLedger ? `${activeLedger.name} · shared` : "Personal · private to you",
+              activeLedger ? s.more.booksShared(activeLedger.name) : s.more.booksPersonal,
               "/(app)/ledgers",
             )}
           />
           <ListRow
             divider
             glyph={Type}
-            title="How it is worded"
-            subtitle={mode === "finance" ? "Finance" : "Normal"}
+            title={s.more.wording}
+            subtitle={mode === "finance" ? s.more.wordingFinance : s.more.wordingNormal}
             chevron
             onPress={() => router.push("/(app)/wording")}
           />
           <ListRow
             divider
             glyph={Palette}
-            title="Appearance"
+            title={s.more.appearance}
             subtitle={
-              themePref === "system" ? "Follows your phone" : themePref === "dark" ? "Dark" : "Light"
+              themePref === "system"
+                ? s.more.appearanceSystem
+                : themePref === "dark"
+                  ? s.more.appearanceDark
+                  : s.more.appearanceLight
             }
             chevron
             onPress={() => router.push("/(app)/appearance")}
@@ -98,50 +103,52 @@ export default function MoreScreen() {
           <ListRow
             divider
             glyph={PieChart}
-            title="The spending plan"
+            title={s.more.plan}
             chevron
-            {...gated("Set what each category may take", "/(app)/budgets")}
+            {...gated(s.more.planSubtitle, "/(app)/budgets")}
           />
           <ListRow
             divider
             glyph={Repeat}
-            title="Repeating entries"
+            title={s.more.repeating}
             chevron
-            {...gated("Rent, salary, subscriptions", "/(app)/recurring")}
+            {...gated(s.more.repeatingSubtitle, "/(app)/recurring")}
           />
           <ListRow
             divider
             glyph={BarChart3}
-            title="Reports"
+            title={s.more.reports}
             chevron
-            {...gated("Cash flow and category breakdown", "/(app)/reports")}
+            {...gated(s.more.reportsSubtitle, "/(app)/reports")}
           />
           <ListRow
             divider
             glyph={Wallet}
-            title="Add a pocket"
-            subtitle="A bank account, cash, a card"
+            title={s.more.addPocket}
+            subtitle={s.more.addPocketSubtitle}
             chevron
             onPress={() => router.push("/(app)/pocket-new")}
           />
         </Card>
 
-        <SectionLabel>this device</SectionLabel>
+        <SectionLabel>{s.more.thisDevice}</SectionLabel>
         {guest ? (
           <>
             <Card>
               <Text className="text-body-strong font-sans-semibold text-ink">
-                Everything is on this phone
+                {s.more.guest.title}
               </Text>
               <Text className="text-caption font-sans-medium text-faint mt-1 mb-4">
-                Nothing has left the device. Make an account and what you have entered comes with
-                you — plus reports, the spending plan and shared books.
+                {s.more.guest.body}
               </Text>
-              <Button label="Create an account" onPress={() => router.push("/register")} />
+              <Button
+                label={s.more.guest.createAccount}
+                onPress={() => router.push("/register")}
+              />
             </Card>
             <View className="mt-2">
               <Button
-                label="I already have an account"
+                label={s.more.guest.haveAccount}
                 variant="tertiary"
                 onPress={() => router.push("/login")}
               />
@@ -152,20 +159,20 @@ export default function MoreScreen() {
         <Card>
           <View className="flex-row items-center justify-between">
             <View className="flex-1 pr-3">
-              <Text className="text-body-strong font-sans-semibold text-ink">Sync</Text>
+              <Text className="text-body-strong font-sans-semibold text-ink">{s.more.sync}</Text>
               <Text className="text-caption font-sans-medium text-faint mt-0.5">
-                {user?.email ?? "signed in"}
+                {user?.email ?? s.more.signedIn}
               </Text>
             </View>
             {sync.pending && !syncing && (
               <View className="mr-2">
                 <Badge tone="warning" glyph={ArrowUp}>
-                  pending
+                  {s.more.pending}
                 </Badge>
               </View>
             )}
             <Button
-              label={syncing ? "Syncing…" : "Sync now"}
+              label={syncing ? s.more.syncing : s.more.syncNow}
               variant="secondary"
               glyph={RefreshCw}
               fullWidth={false}
@@ -176,7 +183,7 @@ export default function MoreScreen() {
         </Card>
 
         <View className="mt-2">
-          <Button label="Sign out" variant="destructive" glyph={LogOut} onPress={logout} />
+          <Button label={s.more.signOut} variant="destructive" glyph={LogOut} onPress={logout} />
         </View>
           </>
         )}

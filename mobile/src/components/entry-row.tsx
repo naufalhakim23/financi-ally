@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import { RefreshCw } from "lucide-react-native";
 
 import type { EntryView, groupByDay } from "../lib/ledger";
+import { useStrings, type Strings } from "../lib/wording";
 import { Card, Chip, DayHeader, ListRow, accountGlyph, categorySlot, formatGrouped } from "./ui";
 
 /**
@@ -25,6 +26,7 @@ export function EntryRow({
   base: string;
   divider?: boolean;
 }) {
+  const s = useStrings();
   const category = v.direction === "out" ? v.to : v.from;
   const signed = v.direction === "out" ? -v.amountMinor : v.amountMinor;
   const move = v.direction === "move";
@@ -42,20 +44,24 @@ export function EntryRow({
       divider={divider}
       glyph={accountGlyph(category?.name ?? v.entry.memo ?? "", category?.type)}
       slot={category ? categorySlot(category.id) : undefined}
-      title={v.entry.memo || category?.name || "Entry"}
+      title={v.entry.memo || category?.name || s.entry.row.fallbackTitle}
       subtitleTone={unsynced ? "warning" : "faint"}
       subtitleGlyph={unsynced ? RefreshCw : undefined}
       subtitle={
         unsynced
-          ? "unsynced"
-          : `${v.from?.name ?? "—"} → ${v.to?.name ?? "—"}${move ? " · move" : ""}`
+          ? s.entry.row.unsynced
+          : s.entry.row.flow(
+              v.from?.name ?? s.common.missing,
+              v.to?.name ?? s.common.missing,
+              move,
+            )
       }
       amount={move ? v.amountMinor : signed}
       currency={v.currency || base}
       amountTone={move ? "neutral" : "flow"}
       meta={
         v.runningBalance != null && v.runningCurrency
-          ? `bal ${formatGrouped(v.runningCurrency, v.runningBalance)}`
+          ? s.entry.row.runningBalance(formatGrouped(v.runningCurrency, v.runningBalance))
           : undefined
       }
       onPress={() => router.push(`/(app)/entry/${v.entry.id}`)}
@@ -92,19 +98,20 @@ export function EntryDayList({
 
 export type DirFilter = "all" | "in" | "out" | "move";
 
-export const DIR_LABEL: Record<DirFilter, string> = {
-  all: "All",
-  in: "Money in",
-  out: "Money out",
-  move: "Moves",
-};
+const DIR_ORDER: DirFilter[] = ["all", "in", "out", "move"];
+
+/** The filter's four words, in chip order. */
+export function dirLabels(s: Strings): Record<DirFilter, string> {
+  return s.entry.direction;
+}
 
 // Direction filter shared by History's sheet and Month detail's inline row.
 export function DirChips({ value, onChange }: { value: DirFilter; onChange: (d: DirFilter) => void }) {
+  const labels = dirLabels(useStrings());
   return (
     <View className="flex-row flex-wrap" style={{ gap: 8 }}>
-      {(Object.keys(DIR_LABEL) as DirFilter[]).map((d) => (
-        <Chip key={d} label={DIR_LABEL[d]} active={value === d} onPress={() => onChange(d)} />
+      {DIR_ORDER.map((d) => (
+        <Chip key={d} label={labels[d]} active={value === d} onPress={() => onChange(d)} />
       ))}
     </View>
   );

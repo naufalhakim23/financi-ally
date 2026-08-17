@@ -2,6 +2,7 @@ import { useState } from "react";
 import { router } from "expo-router";
 
 import { Dialog } from "./ui";
+import { useStrings } from "../lib/wording";
 import { database } from "../lib/db";
 import { markLedgerStale } from "../lib/ledgerStore";
 import { syncDatabase } from "../lib/sync";
@@ -15,6 +16,7 @@ import { syncDatabase } from "../lib/sync";
  * that push is a decision only the user can make.
  */
 export function useGuestMerge(accountLabel?: string) {
+  const s = useStrings();
   // >0 means we're holding on the merge question before leaving the screen.
   const [entries, setEntries] = useState(0);
 
@@ -51,10 +53,10 @@ export function useGuestMerge(accountLabel?: string) {
   const dialog = (
     <Dialog
       visible={entries > 0}
-      title="Entries on this device"
-      body={`You recorded ${entries} ${entries === 1 ? "entry" : "entries"} without an account. Keep them and they move into ${accountLabel || "your account"}.`}
-      cancelLabel="Keep them"
-      confirmLabel="Start fresh"
+      title={s.auth.merge.title}
+      body={s.auth.merge.body(entries, accountLabel || s.auth.merge.fallbackLabel)}
+      cancelLabel={s.auth.merge.keep}
+      confirmLabel={s.auth.merge.discard}
       onCancel={keepLocal}
       onConfirm={discardLocal}
     />

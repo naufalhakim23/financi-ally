@@ -9,6 +9,7 @@ import { Button, Chip, SectionLabel } from "../../src/components/ui";
 import { useAuth } from "../../src/lib/auth";
 import { messageFor } from "../../src/lib/errors";
 import { seedStarterAccounts } from "../../src/lib/setup";
+import { useStrings } from "../../src/lib/wording";
 
 // First-run setup, the same three steps and the same catalog as the web wizard.
 // Every step is skippable; the Home checklist catches whoever bails.
@@ -18,6 +19,7 @@ import { seedStarterAccounts } from "../../src/lib/setup";
 
 export default function Setup() {
   const { baseCurrency } = useAuth();
+  const s = useStrings();
 
   const [step, setStep] = useState(0);
   const [selection, setSelection] = useState<Set<string>>(defaultSelection);
@@ -50,7 +52,7 @@ export default function Setup() {
       await seedStarterAccounts(selection, baseCurrency);
       leave();
     } catch (e) {
-      setErr(messageFor(e, "Couldn't create your accounts"));
+      setErr(messageFor(e, s.setup.failed));
     } finally {
       setBusy(false);
     }
@@ -60,14 +62,14 @@ export default function Setup() {
     <SafeAreaView edges={["top", "bottom"]} className="flex-1 bg-background">
       <View className="flex-row items-center justify-between px-4 pt-2 pb-3">
         <View className="flex-row items-center" style={{ gap: 6 }}>
-          {STARTER_STEPS.map((s, i) => (
+          {STARTER_STEPS.map((stepDef, i) => (
             <View
-              key={s.key}
+              key={stepDef.key}
               className={`h-2 w-2 rounded-full ${i <= step ? "bg-ink" : "bg-outline-variant"}`}
             />
           ))}
           <Text className="text-caption font-sans-medium text-faint ml-2">
-            Step {step + 1} of {STARTER_STEPS.length}
+            {s.setup.step(step + 1, STARTER_STEPS.length)}
           </Text>
         </View>
         <Text
@@ -75,7 +77,7 @@ export default function Setup() {
           accessibilityRole="button"
           onPress={leave}
         >
-          Skip
+          {s.common.skip}
         </Text>
       </View>
 
@@ -93,26 +95,26 @@ export default function Setup() {
           {current.items.map((item) => (
             <Chip
               key={item.name}
-              label={item.type === "liability" ? `${item.name} (you owe this)` : item.name}
+              label={item.type === "liability" ? s.setup.owedSuffix(item.name) : item.name}
               active={selection.has(item.name)}
               onPress={() => toggle(item.name)}
             />
           ))}
         </View>
 
-        <SectionLabel>All created in {baseCurrency}, your base currency</SectionLabel>
+        <SectionLabel>{s.setup.createdIn(baseCurrency)}</SectionLabel>
 
         {!!err && <Text className="text-caption font-sans-semibold text-error-strong">{err}</Text>}
       </ScrollView>
 
       <View className="px-4 pb-2" style={{ gap: 8 }}>
         {last ? (
-          <Button label="Finish" onPress={finish} busy={busy} />
+          <Button label={s.common.finish} onPress={finish} busy={busy} />
         ) : (
-          <Button label="Continue" onPress={() => setStep((s) => s + 1)} />
+          <Button label={s.common.continue} onPress={() => setStep((n) => n + 1)} />
         )}
         {step > 0 && (
-          <Button label="Back" variant="secondary" onPress={() => setStep((s) => s - 1)} />
+          <Button label={s.common.back} variant="secondary" onPress={() => setStep((n) => n - 1)} />
         )}
       </View>
     </SafeAreaView>

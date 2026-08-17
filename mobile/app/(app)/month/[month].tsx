@@ -15,7 +15,7 @@ import {
   viewsInMonth,
 } from "../../../src/lib/ledger";
 import { useObservable } from "../../../src/lib/useObserve";
-import { useWording } from "../../../src/lib/wording";
+import { useStrings, useWording } from "../../../src/lib/wording";
 import { Account, Entry, JournalLine } from "../../../src/model/models";
 import {
   Card,
@@ -34,6 +34,7 @@ export default function MonthDetail() {
   const key = month ?? "";
   const { baseCurrency: base } = useAuth();
   const { t } = useWording();
+  const s = useStrings();
   const [filter, setFilter] = useState<DirFilter>("all");
 
   const accountsObs = useMemo(() => database.get<Account>("accounts").query().observe(), []);
@@ -74,13 +75,13 @@ export default function MonthDetail() {
     if (rest.length > 0) {
       top.push({
         id: "other",
-        label: "Other",
-        value: rest.reduce((s, [, x]) => s + x.value, 0),
+        label: s.month.otherCategories,
+        value: rest.reduce((sum, [, x]) => sum + x.value, 0),
         slot: 7,
       });
     }
     return top;
-  }, [inMonth]);
+  }, [inMonth, s]);
 
   const filtered = inMonth.filter((v) => filter === "all" || v.direction === filter);
   const days = useMemo(() => groupByDay(filtered, base), [filtered, base]);
@@ -88,10 +89,10 @@ export default function MonthDetail() {
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-background">
       <ScreenHeader
-        title={key ? monthLabel(key) : "Month"}
+        title={key ? monthLabel(key) : s.month.fallbackTitle}
         backLabel={t("history")}
         onBack={() => router.back()}
-        actionLabel={inMonth.length > 0 ? "Export" : undefined}
+        actionLabel={inMonth.length > 0 ? s.month.export : undefined}
         onAction={
           inMonth.length > 0
             ? () =>
@@ -99,7 +100,7 @@ export default function MonthDetail() {
                 // permission, no new dependency, and the user picks where it
                 // lands (Files, mail, a spreadsheet app).
                 Share.share({
-                  title: `${monthLabel(key)}.csv`,
+                  title: s.month.csvName(monthLabel(key)),
                   message: monthCsv(inMonth),
                 }).catch(() => {
                   // Dismissing the share sheet rejects on some platforms.
@@ -115,16 +116,20 @@ export default function MonthDetail() {
       >
         <Card>
           <View className="flex-row items-stretch" style={{ gap: 12 }}>
-            <Figure label="in" value={`+${formatGrouped(base, income)}`} tone="text-success-strong" />
+            <Figure
+              label={s.month.in}
+              value={`+${formatGrouped(base, income)}`}
+              tone="text-success-strong"
+            />
             <View className="w-px bg-outline-variant" />
             <Figure
-              label="out"
+              label={s.month.out}
               value={`−${formatGrouped(base, expense)}`}
               tone="text-error-strong"
             />
             <View className="w-px bg-outline-variant" />
             <Figure
-              label="net"
+              label={s.month.net}
               value={`${net < 0 ? "−" : "+"}${formatGrouped(base, Math.abs(net))}`}
               tone="text-ink"
             />
@@ -133,7 +138,7 @@ export default function MonthDetail() {
 
         {categories.length > 0 && (
           <Card>
-            <SectionLabel>where it went</SectionLabel>
+            <SectionLabel>{s.month.whereItWent}</SectionLabel>
             <View className="mt-3">
               <StackedBar
                 segments={categories.map((c) => ({
@@ -167,8 +172,8 @@ export default function MonthDetail() {
         {days.length === 0 ? (
           <EmptyState
             glyph={Receipt}
-            title="Nothing here"
-            body="No entries in this month match that filter."
+            title={s.month.empty.title}
+            body={s.month.empty.body}
           />
         ) : (
           <EntryDayList days={days} base={base} />

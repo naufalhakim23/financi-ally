@@ -16,6 +16,7 @@ import { messageFor } from "../../src/lib/errors";
 import { isAlpha3, toMinor } from "../../src/lib/money";
 import { syncDatabase } from "../../src/lib/sync";
 import { useObservable } from "../../src/lib/useObserve";
+import { useStrings } from "../../src/lib/wording";
 import { Account, AccountType, Entry, JournalLine } from "../../src/model/models";
 
 const EQUITY_ACCOUNT_NAME = "Opening Balances";
@@ -36,6 +37,7 @@ type PocketType = Extract<AccountType, "asset" | "liability">;
  */
 export default function PocketNew() {
   const { baseCurrency: base } = useAuth();
+  const s = useStrings();
 
   const accountsObs = useMemo(() => database.get<Account>("accounts").query().observe(), []);
   const accounts = useObservable(accountsObs, [] as Account[]);
@@ -51,12 +53,12 @@ export default function PocketNew() {
     setErr(null);
     const trimmed = name.trim();
     if (!trimmed) {
-      setErr("Give the pocket a name");
+      setErr(s.setup.pocket.noName);
       return;
     }
     const cur = currency.trim().toUpperCase();
     if (!isAlpha3(cur)) {
-      setErr("Currency must be a 3-letter code (e.g. IDR)");
+      setErr(s.setup.pocket.badCurrency);
       return;
     }
     let openingMinor = 0;
@@ -64,7 +66,7 @@ export default function PocketNew() {
       try {
         openingMinor = toMinor(cur, opening);
       } catch {
-        setErr("Enter a valid opening balance");
+        setErr(s.setup.pocket.badOpening);
         return;
       }
     }
@@ -96,7 +98,7 @@ export default function PocketNew() {
             e.status = "posted";
             e.currency = cur;
             e.source = "manual";
-            e.memo = `Opening balance · ${trimmed}`;
+            e.memo = s.setup.pocket.openingMemo(trimmed);
           });
           const line = (accountId: string, dc: "debit" | "credit") =>
             database.get<JournalLine>("journal_lines").create((l) => {
@@ -126,7 +128,7 @@ export default function PocketNew() {
       }
       router.back();
     } catch (e) {
-      setErr(messageFor(e, "could not create the pocket"));
+      setErr(messageFor(e, s.setup.pocket.failed));
     } finally {
       setBusy(false);
     }
@@ -138,18 +140,22 @@ export default function PocketNew() {
       className="flex-1 bg-background"
     >
       <SafeAreaView edges={["top"]}>
-        <ScreenHeader title="New pocket" backLabel="Back" onBack={() => router.back()} />
+        <ScreenHeader
+          title={s.setup.pocket.title}
+          backLabel={s.common.back}
+          onBack={() => router.back()}
+        />
       </SafeAreaView>
       <ScrollView
         contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
         keyboardShouldPersistTaps="handled"
       >
         <View className="mb-4">
-          <Text className="text-label font-sans-semibold text-ink mb-1.5">Kind</Text>
+          <Text className="text-label font-sans-semibold text-ink mb-1.5">{s.setup.pocket.kind}</Text>
           <SegmentedControl
             options={[
-              { value: "asset", label: "I hold this" },
-              { value: "liability", label: "I owe this" },
+              { value: "asset", label: s.setup.pocket.hold },
+              { value: "liability", label: s.setup.pocket.owe },
             ]}
             value={type}
             onChange={setType}
@@ -157,28 +163,28 @@ export default function PocketNew() {
         </View>
 
         <Field
-          label="Name"
+          label={s.setup.pocket.name}
           value={name}
           onChange={setName}
-          placeholder="BCA Checking"
+          placeholder={s.setup.pocket.namePlaceholder}
           autoCap="sentences"
         />
         <Field
-          label="Currency"
+          label={s.setup.pocket.currency}
           value={currency}
           onChange={setCurrency}
           placeholder={base}
           autoCap="characters"
         />
         <AmountField
-          label={type === "asset" ? "Opening balance (optional)" : "Amount owed (optional)"}
+          label={type === "asset" ? s.setup.pocket.openingBalance : s.setup.pocket.amountOwed}
           value={opening}
           onChange={setOpening}
           currency={currency.trim().toUpperCase() || base}
           error={err}
         />
 
-        <Button label="Create pocket" onPress={save} busy={busy} />
+        <Button label={s.setup.pocket.create} onPress={save} busy={busy} />
       </ScrollView>
     </KeyboardAvoidingView>
   );

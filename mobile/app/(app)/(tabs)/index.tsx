@@ -20,7 +20,7 @@ import { useLedgerState } from "../../../src/lib/ledgerStore";
 import { useSyncState } from "../../../src/lib/syncState";
 import { useObservable } from "../../../src/lib/useObserve";
 import { useSyncRefresh } from "../../../src/lib/useSyncRefresh";
-import { useWording } from "../../../src/lib/wording";
+import { useStrings, useWording } from "../../../src/lib/wording";
 import { SetupChecklist } from "../../../src/components/setup-checklist";
 import { Account, Budget, Entry, JournalLine } from "../../../src/model/models";
 import {
@@ -51,6 +51,7 @@ const RANGE_MONTHS: Record<Range, number> = { "6M": 6, "1Y": 12, All: 36 };
 export default function HomeScreen() {
   const { user, guest, baseCurrency: base } = useAuth();
   const { t } = useWording();
+  const s = useStrings();
   const { C } = useTheme();
   const sync = useSyncState();
   const { active } = useLedgerState();
@@ -176,9 +177,9 @@ export default function HomeScreen() {
       <SafeAreaView edges={["top"]} className="flex-1 bg-background justify-center px-4">
         <EmptyState
           glyph={Wallet}
-          title="Set up your money"
-          body="Pick the pockets you keep money in and the things you spend it on. Takes a minute."
-          actionLabel="Get started"
+          title={s.home.firstRun.title}
+          body={s.home.firstRun.body}
+          actionLabel={s.home.firstRun.action}
           onAction={() => router.push("/(app)/setup")}
         />
       </SafeAreaView>
@@ -191,19 +192,19 @@ export default function HomeScreen() {
         <Pressable
           onPress={() => router.push("/(app)/ledgers")}
           accessibilityRole="button"
-          accessibilityLabel={`Book: ${active?.name ?? "Personal"}. Change book`}
+          accessibilityLabel={s.home.bookSwitcher(active?.name ?? s.common.personalSpace)}
           className="flex-row items-center bg-secondary rounded-full px-3 py-2 min-h-touch"
           style={{ gap: 6 }}
         >
           <Text className="text-label font-sans-semibold text-on-secondary" numberOfLines={1}>
-            {active?.name ?? "Personal"}
+            {active?.name ?? s.common.personalSpace}
           </Text>
           <ChevronDown size={ICON.sm} color={C.dim} strokeWidth={2} />
         </Pressable>
         <View className="flex-row items-center" style={{ gap: 8 }}>
           <IconButton
             glyph={Search}
-            label="Search"
+            label={s.home.search}
             onPress={() =>
               router.push({
                 pathname: "/(app)/(tabs)/history",
@@ -236,7 +237,7 @@ export default function HomeScreen() {
             </SectionLabel>
             {sync.status === "error" && (
               <Badge tone="warning" glyph={TriangleAlert}>
-                offline
+                {s.home.offline}
               </Badge>
             )}
           </View>
@@ -254,8 +255,7 @@ export default function HomeScreen() {
               {formatGrouped(base, thisMonthNet)}
             </Text>
             <Text className="text-caption font-sans-medium text-faint">
-              {pct >= 0 ? "+" : ""}
-              {pct.toFixed(1)}% this month
+              {s.home.changeThisMonth(pct)}
               {worthAbroad != null && foreignCurrency
                 ? ` · ≈ ${foreignCurrency} ${formatGrouped(foreignCurrency, worthAbroad)}`
                 : ""}
@@ -298,7 +298,7 @@ export default function HomeScreen() {
             className="text-label font-sans-semibold text-info"
             onPress={() => router.push("/(app)/(tabs)/buckets")}
           >
-            Manage
+            {s.home.manage}
           </Text>
         </View>
 
@@ -319,7 +319,7 @@ export default function HomeScreen() {
                 amountTone="neutral"
                 meta={
                   b.total == null
-                    ? "rate unavailable"
+                    ? s.home.rateUnavailable
                     : b.children.length > 1
                       ? b.children
                           .slice(0, 2)
@@ -338,8 +338,10 @@ export default function HomeScreen() {
             <View className="flex-1">
               <Text className="text-body-strong font-sans-semibold text-ink">{t("safeToSpend")}</Text>
               <Text className="text-caption font-sans-medium text-faint mt-0.5">
-                {daysLeftInMonth(now)} days left in{" "}
-                {now.toLocaleDateString(undefined, { month: "long" })}
+                {s.home.daysLeft(
+                  daysLeftInMonth(now),
+                  now.toLocaleDateString(undefined, { month: "long" }),
+                )}
               </Text>
             </View>
             <Amount minor={safe} currency={base} size="lg" tone="neutral" />
@@ -350,12 +352,12 @@ export default function HomeScreen() {
         {planPeek.length > 0 && (
           <>
             <View className="flex-row items-center justify-between mt-1">
-              <SectionLabel>the plan this month</SectionLabel>
+              <SectionLabel>{s.home.planLabel}</SectionLabel>
               <Text
                 className="text-label font-sans-semibold text-info"
                 onPress={() => router.push("/(app)/budgets")}
               >
-                See all
+                {s.home.seeAll}
               </Text>
             </View>
             <Card>
@@ -369,7 +371,10 @@ export default function HomeScreen() {
                           {r.account.name}
                         </Text>
                         <Text className="text-mono-meta font-mono text-faint">
-                          {formatGrouped(base, r.spent)} of {formatGrouped(base, r.target ?? 0)}
+                          {s.home.planProgress(
+                            formatGrouped(base, r.spent),
+                            formatGrouped(base, r.target ?? 0),
+                          )}
                         </Text>
                       </View>
                       <ProgressBar pct={used} />
@@ -384,17 +389,17 @@ export default function HomeScreen() {
         <View className="flex-row mt-1" style={{ gap: 8 }}>
           <QuickAction
             glyph={PieChart}
-            label="The plan"
+            label={s.home.quick.plan}
             onPress={() => router.push(guest ? "/register" : "/(app)/budgets")}
           />
           <QuickAction
             glyph={BarChart3}
-            label="Reports"
+            label={s.home.quick.reports}
             onPress={() => router.push(guest ? "/register" : "/(app)/reports")}
           />
           <QuickAction
             glyph={Repeat}
-            label="Repeating"
+            label={s.home.quick.repeating}
             onPress={() => router.push(guest ? "/register" : "/(app)/recurring")}
           />
         </View>

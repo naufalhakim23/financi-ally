@@ -10,6 +10,7 @@ import { messageFor } from "../src/lib/errors";
 import { guestCurrency, isGuest } from "../src/lib/guestStore";
 import { syncDatabase } from "../src/lib/sync";
 import { currencyError, emailError, passwordError, MIN_PASSWORD } from "../src/lib/validate";
+import { useStrings } from "../src/lib/wording";
 
 // Same shortcut set welcome offers. The field stays authoritative so any ISO
 // code works; the chips are just the common answers made one tap away.
@@ -17,6 +18,7 @@ const COMMON = ["IDR", "USD", "EUR", "SGD"];
 
 export default function RegisterScreen() {
   const { register, googleSignin, googleEnabled } = useAuth();
+  const s = useStrings();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   // A guest already picked a currency and has entries denominated in it; the
@@ -50,7 +52,7 @@ export default function RegisterScreen() {
       await syncDatabase().catch(() => {});
       router.replace("/(app)/setup");
     } catch (e) {
-      setError(messageFor(e, "Registration failed"));
+      setError(messageFor(e, s.auth.register.failed));
     } finally {
       setBusy(false);
     }
@@ -72,19 +74,19 @@ export default function RegisterScreen() {
       await googleSignin();
       await afterSignIn(wasGuest);
     } catch (e) {
-      setError(messageFor(e, "Google sign-up failed"));
+      setError(messageFor(e, s.auth.register.googleFailed));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <AuthScreen caption="Create your account" onBack={backToWelcome}>
+    <AuthScreen caption={s.auth.register.caption} onBack={backToWelcome}>
       <Field
-        label="Email"
+        label={s.auth.emailLabel}
         value={email}
         onChange={setEmail}
-        placeholder="you@example.com"
+        placeholder={s.auth.emailPlaceholder}
         keyboardType="email-address"
         autoCap="none"
         autoComplete="email"
@@ -95,11 +97,11 @@ export default function RegisterScreen() {
       />
       <Field
         ref={passwordRef}
-        label="Password"
+        label={s.auth.register.passwordLabel}
         value={password}
         onChange={setPassword}
-        placeholder={`At least ${MIN_PASSWORD} characters`}
-        helper={`${MIN_PASSWORD} characters minimum`}
+        placeholder={s.auth.register.passwordPlaceholder(MIN_PASSWORD)}
+        helper={s.auth.register.passwordHelper(MIN_PASSWORD)}
         secure
         autoCap="none"
         // new-password is what tells a password manager to *offer to generate*
@@ -112,14 +114,14 @@ export default function RegisterScreen() {
       />
 
       <Field
-        label="Base currency"
+        label={s.auth.register.currencyLabel}
         value={baseCurrency}
         onChange={setBaseCurrency}
         placeholder="IDR"
         helper={
           inherited
-            ? `Carried over from what you've already recorded on this device`
-            : "Everything is reported in this currency. Leave blank for IDR."
+            ? s.auth.register.currencyInherited
+            : s.auth.register.currencyHelper
         }
         autoCap="characters"
         maxLength={3}
@@ -133,26 +135,26 @@ export default function RegisterScreen() {
 
       <FormError message={error} />
 
-      <Button label="Create account" onPress={submit} busy={busy} />
+      <Button label={s.auth.register.submit} onPress={submit} busy={busy} />
 
       {googleEnabled && (
         <>
           <OrDivider />
           <Button
-            label="Continue with Google"
+            label={s.auth.register.google}
             onPress={google}
             variant="secondary"
             disabled={busy}
           />
           <Text className="text-caption font-sans-medium text-faint text-center mt-2">
-            Google accounts skip the password. You can add one later from Forgot password.
+            {s.auth.register.googleNote}
           </Text>
         </>
       )}
 
       <View className="mt-6 self-center">
         <Button
-          label="Already have an account? Sign in"
+          label={s.auth.register.toLogin}
           variant="tertiary"
           onPress={() => router.replace("/login")}
         />

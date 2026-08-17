@@ -18,7 +18,7 @@ import { database } from "../../../src/lib/db";
 import { EMPTY_RATES, type RateTable } from "../../../src/lib/fx";
 import { useObservable } from "../../../src/lib/useObserve";
 import { useSyncRefresh } from "../../../src/lib/useSyncRefresh";
-import { useWording } from "../../../src/lib/wording";
+import { useStrings, useWording } from "../../../src/lib/wording";
 import { Account, Budget, Entry, JournalLine } from "../../../src/model/models";
 import {
   BucketChildRow,
@@ -43,6 +43,7 @@ import {
 export default function BucketsScreen() {
   const { guest, baseCurrency: base } = useAuth();
   const { t } = useWording();
+  const s = useStrings();
   const { C } = useTheme();
   const pull = useSyncRefresh();
   const [open, setOpen] = useState<BucketId | null>("cash");
@@ -103,7 +104,7 @@ export default function BucketsScreen() {
         currency={base}
         amountSize="lg"
         amountTone="neutral"
-        meta={b.total == null ? "rate unavailable" : undefined}
+        meta={b.total == null ? s.buckets.rateUnavailable : undefined}
         chevron={expandable}
         chevronGlyph={open === b.id ? ChevronUp : ChevronDown}
         onPress={expandable ? () => toggle(b.id) : undefined}
@@ -118,7 +119,7 @@ export default function BucketsScreen() {
     <SafeAreaView edges={["top"]} className="flex-1 bg-background">
       <TitleBar title={t("buckets")}>
         <Button
-          label="New"
+          label={s.buckets.newPocket}
           glyph={Plus}
           fullWidth={false}
           onPress={() => router.push("/(app)/pocket-new")}
@@ -128,7 +129,7 @@ export default function BucketsScreen() {
       {/* Spaces are the sharing boundary in direction 2a but have no backend
           concept yet, so only the one space a user has is offered. */}
       <View className="flex-row px-4 pb-3" style={{ gap: 8 }}>
-        <Chip label="Personal" active onPress={() => {}} />
+        <Chip label={s.buckets.space} active onPress={() => {}} />
       </View>
 
       <ScrollView
@@ -140,9 +141,9 @@ export default function BucketsScreen() {
         {accounts.length === 0 && (
           <EmptyState
             glyph={Wallet}
-            title="No buckets yet"
-            body="Buckets group your accounts and categories. Setup builds you a starter set."
-            actionLabel="Set up"
+            title={s.buckets.empty.title}
+            body={s.buckets.empty.body}
+            actionLabel={s.buckets.empty.action}
             onAction={() => router.push("/(app)/setup")}
           />
         )}
@@ -177,12 +178,15 @@ export default function BucketsScreen() {
             <ListRow
               glyph={accountGlyph("Spending", "expense")}
               slot={byId("spending").slot}
-              title="Spending"
+              title={s.buckets.spending}
               titleSize="lg"
               subtitle={
                 planned > 0
-                  ? `${formatGrouped(base, spent)} of ${formatGrouped(base, planned)} planned`
-                  : `${formatGrouped(base, spent)} this month`
+                  ? s.buckets.spendingPlanned(
+                      formatGrouped(base, spent),
+                      formatGrouped(base, planned),
+                    )
+                  : s.buckets.spendingThisMonth(formatGrouped(base, spent))
               }
               chevron
               onPress={() => router.push("/(app)/budgets")}

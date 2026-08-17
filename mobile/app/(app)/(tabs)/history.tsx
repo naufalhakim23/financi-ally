@@ -18,8 +18,8 @@ import {
 } from "../../../src/lib/ledger";
 import { useObservable } from "../../../src/lib/useObserve";
 import { useSyncRefresh } from "../../../src/lib/useSyncRefresh";
-import { DIR_LABEL, DirChips, EntryDayList, type DirFilter } from "../../../src/components/entry-row";
-import { useWording } from "../../../src/lib/wording";
+import { DirChips, EntryDayList, dirLabels, type DirFilter } from "../../../src/components/entry-row";
+import { useStrings, useWording } from "../../../src/lib/wording";
 import { Account, Entry, JournalLine } from "../../../src/model/models";
 import {
   Button,
@@ -84,6 +84,7 @@ function monthRows(views: EntryView[], worth: number): MonthRow[] {
 export default function HistoryScreen() {
   const { baseCurrency: base } = useAuth();
   const { t } = useWording();
+  const s = useStrings();
   const { C } = useTheme();
   const pull = useSyncRefresh();
   const [tab, setTab] = useState<Tab>("months");
@@ -180,15 +181,15 @@ export default function HistoryScreen() {
       <TitleBar title={t("history")}>
         <IconButton
           glyph={searching ? X : Search}
-          label={searching ? "Close search" : "Search entries"}
+          label={searching ? s.history.closeSearch : s.history.searchEntries}
           onPress={() => {
-            setSearching((s) => !s);
+            setSearching((on) => !on);
             setQ("");
           }}
         />
         <IconButton
           glyph={filtersOn ? FilterX : ListFilter}
-          label={filtersOn ? "Filters on" : "Filter"}
+          label={filtersOn ? s.history.filtersOn : s.common.filter}
           onPress={() => setFilterOpen(true)}
         />
       </TitleBar>
@@ -201,9 +202,9 @@ export default function HistoryScreen() {
               value={q}
               onChangeText={setQ}
               autoFocus
-              placeholder="Memo, pocket or amount"
+              placeholder={s.history.searchPlaceholder}
               placeholderTextColor={C.disabled}
-              accessibilityLabel="Search entries"
+              accessibilityLabel={s.history.searchEntries}
               className="flex-1 text-body font-sans text-ink ml-2 py-3"
             />
           </View>
@@ -214,8 +215,8 @@ export default function HistoryScreen() {
             value={tab}
             onChange={setTab}
             options={[
-              { value: "months", label: "Months" },
-              { value: "entries", label: "All entries" },
+              { value: "months", label: s.history.tabs.months },
+              { value: "entries", label: s.history.tabs.entries },
             ]}
           />
         </View>
@@ -223,10 +224,12 @@ export default function HistoryScreen() {
 
       {filtersOn && (
         <View className="flex-row items-center px-4 pb-3" style={{ gap: 8 }}>
-          {dir !== "all" && <Chip label={DIR_LABEL[dir]} active onPress={() => setDir("all")} />}
+          {dir !== "all" && (
+            <Chip label={dirLabels(s)[dir]} active onPress={() => setDir("all")} />
+          )}
           {pocketName && <Chip label={pocketName} active onPress={() => setPocketId(null)} />}
           <Chip
-            label="Clear"
+            label={s.common.clear}
             onPress={() => {
               setDir("all");
               setPocketId(null);
@@ -244,16 +247,16 @@ export default function HistoryScreen() {
         {views.length === 0 && (
           <EmptyState
             glyph={Receipt}
-            title="No entries yet"
-            body="Every money move you log shows up here, newest first."
+            title={s.history.empty.title}
+            body={s.history.empty.body}
           />
         )}
 
         {views.length > 0 && matches.length === 0 && (searching || filtersOn) && (
           <EmptyState
             glyph={Receipt}
-            title="No matches"
-            body="Nothing here fits the search and filters."
+            title={s.history.noMatches.title}
+            body={s.history.noMatches.body}
           />
         )}
 
@@ -262,10 +265,10 @@ export default function HistoryScreen() {
             {barPoints.length > 0 && (
               <Card>
                 <View className="flex-row items-center justify-between mb-3">
-                  <SectionLabel>in vs out · {thisYear}</SectionLabel>
+                  <SectionLabel>{s.history.inVsOut(thisYear)}</SectionLabel>
                   <View className="flex-row" style={{ gap: 12 }}>
-                    <LegendDot color={C.success} label="in" />
-                    <LegendDot color={C.primary} label="out" />
+                    <LegendDot color={C.success} label={s.history.legendIn} />
+                    <LegendDot color={C.primary} label={s.history.legendOut} />
                   </View>
                 </View>
                 <GroupedBars points={barPoints} />
@@ -280,13 +283,14 @@ export default function HistoryScreen() {
                     divider={i > 0}
                     title={m.label}
                     titleSize="lg"
-                    subtitle={`in ${formatGrouped(base, m.income)} · out ${formatGrouped(
-                      base,
-                      m.expense,
-                    )} · ${m.count} ${m.count === 1 ? "entry" : "entries"}`}
+                    subtitle={s.history.monthSubtitle(
+                      formatGrouped(base, m.income),
+                      formatGrouped(base, m.expense),
+                      `${m.count} ${s.common.entries(m.count)}`,
+                    )}
                     amount={m.net}
                     currency={base}
-                    meta={`end ${formatGrouped(base, m.closing)}`}
+                    meta={s.history.monthClosing(formatGrouped(base, m.closing))}
                     chevron
                     onPress={() => router.push(`/(app)/month/${m.key}`)}
                   />
@@ -298,7 +302,7 @@ export default function HistoryScreen() {
               <Card key={y.year} padded={false}>
                 <ListRow
                   title={y.year}
-                  subtitle={`${y.count} ${y.count === 1 ? "month" : "months"}`}
+                  subtitle={`${y.count} ${s.common.months(y.count)}`}
                   amount={y.net}
                   currency={base}
                   chevron
@@ -312,17 +316,25 @@ export default function HistoryScreen() {
         )}
       </ScrollView>
 
-      <Sheet visible={filterOpen} onClose={() => setFilterOpen(false)} title="Filter entries">
-        <SectionLabel>direction</SectionLabel>
+      <Sheet
+        visible={filterOpen}
+        onClose={() => setFilterOpen(false)}
+        title={s.history.filterSheet.title}
+      >
+        <SectionLabel>{s.history.filterSheet.direction}</SectionLabel>
         <View className="py-2">
           <DirChips value={dir} onChange={setDir} />
         </View>
 
         {pockets.length > 0 && (
           <>
-            <SectionLabel>pocket</SectionLabel>
+            <SectionLabel>{s.history.filterSheet.pocket}</SectionLabel>
             <View className="flex-row flex-wrap py-2" style={{ gap: 8 }}>
-              <Chip label="Any" active={pocketId === null} onPress={() => setPocketId(null)} />
+              <Chip
+                label={s.common.any}
+                active={pocketId === null}
+                onPress={() => setPocketId(null)}
+              />
               {pockets.map((p) => (
                 <Chip
                   key={p.id}
@@ -336,7 +348,12 @@ export default function HistoryScreen() {
         )}
 
         <View className="pt-3">
-          <Button label={`Show ${matches.length} ${matches.length === 1 ? "entry" : "entries"}`} onPress={() => setFilterOpen(false)} />
+          <Button
+            label={s.history.filterSheet.show(
+              `${matches.length} ${s.common.entries(matches.length)}`,
+            )}
+            onPress={() => setFilterOpen(false)}
+          />
         </View>
       </Sheet>
     </SafeAreaView>

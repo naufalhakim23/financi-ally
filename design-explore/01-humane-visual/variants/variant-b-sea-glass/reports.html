@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Variant B — Sea glass — Reports</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F6F5F3; --surface:#FFFFFF; --well:#F1EFEC; --track:#E8E5E0;
+  --outline:#E5E2DD; --outline-2:#EFEDE9; --outline-strong:#CFCBC4;
+  --ink:#201E1B; --dim:#5D5952; --faint:#79746C; --disabled:#A8A29A;
+  --accent:#0E8A7B; --accent-strong:#0B7268; --accent-pressed:#0A675C;
+  --accent-wash:#EBF4F2; --accent-edge:#CDE4E0;
+  --success:#15803D; --success-mark:#16A34A; --success-wash:#ECFDF3; --success-edge:#BBF7D0;
+  --warning:#B45309; --warning-mark:#D97706; --warning-wash:#FFFBEB; --warning-edge:#FDE68A;
+  --error:#B91C1C; --error-mark:#DC2626; --error-wash:#FEF2F2; --error-edge:#FECACA;
+  --c1:#2a78d6; --c2:#eb6834; --c3:#1baf7a; --c4:#eda100; --c5:#e87ba4; --cx:#8A857D;
+}
+html{background:#E9E7E3}
+body{font-family:'Outfit',sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}
+.num{font-family:'IBM Plex Mono',monospace}
+.phone{width:390px;height:844px;border-radius:44px;background:var(--bg);overflow-y:auto;overflow-x:hidden;
+  box-shadow:0 0 0 10px #26241F,0 30px 70px rgba(32,30,27,.30);scrollbar-width:none;position:relative}
+.phone::-webkit-scrollbar{display:none}
+.card{background:var(--surface);border:1px solid var(--outline);border-radius:24px;
+  box-shadow:0 1px 4px rgba(32,30,27,.05)}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+.legend-row{display:flex;align-items:center;justify-content:space-between;padding:8px 4px;border-radius:10px;
+  cursor:pointer;transition:background .12s}
+.legend-row:hover{background:#FAF9F7}
+.legend-row:active{background:var(--well)}
+.legend-row:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.dot{width:9px;height:9px;border-radius:3px;flex:none}
+.tab{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 0 2px;flex:1;color:var(--faint);
+  font-size:11px;font-weight:600;cursor:pointer;transition:color .16s;text-decoration:none}
+.tab:hover{color:var(--dim)}
+.tab.active{color:var(--accent-strong)}
+.tab:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;border-radius:10px}
+.fab{width:56px;height:56px;border-radius:9999px;background:var(--accent);color:#fff;display:flex;
+  align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(14,138,123,.35);cursor:pointer;
+  transition:background .16s,transform .09s}
+.fab:hover{background:var(--accent-strong)}
+.fab:active{background:var(--accent-pressed);transform:scale(.95)}
+.fab:focus-visible{outline:2px solid var(--accent-strong);outline-offset:3px}
+.iconbtn{width:40px;height:40px;border-radius:9999px;display:flex;align-items:center;justify-content:center;
+  color:var(--dim);cursor:pointer;transition:background .16s}
+.iconbtn:hover{background:var(--track)}
+.iconbtn:active{background:var(--outline);transform:scale(.96)}
+.iconbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.bar{border-radius:6px 6px 3px 3px;width:26px;background:var(--track);transition:background .16s;cursor:pointer}
+.bar:hover{background:var(--outline-strong)}
+.bar.hot{background:var(--ink)}
+.bar.hot:hover{background:#3A3733}
+.floatnav{position:fixed;top:16px;right:16px;z-index:50;display:flex;flex-direction:column;gap:6px;
+  background:#FFFFFFEE;border:1px solid var(--outline);border-radius:16px;padding:10px 12px;
+  box-shadow:0 4px 16px rgba(32,30,27,.10);backdrop-filter:blur(8px)}
+.floatnav a{font-size:12px;font-weight:600;color:var(--dim);text-decoration:none;padding:3px 6px;border-radius:8px}
+.floatnav a:hover{background:var(--well);color:var(--ink)}
+.floatnav a:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.floatnav .navhead{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);padding:0 6px}
+</style>
+</head>
+<body class="min-h-screen flex items-center justify-center py-10">
+
+<nav class="floatnav" aria-label="Prototype navigation">
+  <span class="navhead">Variant B</span>
+  <a href="index.html">Home</a>
+  <a href="add-entry.html">Add entry</a>
+  <span class="navhead" style="margin-top:4px">Reports in</span>
+  <a href="../variant-a-morning-air/reports.html">Variant A</a>
+  <a href="../variant-c-plum-hearth/reports.html">Variant C</a>
+</nav>
+
+<div class="phone">
+  <div class="px-4 pt-14 pb-32">
+
+    <!-- Title -->
+    <header class="flex items-end justify-between mb-5 px-1">
+      <div>
+        <h1 class="text-[27px] font-semibold leading-tight tracking-[-0.02em]">Reports</h1>
+        <p class="text-[13px] font-medium mt-0.5" style="color:var(--faint)">August</p>
+      </div>
+      <button class="iconbtn" aria-label="Change month">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>
+      </button>
+    </header>
+
+    <!-- Cash flow -->
+    <section class="card p-5 mb-3" style="background:linear-gradient(168deg,#FFFFFF 0%,#FCFDFC 55%,#F3F8F7 100%)">
+      <p class="eyebrow mb-3.5">Cash flow</p>
+      <div class="grid grid-cols-2 gap-4 pb-4" style="border-bottom:1px solid var(--outline-2)">
+        <div>
+          <p class="text-[12px] font-semibold mb-1" style="color:var(--faint)">In</p>
+          <p class="num text-[16px] font-bold" style="color:var(--success)">+IDR&nbsp;32,000,000</p>
+        </div>
+        <div>
+          <p class="text-[12px] font-semibold mb-1" style="color:var(--faint)">Out</p>
+          <p class="num text-[16px] font-bold" style="color:var(--error)">−IDR&nbsp;6,850,000</p>
+        </div>
+      </div>
+      <div class="flex items-center justify-between pt-4">
+        <p class="text-[13.5px] font-semibold" style="color:var(--dim)">Net</p>
+        <p class="num text-[19px] font-bold" style="color:var(--success)">+IDR&nbsp;25,150,000</p>
+      </div>
+    </section>
+
+    <!-- Spend by category -->
+    <section class="card p-5 mb-3">
+      <p class="eyebrow mb-4">Spend by category</p>
+      <div class="flex items-center gap-5">
+        <div class="relative flex-none" style="width:128px;height:128px">
+          <svg viewBox="0 0 36 36" width="128" height="128" role="img" aria-label="Spend by category donut chart">
+            <g transform="rotate(-90 18 18)">
+              <circle cx="18" cy="18" r="15.9155" fill="none" stroke="var(--c1)" stroke-width="4" stroke-dasharray="34.04 65.96" stroke-dashoffset="0"/>
+              <circle cx="18" cy="18" r="15.9155" fill="none" stroke="var(--c2)" stroke-width="4" stroke-dasharray="26.01 73.99" stroke-dashoffset="-35.04"/>
+              <circle cx="18" cy="18" r="15.9155" fill="none" stroke="var(--c3)" stroke-width="4" stroke-dasharray="12.87 87.13" stroke-dashoffset="-62.05"/>
+              <circle cx="18" cy="18" r="15.9155" fill="none" stroke="var(--c4)" stroke-width="4" stroke-dasharray="11.41 88.59" stroke-dashoffset="-75.92"/>
+              <circle cx="18" cy="18" r="15.9155" fill="none" stroke="var(--c5)" stroke-width="4" stroke-dasharray="6.30 93.70" stroke-dashoffset="-88.33"/>
+              <circle cx="18" cy="18" r="15.9155" fill="none" stroke="var(--cx)" stroke-width="4" stroke-dasharray="3.37 96.63" stroke-dashoffset="-95.63"/>
+            </g>
+          </svg>
+          <div class="absolute inset-0 flex flex-col items-center justify-center">
+            <p class="text-[10px] font-semibold" style="color:var(--faint)">Out</p>
+            <p class="num text-[12.5px] font-bold leading-tight">6.85M</p>
+          </div>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="legend-row" tabindex="0">
+            <span class="flex items-center gap-2 text-[13px] font-semibold" style="color:var(--dim)"><span class="dot" style="background:var(--c1)"></span>Groceries</span>
+            <span class="num text-[12px] font-medium">2,400,000</span>
+          </div>
+          <div class="legend-row" tabindex="0">
+            <span class="flex items-center gap-2 text-[13px] font-semibold" style="color:var(--dim)"><span class="dot" style="background:var(--c2)"></span>Eating out</span>
+            <span class="num text-[12px] font-medium">1,850,000</span>
+          </div>
+          <div class="legend-row" tabindex="0">
+            <span class="flex items-center gap-2 text-[13px] font-semibold" style="color:var(--dim)"><span class="dot" style="background:var(--c3)"></span>Transport</span>
+            <span class="num text-[12px] font-medium">950,000</span>
+          </div>
+          <div class="legend-row" tabindex="0">
+            <span class="flex items-center gap-2 text-[13px] font-semibold" style="color:var(--dim)"><span class="dot" style="background:var(--c4)"></span>Bills</span>
+            <span class="num text-[12px] font-medium">850,000</span>
+          </div>
+          <div class="legend-row" tabindex="0">
+            <span class="flex items-center gap-2 text-[13px] font-semibold" style="color:var(--dim)"><span class="dot" style="background:var(--c5)"></span>Fun</span>
+            <span class="num text-[12px] font-medium">500,000</span>
+          </div>
+          <div class="legend-row" tabindex="0">
+            <span class="flex items-center gap-2 text-[13px] font-semibold" style="color:var(--dim)"><span class="dot" style="background:var(--cx)"></span>Everything else</span>
+            <span class="num text-[12px] font-medium">300,000</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Monthly trend -->
+    <section class="card p-5 mb-3">
+      <p class="eyebrow mb-4">Monthly trend</p>
+      <div class="flex items-end justify-between h-[120px] px-1">
+        <div class="flex flex-col items-center gap-2 h-full justify-end">
+          <div class="bar" style="height:44%"></div>
+          <span class="text-[11px] font-semibold" style="color:var(--faint)">Mar</span>
+        </div>
+        <div class="flex flex-col items-center gap-2 h-full justify-end">
+          <div class="bar" style="height:58%"></div>
+          <span class="text-[11px] font-semibold" style="color:var(--faint)">Apr</span>
+        </div>
+        <div class="flex flex-col items-center gap-2 h-full justify-end">
+          <div class="bar" style="height:50%"></div>
+          <span class="text-[11px] font-semibold" style="color:var(--faint)">May</span>
+        </div>
+        <div class="flex flex-col items-center gap-2 h-full justify-end">
+          <div class="bar" style="height:70%"></div>
+          <span class="text-[11px] font-semibold" style="color:var(--faint)">Jun</span>
+        </div>
+        <div class="flex flex-col items-center gap-2 h-full justify-end">
+          <div class="bar" style="height:62%"></div>
+          <span class="text-[11px] font-semibold" style="color:var(--faint)">Jul</span>
+        </div>
+        <div class="flex flex-col items-center gap-2 h-full justify-end">
+          <div class="bar hot" style="height:82%"></div>
+          <span class="text-[11px] font-bold" style="color:var(--ink)">Aug</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Net worth over time — empty state -->
+    <section class="card p-5" style="background:var(--accent-wash);border-color:var(--accent-edge)">
+      <p class="eyebrow mb-4" style="color:var(--accent-strong)">Net worth over time</p>
+      <div class="relative h-[86px] mb-4 overflow-hidden rounded-[14px]">
+        <svg viewBox="0 0 320 86" width="100%" height="86" preserveAspectRatio="none" aria-hidden="true">
+          <line x1="0" y1="24" x2="320" y2="24" stroke="var(--accent-edge)" stroke-width="1" stroke-dasharray="1 5"/>
+          <line x1="0" y1="48" x2="320" y2="48" stroke="var(--accent-edge)" stroke-width="1" stroke-dasharray="1 5"/>
+          <line x1="0" y1="72" x2="320" y2="72" stroke="var(--accent-edge)" stroke-width="1" stroke-dasharray="1 5"/>
+          <path d="M0 70 C 40 66, 60 58, 96 60 S 150 46, 186 44" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/>
+          <path d="M186 44 C 220 42, 250 30, 320 22" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-dasharray="1 7" opacity=".55"/>
+          <circle cx="186" cy="44" r="3.5" fill="var(--accent)"/>
+        </svg>
+      </div>
+      <p class="text-[13.5px] font-medium leading-relaxed" style="color:var(--dim)">A few more weeks of entries and this chart draws itself.</p>
+    </section>
+
+  </div>
+
+  <!-- Tab bar -->
+  <nav class="sticky bottom-0 left-0 right-0" style="background:var(--surface);border-top:1px solid var(--outline)">
+    <div class="relative flex items-end px-2 pb-5 pt-1">
+      <a href="index.html" class="tab">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>
+        Home
+      </a>
+      <a href="#" class="tab">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+        History
+      </a>
+      <div class="flex-1 flex justify-center" style="max-width:76px">
+        <a href="add-entry.html" class="fab absolute -top-6" aria-label="Add entry">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+        </a>
+      </div>
+      <a href="#" class="tab">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg>
+        Buckets
+      </a>
+      <a href="#" class="tab">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+        More
+      </a>
+    </div>
+  </nav>
+</div>
+
+</body>
+</html>

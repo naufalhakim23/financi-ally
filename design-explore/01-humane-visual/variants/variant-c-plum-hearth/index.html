@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Variant C — Plum hearth — Home</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['Outfit', 'sans-serif'],
+        mono: ['"IBM Plex Mono"', 'monospace'],
+      },
+      colors: {
+        desk: '#E5DBE1',
+        canvas: '#F7F2F5',
+        surface: '#FFFFFF',
+        well: '#F3EDF1',
+        track: '#E9E1E6',
+        pressedt: '#F0E8ED',
+        ink: '#241B22',
+        dim: '#655A61',
+        faint: '#786C74',
+        outline: '#E8DFE4',
+        outlinev: '#F1EAEF',
+        plum: '#8E4585',
+        'plum-deep': '#753A6E',
+        'plum-press': '#5F2F5A',
+        'plum-wash': '#F5EAF2',
+        'plum-tint': '#EBD9E7',
+        'plum-edge': '#DFC6DA',
+        success: '#15803D',
+        'success-wash': '#EAF4EC',
+        expense: '#B91C1C',
+        'warning-text': '#8F5200',
+        'warning-bar': '#D97706',
+        'warning-wash': '#FBF3E2',
+        'cat-grocer': '#2a78d6', 'cat-grocer-t': '#B44A18',
+        'cat-eat': '#eb6834',
+        'cat-transport': '#1baf7a',
+        'cat-bills': '#eda100',
+        'cat-fun': '#e87ba4',
+      },
+    }
+  }
+}
+</script>
+<style>
+  body { background:
+    radial-gradient(1100px 620px at 78% -8%, #EFE2EB 0%, rgba(239,226,235,0) 62%),
+    #E5DBE1;
+  }
+  .num { font-family: "IBM Plex Mono", monospace; font-variant-ligatures: none; }
+  .phone { box-shadow: 0 28px 64px -26px rgba(78,42,72,.32), 0 2px 8px rgba(78,42,72,.08); }
+  .soft-shadow { box-shadow: 0 6px 20px -14px rgba(78,42,72,.24); }
+  .card-shadow { box-shadow: 0 8px 26px -18px rgba(117,58,110,.20), 0 1px 2px rgba(36,27,34,.04); }
+  .fab-shadow { box-shadow: 0 10px 26px -8px rgba(142,69,133,.45); }
+  .hero-wash { background:
+    radial-gradient(420px 280px at 18% 0%, rgba(142,69,133,.13) 0%, rgba(142,69,133,0) 68%),
+    radial-gradient(300px 220px at 96% 12%, rgba(142,69,133,.07) 0%, rgba(142,69,133,0) 60%);
+  }
+  .press:active { transform: scale(.97); }
+  .press { transition: transform .12s cubic-bezier(.2,0,0,1), background-color .15s ease; }
+  a:focus-visible, button:focus-visible { outline: 2px solid #753A6E; outline-offset: 2px; border-radius: 12px; }
+  .row-hover { transition: background-color .15s ease; }
+  .row-hover:hover { background: #F8F3F6; }
+  .row-hover:active { background: #F0E8ED; }
+  .chip { transition: background-color .15s ease, color .15s ease, border-color .15s ease; }
+  .chip-idle:hover { background: #F5EAF2; }
+  .navcard a { transition: color .15s ease, background-color .15s ease; }
+  .navcard a:hover { color: #753A6E; background: #F5EAF2; }
+  .tabbtn { transition: color .15s ease; }
+  .tabbtn:hover { color: #753A6E; }
+</style>
+</head>
+<body class="min-h-screen font-sans text-ink antialiased">
+
+<!-- floating cross-nav -->
+<nav class="navcard fixed top-5 right-5 z-50 w-52 rounded-2xl bg-surface/95 backdrop-blur border border-track p-3 soft-shadow text-[13px]">
+  <p class="px-2 pb-1.5 font-semibold text-ink">C · Plum hearth</p>
+  <p class="px-2 pb-1 text-[11px] uppercase tracking-[0.08em] text-faint">This variant</p>
+  <a href="index.html" class="block px-2 py-1 rounded-lg font-semibold text-plum-deep bg-plum-wash">Home</a>
+  <a href="add-entry.html" class="block px-2 py-1 rounded-lg text-dim">Add entry</a>
+  <a href="reports.html" class="block px-2 py-1 rounded-lg text-dim">Reports</a>
+  <p class="px-2 pt-2 pb-1 text-[11px] uppercase tracking-[0.08em] text-faint">Home in</p>
+  <a href="../variant-a-morning-air/index.html" class="block px-2 py-1 rounded-lg text-dim">A · Morning air</a>
+  <a href="../variant-b-sea-glass/index.html" class="block px-2 py-1 rounded-lg text-dim">B · Sea glass</a>
+</nav>
+
+<!-- phone frame -->
+<div class="phone mx-auto my-10 w-[390px] h-[844px] rounded-[44px] bg-canvas ring-1 ring-black/5 overflow-hidden relative flex flex-col">
+
+  <main class="flex-1 overflow-y-auto pb-6">
+
+    <!-- header + greeting, plum hero wash -->
+    <div class="hero-wash px-5 pt-7 pb-5">
+      <div class="flex items-center justify-between">
+        <button class="press chip flex items-center gap-1.5 rounded-full bg-surface border border-outline pl-3 pr-2.5 py-1.5 text-[13px] font-semibold text-ink">
+          Personal
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#786C74" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="flex items-center gap-2.5">
+          <button aria-label="Search" class="press grid place-items-center w-9 h-9 rounded-full bg-surface border border-outline text-dim hover:text-plum-deep">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          </button>
+          <button class="press grid place-items-center w-9 h-9 rounded-full bg-plum text-white text-[12px] font-semibold tracking-wide">NA</button>
+        </div>
+      </div>
+
+      <h1 class="mt-6 text-[34px] leading-[1.05] font-bold tracking-[-0.02em] text-plum-deep">Good evening</h1>
+      <p class="mt-1 text-[14px] text-dim">Sunday, August 17</p>
+
+      <!-- hero -->
+      <div class="mt-6">
+        <p class="text-[11px] font-semibold uppercase tracking-[0.09em] text-faint">Total money</p>
+        <div class="mt-1.5 flex items-end justify-between gap-4">
+          <div>
+            <p class="num text-[27px] leading-none font-bold tracking-[-0.02em] text-ink whitespace-nowrap">IDR 128,450,000</p>
+            <p class="num mt-2 text-[12px] font-medium text-success">+2.1% this month</p>
+          </div>
+          <!-- 6-month mini trend, accent single-series -->
+          <div class="flex items-end gap-[5px] h-[46px] pb-0.5" aria-label="Six month trend">
+            <div class="w-[9px] rounded-full bg-plum-tint" style="height:38%"></div>
+            <div class="w-[9px] rounded-full bg-plum-tint" style="height:48%"></div>
+            <div class="w-[9px] rounded-full bg-plum-tint" style="height:44%"></div>
+            <div class="w-[9px] rounded-full bg-plum-edge" style="height:62%"></div>
+            <div class="w-[9px] rounded-full bg-plum-edge" style="height:74%"></div>
+            <div class="w-[9px] rounded-full bg-plum" style="height:100%"></div>
+          </div>
+        </div>
+        <!-- range chips -->
+        <div class="mt-4 flex gap-2">
+          <button class="press chip rounded-full bg-plum text-white text-[12px] font-semibold px-3.5 py-1.5 hover:bg-plum-deep">6M</button>
+          <button class="press chip chip-idle rounded-full bg-surface border border-outline text-dim text-[12px] font-semibold px-3.5 py-1.5">1Y</button>
+          <button class="press chip chip-idle rounded-full bg-surface border border-outline text-dim text-[12px] font-semibold px-3.5 py-1.5">All</button>
+        </div>
+        <p class="mt-4 text-[13px] text-faint">Three weeks of logging without a gap.</p>
+      </div>
+    </div>
+
+    <!-- buckets -->
+    <section class="px-4 mt-1">
+      <p class="px-1 text-[11px] font-semibold uppercase tracking-[0.09em] text-faint">Buckets</p>
+      <div class="mt-2 rounded-[22px] bg-surface border border-outline card-shadow overflow-hidden">
+
+        <!-- Cash and banks, expanded -->
+        <div class="row-hover px-4 pt-3.5 pb-1 cursor-pointer">
+          <div class="flex items-center gap-3">
+            <span class="grid place-items-center w-10 h-10 rounded-2xl bg-plum-wash text-plum-deep">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="3" x2="21" y1="22" y2="22"/><line x1="6" x2="6" y1="18" y2="11"/><line x1="10" x2="10" y1="18" y2="11"/><line x1="14" x2="14" y1="18" y2="11"/><line x1="18" x2="18" y1="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg>
+            </span>
+            <p class="flex-1 text-[15px] font-semibold text-ink">Cash and banks</p>
+            <p class="num text-[15px] font-medium text-ink">IDR 94,200,000</p>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#786C74" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="rotate-180"><path d="m6 9 6 6 6-6"/></svg>
+          </div>
+          <!-- children -->
+          <div class="ml-[52px] mt-1.5 mb-2 border-l border-outlinev pl-4">
+            <div class="row-hover -ml-1 pl-1 flex items-center justify-between py-2 rounded-lg">
+              <p class="text-[13.5px] font-medium text-dim">BCA</p>
+              <p class="num text-[13px] text-ink">62,400,000</p>
+            </div>
+            <div class="row-hover -ml-1 pl-1 flex items-center justify-between py-2 rounded-lg">
+              <p class="text-[13.5px] font-medium text-dim">Jago</p>
+              <p class="num text-[13px] text-ink">24,800,000</p>
+            </div>
+            <div class="row-hover -ml-1 pl-1 flex items-center justify-between py-2 rounded-lg">
+              <p class="text-[13.5px] font-medium text-dim">Cash on hand</p>
+              <p class="num text-[13px] text-ink">7,000,000</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="mx-4 border-t border-outlinev"></div>
+
+        <!-- Foreign, stale rate -->
+        <div class="row-hover px-4 py-3.5 cursor-pointer">
+          <div class="flex items-center gap-3">
+            <span class="grid place-items-center w-10 h-10 rounded-2xl bg-plum-wash text-plum-deep">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+            </span>
+            <p class="flex-1 text-[15px] font-semibold text-ink">Foreign</p>
+            <p class="num text-[15px] font-medium text-ink whitespace-nowrap">≈ IDR 18,650,000</p>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#D9CDD5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+          </div>
+          <p class="num ml-[52px] mt-1 text-[11px] text-warning-text">USD 1,150 · converted at cached rate</p>
+        </div>
+
+        <div class="mx-4 border-t border-outlinev"></div>
+
+        <!-- Spending this month -->
+        <div class="row-hover px-4 py-3.5 cursor-pointer">
+          <div class="flex items-center gap-3">
+            <span class="grid place-items-center w-10 h-10 rounded-2xl bg-plum-wash text-plum-deep">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg>
+            </span>
+            <p class="flex-1 text-[15px] font-semibold text-ink whitespace-nowrap">Spending this month</p>
+            <div class="text-right">
+              <p class="num text-[13.5px] text-ink whitespace-nowrap">IDR 6,850,000</p>
+              <p class="num text-[11px] text-faint whitespace-nowrap">of 9,000,000</p>
+            </div>
+          </div>
+          <div class="ml-[52px] mt-2.5 h-1.5 rounded-full bg-track overflow-hidden">
+            <div class="h-full rounded-full bg-warning-bar" style="width:76%"></div>
+          </div>
+        </div>
+
+        <div class="mx-4 border-t border-outlinev"></div>
+
+        <!-- Owed -->
+        <div class="row-hover px-4 py-3.5 cursor-pointer flex items-center gap-3">
+          <span class="grid place-items-center w-10 h-10 rounded-2xl bg-plum-wash text-plum-deep">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+          </span>
+          <p class="flex-1 text-[15px] font-semibold text-ink">Owed</p>
+          <p class="num text-[15px] font-medium text-expense">−IDR 2,400,000</p>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#D9CDD5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        </div>
+      </div>
+    </section>
+
+    <!-- safe to spend: the accent moment -->
+    <section class="px-4 mt-3">
+      <div class="rounded-[22px] bg-plum text-white px-5 py-4 fab-shadow">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-[11px] font-semibold uppercase tracking-[0.09em] text-plum-tint">Safe to spend</p>
+            <p class="num mt-1.5 text-[24px] leading-none font-bold tracking-[-0.01em]">IDR 2,150,000</p>
+          </div>
+          <p class="text-[13px] text-plum-tint text-right leading-snug">14 days left<br>in August</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- recent -->
+    <section class="px-4 mt-5">
+      <div class="flex items-baseline justify-between px-1">
+        <p class="text-[11px] font-semibold uppercase tracking-[0.09em] text-faint">Recent</p>
+        <a href="#" class="text-[12px] font-semibold text-plum-deep hover:text-plum-press">See all</a>
+      </div>
+      <div class="mt-2 rounded-[22px] bg-surface border border-outline card-shadow overflow-hidden">
+
+        <div class="row-hover px-4 py-3 cursor-pointer flex items-center gap-3">
+          <span class="grid place-items-center w-10 h-10 rounded-2xl" style="background:rgba(235,104,52,.13); color:#B44A18;">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v2"/><path d="M14 2v2"/><path d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1"/><path d="M6 2v2"/></svg>
+          </span>
+          <div class="flex-1">
+            <p class="text-[14.5px] font-semibold text-ink">Kopi Tuku</p>
+            <p class="text-[12px] text-faint">Eating out · 5:12 pm</p>
+          </div>
+          <p class="num text-[14px] font-medium text-expense">−28,000</p>
+        </div>
+
+        <div class="ml-[68px] border-t border-outlinev"></div>
+
+        <div class="row-hover px-4 py-3 cursor-pointer flex items-center gap-3">
+          <span class="grid place-items-center w-10 h-10 rounded-2xl" style="background:rgba(27,175,122,.13); color:#0E7A54;">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>
+          </span>
+          <div class="flex-1">
+            <p class="text-[14.5px] font-semibold text-ink">Gojek</p>
+            <p class="text-[12px] text-faint">Transport · 2:40 pm</p>
+          </div>
+          <p class="num text-[14px] font-medium text-expense">−35,000</p>
+        </div>
+
+        <div class="ml-[68px] border-t border-outlinev"></div>
+
+        <div class="row-hover px-4 py-3 cursor-pointer flex items-center gap-3">
+          <span class="grid place-items-center w-10 h-10 rounded-2xl" style="background:rgba(42,120,214,.12); color:#1D5FAE;">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+          </span>
+          <div class="flex-1">
+            <p class="text-[14.5px] font-semibold text-ink">Groceries at Superindo</p>
+            <p class="text-[12px] text-faint">Groceries · yesterday</p>
+          </div>
+          <p class="num text-[14px] font-medium text-expense">−214,500</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- tab bar -->
+  <nav class="relative bg-surface border-t border-outline px-2 pt-2 pb-5">
+    <a href="add-entry.html" aria-label="Add entry" class="press fab-shadow absolute left-1/2 -translate-x-1/2 -top-7 grid place-items-center w-14 h-14 rounded-full bg-plum text-white hover:bg-plum-deep active:bg-plum-press">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+    </a>
+    <div class="grid grid-cols-5 items-end">
+      <a href="index.html" class="tabbtn flex flex-col items-center gap-1 py-1 text-plum-deep">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        <span class="text-[10.5px] font-semibold">Home</span>
+      </a>
+      <a href="#" class="tabbtn flex flex-col items-center gap-1 py-1 text-faint">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span class="text-[10.5px] font-medium">History</span>
+      </a>
+      <span></span>
+      <a href="#" class="tabbtn flex flex-col items-center gap-1 py-1 text-faint">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></svg>
+        <span class="text-[10.5px] font-medium">Buckets</span>
+      </a>
+      <a href="reports.html" class="tabbtn flex flex-col items-center gap-1 py-1 text-faint">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+        <span class="text-[10.5px] font-medium">More</span>
+      </a>
+    </div>
+  </nav>
+</div>
+
+</body>
+</html>

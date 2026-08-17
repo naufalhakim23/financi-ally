@@ -10,6 +10,7 @@ import {
   SectionLabel,
   SegmentedControl,
   SwitchRow,
+  ICON,
   useTheme,
 } from "../../src/components/ui";
 
@@ -105,7 +106,7 @@ function TabPreview({ mode, active }: { mode: Wording; active: boolean }) {
         <PreviewSlot key={label} glyph={PREVIEW_GLYPHS[i]} label={label} color={color} />
       ))}
       <View className="flex-1 items-center">
-        <Plus size={16} color={C.faint} strokeWidth={1.75} />
+        <Plus size={ICON.md} color={C.faint} strokeWidth={1.75} />
       </View>
       {labels.slice(2).map((label, i) => (
         <PreviewSlot key={label} glyph={PREVIEW_GLYPHS[i + 2]} label={label} color={color} />
@@ -125,7 +126,7 @@ function PreviewSlot({
 }) {
   return (
     <View className="flex-1 items-center">
-      <G size={16} color={color} strokeWidth={1.75} />
+      <G size={ICON.md} color={color} strokeWidth={1.75} />
       <Text className="text-overline font-sans-semibold mt-1" style={{ color }}>
         {label}
       </Text>

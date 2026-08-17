@@ -36,6 +36,7 @@ import {
   Wallet,
   accountGlyph,
   formatGrouped,
+  ICON,
   useTheme,
 } from "../../../src/components/ui";
 
@@ -186,7 +187,7 @@ export default function HomeScreen() {
           <Text className="text-label font-sans-semibold text-on-secondary" numberOfLines={1}>
             {active?.name ?? "Personal"}
           </Text>
-          <ChevronDown size={14} color={C.dim} strokeWidth={2} />
+          <ChevronDown size={ICON.sm} color={C.dim} strokeWidth={2} />
         </Pressable>
         <View className="flex-row items-center" style={{ gap: 8 }}>
           <IconButton

@@ -113,6 +113,12 @@ module.exports = {
         touch: "44px",
         row: "56px",
         "row-fx": "72px",
+        // Text column of a glyph row (16 padding + 36 glyph + 16 gap): dividers
+        // and nested rows start under the label, not the icon.
+        "row-inset": "68px",
+        // Segmented-control track padding, off the 4px scale so the thumb keeps
+        // a hairline of track around it rather than a gap.
+        "track-inset": "3px",
       },
     },
   },

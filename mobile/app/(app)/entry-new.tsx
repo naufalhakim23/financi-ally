@@ -30,6 +30,7 @@ import {
   applyKey,
   categorySlot,
   formatGrouped,
+  ICON,
   useTheme,
 } from "../../src/components/ui";
 
@@ -157,26 +158,28 @@ export default function EntryNew() {
   useEffect(() => {
     setFromId((cur) => (cur && fromOptions.some((a) => a.id === cur) ? cur : null));
     setToId((cur) => (cur && toOptions.some((a) => a.id === cur) ? cur : null));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, accounts.length]);
+  }, [mode, accounts]);
 
-  const from = active.find((a) => a.id === fromId) ?? null;
-  const to = active.find((a) => a.id === toId) ?? null;
+  // Resolved against the options, not all accounts: an id that arrived by deep
+  // link or went stale when an account was archived resolves to null and never
+  // reaches save().
+  const from = fromOptions.find((a) => a.id === fromId) ?? null;
+  const to = toOptions.find((a) => a.id === toId) ?? null;
   const currency = from?.currency ?? base;
 
   async function save() {
     setErr(null);
-    if (!fromId || !toId) {
+    if (!from || !to) {
       setErr(`Pick where the money comes ${mode === "in" ? "from" : "out of"} and where it goes`);
       return;
     }
-    if (fromId === toId) {
+    if (from.id === to.id) {
       setErr("Pick two different accounts");
       return;
     }
     // Both legs post in the source currency; cross-currency needs an fx_rate
     // this screen does not collect yet, and the server rejects the entry.
-    if (from && to && from.currency !== to.currency) {
+    if (from.currency !== to.currency) {
       setErr(`Both sides must use the same currency — ${from.name} is ${from.currency}, ${to.name} is ${to.currency}`);
       return;
     }
@@ -205,14 +208,14 @@ export default function EntryNew() {
         });
         await database.get("journal_lines").create((l: any) => {
           l.entryId = entry.id;
-          l.accountId = toId;
+          l.accountId = to.id;
           l.dc = "debit";
           l.amountMinor = minor;
           l.currency = currency;
         });
         await database.get("journal_lines").create((l: any) => {
           l.entryId = entry.id;
-          l.accountId = fromId;
+          l.accountId = from.id;
           l.dc = "credit";
           l.amountMinor = minor;
           l.currency = currency;
@@ -426,7 +429,7 @@ function PickerRow({
           </Text>
         )}
       </View>
-      <ChevronRight size={18} color={C.chevron} strokeWidth={1.75} />
+      <ChevronRight size={ICON.lg} color={C.chevron} strokeWidth={1.75} />
     </Pressable>
   );
 }
@@ -451,7 +454,7 @@ function MetaChip({
       className="flex-row items-center bg-surface-container rounded-full px-3.5 py-2"
       style={{ gap: 6 }}
     >
-      <G size={14} color={active ? C.ink : C.dim} strokeWidth={1.75} />
+      <G size={ICON.sm} color={active ? C.ink : C.dim} strokeWidth={1.75} />
       <Text className={`text-label font-sans-semibold ${active ? "text-ink" : "text-dim"}`}>
         {label}
       </Text>

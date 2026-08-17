@@ -2,7 +2,7 @@ import { Pressable, Text, View } from "react-native";
 import { router } from "expo-router";
 import { Check, X } from "lucide-react-native";
 
-import { Button, Card, SectionLabel, useTheme } from "./ui";
+import { Button, Card, ICON, SectionLabel, useTheme } from "./ui";
 import { useSetupState, type SetupItem } from "../lib/setup";
 import { Account, Entry, JournalLine } from "../model/models";
 
@@ -44,7 +44,7 @@ export function SetupChecklist({
           accessibilityLabel="Dismiss setup checklist"
           hitSlop={12}
         >
-          <X size={16} color={C.dim} strokeWidth={2} />
+          <X size={ICON.md} color={C.dim} strokeWidth={2} />
         </Pressable>
       </View>
 
@@ -68,7 +68,7 @@ export function SetupChecklist({
                 item.done ? "bg-success border-success" : "border-outline"
               }`}
             >
-              {item.done && <Check size={12} color={C.onPrimary} strokeWidth={3} />}
+              {item.done && <Check size={ICON.xs} color={C.onPrimary} strokeWidth={3} />}
             </View>
             <View className="flex-1">
               <Text

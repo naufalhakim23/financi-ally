@@ -2,7 +2,7 @@ import { Pressable, Text, View } from "react-native";
 import { ArrowLeftRight, ChevronRight, Plus, TriangleAlert } from "lucide-react-native";
 
 import { Amount, Button, Card, IconBox, usePressed } from "./core";
-import { useTheme, type Glyph } from "./tokens";
+import { ICON, useTheme, type Glyph } from "./tokens";
 
 // ─── List atoms (DESIGN.md v1.0 → List rows, Empty states) ──────────────────
 
@@ -64,7 +64,7 @@ export function ListRow({
       {/* Hairline is inset to the text column when rows carry an icon box, so
           the divider reads as separating content rather than slicing the card. */}
       {divider && (
-        <View className={`h-px bg-outline-variant ${glyph ? "ml-[68px]" : "ml-4"}`} />
+        <View className={`h-px bg-outline-variant ${glyph ? "ml-row-inset" : "ml-4"}`} />
       )}
       <Pressable
         onPress={onPress}
@@ -85,7 +85,7 @@ export function ListRow({
           </Text>
           {subtitle && (
             <View className="flex-row items-center" style={{ gap: 5 }}>
-              {S && <S size={12} color={subtitleTone === "warning" ? C.warning : C.faint} strokeWidth={2} />}
+              {S && <S size={ICON.xs} color={subtitleTone === "warning" ? C.warning : C.faint} strokeWidth={2} />}
               <Text
                 className={`text-caption font-sans-medium ${
                   subtitleTone === "warning" ? "text-warning" : "text-faint"
@@ -111,7 +111,7 @@ export function ListRow({
             {meta && <Text className="text-mono-meta font-mono text-faint">{meta}</Text>}
           </View>
         )}
-        {chevron && <Chev size={18} color={C.chevron} strokeWidth={1.75} />}
+        {chevron && <Chev size={ICON.lg} color={C.chevron} strokeWidth={1.75} />}
       </Pressable>
     </View>
   );
@@ -139,7 +139,7 @@ export function EmptyState({
   return (
     <Card>
       <View className="items-center py-3">
-        <G size={24} color={C.disabled} strokeWidth={1.75} />
+        <G size={ICON.xxl} color={C.disabled} strokeWidth={1.75} />
         <Text className="text-ink text-body-strong font-sans-semibold text-center mt-3">
           {title}
         </Text>
@@ -166,7 +166,7 @@ export function ErrorNotice({ message, onRetry }: { message: string; onRetry?: (
   return (
     <Card>
       <View className="flex-row items-start" style={{ gap: 10 }}>
-        <TriangleAlert size={18} color={C.warning} strokeWidth={1.75} />
+        <TriangleAlert size={ICON.lg} color={C.warning} strokeWidth={1.75} />
         <View className="flex-1">
           <Text
             className="text-body font-sans-medium text-ink"
@@ -241,13 +241,13 @@ export function BucketChildRow({
   const { pressed, handlers } = usePressed();
   return (
     <View>
-      {divider && <View className="h-px bg-outline-variant ml-[68px]" />}
+      {divider && <View className="h-px bg-outline-variant ml-row-inset" />}
       <Pressable
         onPress={onPress}
         disabled={!onPress}
         accessibilityRole={onPress ? "button" : undefined}
         {...handlers}
-        className={`flex-row items-center pl-[68px] pr-4 py-2.5 ${
+        className={`flex-row items-center pl-row-inset pr-4 py-2.5 ${
           pressed && onPress ? "bg-surface-pressed" : ""
         }`}
         style={{ gap: 10 }}

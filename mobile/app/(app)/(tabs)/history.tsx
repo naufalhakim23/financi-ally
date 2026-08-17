@@ -37,6 +37,7 @@ import {
   Sheet,
   TitleBar,
   formatGrouped,
+  ICON,
   useTheme,
 } from "../../../src/components/ui";
 
@@ -203,7 +204,7 @@ export default function HistoryScreen() {
       {searching ? (
         <View className="px-4 pb-3">
           <View className="flex-row items-center bg-surface-container rounded-lg px-3 min-h-touch">
-            <Search size={18} color={C.faint} strokeWidth={1.75} />
+            <Search size={ICON.lg} color={C.faint} strokeWidth={1.75} />
             <TextInput
               value={q}
               onChangeText={setQ}

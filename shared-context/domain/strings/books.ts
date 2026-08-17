@@ -69,6 +69,9 @@ export const books = {
     bodyOthers:
       "You'll stop seeing its entries on this device. The book and its history stay with the other members.",
     bodyLast: "You're the only one left, so the book closes when you go. Its history goes with it.",
+    // Shown while the member list has not loaded: claiming either outcome would
+    // be a guess, and one of them says the book closes.
+    bodyUnknown: "You'll stop seeing its entries on this device.",
     confirm: "Leave",
   },
 };

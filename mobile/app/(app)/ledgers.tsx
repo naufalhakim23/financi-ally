@@ -50,7 +50,7 @@ export default function Ledgers() {
   const { C } = useTheme();
 
   const [books, setBooks] = useState<LedgerMembership[]>([]);
-  const [members, setMembers] = useState<LedgerMember[]>([]);
+  const [members, setMembers] = useState<LedgerMember[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -91,6 +91,7 @@ export default function Ledgers() {
       setMembers([]);
       return;
     }
+    setMembers(null);
     let cancelled = false;
     authedApi
       .listLedgerMembers(current.ledger.id)
@@ -228,6 +229,7 @@ export default function Ledgers() {
       <ScreenHeader
         title={s.books.title}
         backLabel={s.books.backLabel}
+        backAccessibilityLabel={s.common.backTo(s.books.backLabel)}
         onBack={() => router.back()}
       />
       <ScrollView
@@ -243,7 +245,7 @@ export default function Ledgers() {
             {current?.ledger.name ?? s.books.personal}
           </Text>
           <Text className="text-faint text-caption font-sans-medium mt-1">
-            {isShared ? s.books.sharedWithOthers(members.length) : s.books.privateToYou}
+            {isShared ? s.books.sharedWithOthers(members?.length ?? 0) : s.books.privateToYou}
           </Text>
         </Card>
 
@@ -287,7 +289,7 @@ export default function Ledgers() {
           <>
             <SectionLabel>{s.books.members}</SectionLabel>
             <Card padded={false} className="mb-card-gap mt-2">
-              {members.map((m, i) => (
+              {(members ?? []).map((m, i) => (
                 <ListRow
                   key={m.user_id}
                   title={m.email}
@@ -415,7 +417,11 @@ export default function Ledgers() {
         visible={pendingLeave}
         title={s.books.confirmLeave.title}
         body={
-          members.length > 1 ? s.books.confirmLeave.bodyOthers : s.books.confirmLeave.bodyLast
+          members === null
+            ? s.books.confirmLeave.bodyUnknown
+            : members.length > 1
+              ? s.books.confirmLeave.bodyOthers
+              : s.books.confirmLeave.bodyLast
         }
         confirmLabel={s.books.confirmLeave.confirm}
         busy={leaveBusy}

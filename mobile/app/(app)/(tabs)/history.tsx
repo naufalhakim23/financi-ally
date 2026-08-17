@@ -18,14 +18,13 @@ import {
 } from "../../../src/lib/ledger";
 import { useObservable } from "../../../src/lib/useObserve";
 import { useSyncRefresh } from "../../../src/lib/useSyncRefresh";
-import { EntryRow } from "../../../src/components/entry-row";
+import { DIR_LABEL, DirChips, EntryDayList, type DirFilter } from "../../../src/components/entry-row";
 import { useWording } from "../../../src/lib/wording";
 import { Account, Entry, JournalLine } from "../../../src/model/models";
 import {
   Button,
   Card,
   Chip,
-  DayHeader,
   EmptyState,
   GroupedBars,
   IconButton,
@@ -42,15 +41,6 @@ import {
 } from "../../../src/components/ui";
 
 type Tab = "months" | "entries";
-
-type DirFilter = "all" | "in" | "out" | "move";
-
-const DIR_LABEL: Record<DirFilter, string> = {
-  all: "All",
-  in: "Money in",
-  out: "Money out",
-  move: "Moves",
-};
 
 type MonthRow = {
   key: string;
@@ -103,12 +93,14 @@ export default function HistoryScreen() {
   const [dir, setDir] = useState<DirFilter>("all");
   const [pocketId, setPocketId] = useState<string | null>(null);
 
-  // Home's magnifier lands here with the search box already open. The param
-  // carries a nonce so a second press re-opens it after the user dismissed it.
-  const { search } = useLocalSearchParams<{ search?: string }>();
+  // Both params carry a nonce so a second press works after the first dismiss.
+  const { search, tab: tabParam } = useLocalSearchParams<{ search?: string; tab?: string }>();
   useEffect(() => {
     if (search) setSearching(true);
   }, [search]);
+  useEffect(() => {
+    if (tabParam) setTab("entries");
+  }, [tabParam]);
 
   const accountsObs = useMemo(() => database.get<Account>("accounts").query().observe(), []);
   const linesObs = useMemo(() => database.get<JournalLine>("journal_lines").query().observe(), []);
@@ -316,28 +308,14 @@ export default function HistoryScreen() {
             ))}
           </>
         ) : (
-          days.map((day) => (
-            <View key={day.key} style={{ gap: 8 }}>
-              <DayHeader
-                label={day.label}
-                total={`${day.net < 0 ? "−" : "+"}${formatGrouped(base, day.net)}`}
-              />
-              <Card padded={false}>
-                {day.rows.map((v, i) => (
-                  <EntryRow key={v.entry.id} view={v} base={base} divider={i > 0} />
-                ))}
-              </Card>
-            </View>
-          ))
+          <EntryDayList days={days} base={base} />
         )}
       </ScrollView>
 
       <Sheet visible={filterOpen} onClose={() => setFilterOpen(false)} title="Filter entries">
         <SectionLabel>direction</SectionLabel>
-        <View className="flex-row flex-wrap py-2" style={{ gap: 8 }}>
-          {(Object.keys(DIR_LABEL) as DirFilter[]).map((d) => (
-            <Chip key={d} label={DIR_LABEL[d]} active={dir === d} onPress={() => setDir(d)} />
-          ))}
+        <View className="py-2">
+          <DirChips value={dir} onChange={setDir} />
         </View>
 
         {pockets.length > 0 && (

@@ -3,7 +3,7 @@ import { ScrollView, Share, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 
-import { EntryRow } from "../../../src/components/entry-row";
+import { DirChips, EntryDayList, type DirFilter } from "../../../src/components/entry-row";
 import { useAuth } from "../../../src/lib/auth";
 import { database } from "../../../src/lib/db";
 import {
@@ -19,8 +19,6 @@ import { useWording } from "../../../src/lib/wording";
 import { Account, Entry, JournalLine } from "../../../src/model/models";
 import {
   Card,
-  Chip,
-  DayHeader,
   EmptyState,
   Receipt,
   ScreenHeader,
@@ -31,14 +29,12 @@ import {
   slotColor,
 } from "../../../src/components/ui";
 
-type Filter = "all" | "out" | "in" | "moves";
-
 export default function MonthDetail() {
   const { month } = useLocalSearchParams<{ month: string }>();
   const key = month ?? "";
   const { baseCurrency: base } = useAuth();
   const { t } = useWording();
-  const [filter, setFilter] = useState<Filter>("all");
+  const [filter, setFilter] = useState<DirFilter>("all");
 
   const accountsObs = useMemo(() => database.get<Account>("accounts").query().observe(), []);
   const linesObs = useMemo(() => database.get<JournalLine>("journal_lines").query().observe(), []);
@@ -86,13 +82,7 @@ export default function MonthDetail() {
     return top;
   }, [inMonth]);
 
-  const filtered = inMonth.filter((v) =>
-    filter === "all"
-      ? true
-      : filter === "moves"
-        ? v.direction === "move"
-        : v.direction === filter,
-  );
+  const filtered = inMonth.filter((v) => filter === "all" || v.direction === filter);
   const days = useMemo(() => groupByDay(filtered, base), [filtered, base]);
 
   return (
@@ -172,23 +162,7 @@ export default function MonthDetail() {
           </Card>
         )}
 
-        <View className="flex-row" style={{ gap: 8 }}>
-          {(
-            [
-              ["all", "All"],
-              ["out", "Out"],
-              ["in", "In"],
-              ["moves", "Moves"],
-            ] as [Filter, string][]
-          ).map(([value, label]) => (
-            <Chip
-              key={value}
-              label={label}
-              active={filter === value}
-              onPress={() => setFilter(value)}
-            />
-          ))}
-        </View>
+        <DirChips value={filter} onChange={setFilter} />
 
         {days.length === 0 ? (
           <EmptyState
@@ -197,19 +171,7 @@ export default function MonthDetail() {
             body="No entries in this month match that filter."
           />
         ) : (
-          days.map((day) => (
-            <View key={day.key} style={{ gap: 8 }}>
-              <DayHeader
-                label={day.label}
-                total={`${day.net < 0 ? "−" : "+"}${formatGrouped(base, Math.abs(day.net))}`}
-              />
-              <Card padded={false}>
-                {day.rows.map((v, i) => (
-                  <EntryRow key={v.entry.id} view={v} base={base} divider={i > 0} />
-                ))}
-              </Card>
-            </View>
-          ))
+          <EntryDayList days={days} base={base} />
         )}
       </ScrollView>
     </SafeAreaView>

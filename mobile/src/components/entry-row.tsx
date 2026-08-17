@@ -1,8 +1,9 @@
+import { View } from "react-native";
 import { router } from "expo-router";
 import { RefreshCw } from "lucide-react-native";
 
-import type { EntryView } from "../lib/ledger";
-import { ListRow, accountGlyph, categorySlot, formatGrouped } from "./ui";
+import type { EntryView, groupByDay } from "../lib/ledger";
+import { Card, Chip, DayHeader, ListRow, accountGlyph, categorySlot, formatGrouped } from "./ui";
 
 /**
  * One ledger row, shared by History and Month detail.
@@ -59,5 +60,52 @@ export function EntryRow({
       }
       onPress={() => router.push(`/(app)/entry/${v.entry.id}`)}
     />
+  );
+}
+
+// Day-grouped ledger shared by History and Month detail.
+export function EntryDayList({
+  days,
+  base,
+}: {
+  days: ReturnType<typeof groupByDay>;
+  base: string;
+}) {
+  return (
+    <>
+      {days.map((day) => (
+        <View key={day.key} style={{ gap: 8 }}>
+          <DayHeader
+            label={day.label}
+            total={`${day.net < 0 ? "−" : "+"}${formatGrouped(base, Math.abs(day.net))}`}
+          />
+          <Card padded={false}>
+            {day.rows.map((v, i) => (
+              <EntryRow key={v.entry.id} view={v} base={base} divider={i > 0} />
+            ))}
+          </Card>
+        </View>
+      ))}
+    </>
+  );
+}
+
+export type DirFilter = "all" | "in" | "out" | "move";
+
+export const DIR_LABEL: Record<DirFilter, string> = {
+  all: "All",
+  in: "Money in",
+  out: "Money out",
+  move: "Moves",
+};
+
+// Direction filter shared by History's sheet and Month detail's inline row.
+export function DirChips({ value, onChange }: { value: DirFilter; onChange: (d: DirFilter) => void }) {
+  return (
+    <View className="flex-row flex-wrap" style={{ gap: 8 }}>
+      {(Object.keys(DIR_LABEL) as DirFilter[]).map((d) => (
+        <Chip key={d} label={DIR_LABEL[d]} active={value === d} onPress={() => onChange(d)} />
+      ))}
+    </View>
   );
 }

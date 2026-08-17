@@ -1,6 +1,6 @@
 import { useEffect } from "react";
-import { Text, View } from "react-native";
-import { Stack } from "expo-router";
+import { Pressable, Text, View } from "react-native";
+import { router, Stack } from "expo-router";
 
 import { useTheme } from "../../src/components/ui";
 import { refreshPending, useSyncState } from "../../src/lib/syncState";
@@ -71,12 +71,23 @@ export default function AppLayout() {
         </Stack>
 
         {strip && (
-          <View
+          // Lands on the entry list, where affected rows carry their own badges.
+          <Pressable
+            onPress={() =>
+              router.push({
+                pathname: "/(app)/(tabs)/history",
+                params: { tab: String(Date.now()) },
+              })
+            }
+            accessibilityRole="button"
+            accessibilityLabel={`${strip.message}. Show the entries`}
             className={`absolute left-0 right-0 bottom-[92px] mx-4 rounded-xl border px-3 py-2 ${strip.tone}`}
             accessibilityLiveRegion="polite"
           >
-            <Text className={`text-caption font-sans-semibold ${strip.text}`}>{strip.message}</Text>
-          </View>
+            <Text className={`text-caption font-sans-semibold ${strip.text}`}>
+              {strip.message} · view
+            </Text>
+          </Pressable>
         )}
       </View>
     </WordingProvider>

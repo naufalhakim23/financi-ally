@@ -22,6 +22,7 @@ export default tseslint.config({
 		'no-restricted-syntax': [
 			'error',
 			{ selector: `Literal[value=${HEX}]`, message: HEX_MSG },
+			{ selector: `TemplateElement[value.raw=${HEX}]`, message: HEX_MSG },
 			{ selector: `TemplateElement[value.raw=${ARBITRARY_SPACE}]`, message: SPACE_MSG },
 			{ selector: `Literal[value=${ARBITRARY_SPACE}]`, message: SPACE_MSG },
 			{ selector: `TemplateElement[value.raw=${ARBITRARY_COLOR}]`, message: COLOR_MSG },

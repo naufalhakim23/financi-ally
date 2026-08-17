@@ -22,6 +22,10 @@ describe('design-token lint rules', () => {
 		assert.match(text(await lint('app/fixture.tsx', "const x = { color: '#123ABC' };\n")), /hex color/i);
 	});
 
+	it('flags a raw hex color in a template literal', async () => {
+		assert.match(text(await lint('app/fixture.tsx', 'const x = `#123ABC`;\n')), /hex color/i);
+	});
+
 	it('flags an arbitrary spacing value in a plain className', async () => {
 		const messages = await lint('src/components/fixture.tsx', 'const x = <View className="ml-[68px]" />;\n');
 		assert.match(text(messages), /radius\/spacing/i);

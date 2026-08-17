@@ -15,7 +15,8 @@ import {
   spendingForMonth,
 } from "../../../src/lib/buckets";
 import { database } from "../../../src/lib/db";
-import { EMPTY_RATES, convert, rateCaption, type RateTable } from "../../../src/lib/fx";
+import { EMPTY_RATES, ageHours, convert, rateCaption, type RateTable } from "../../../src/lib/fx";
+import { daysLoggedLastWeek, momentFor } from "@financially/domain/moments";
 import { useLedgerState } from "../../../src/lib/ledgerStore";
 import { useSyncState } from "../../../src/lib/syncState";
 import { useObservable } from "../../../src/lib/useObserve";
@@ -47,6 +48,10 @@ import {
 
 type Range = "6M" | "1Y" | "All";
 const RANGE_MONTHS: Record<Range, number> = { "6M": 6, "1Y": 12, All: 36 };
+
+// Rates refresh daily, so a table older than this is worth saying out loud —
+// every converted figure on the screen is drawn from it.
+const STALE_RATE_HOURS = 24;
 
 export default function HomeScreen() {
   const { user, guest, baseCurrency: base } = useAuth();
@@ -170,6 +175,34 @@ export default function HomeScreen() {
 
   const initials = (user?.email ?? "?").slice(0, 2).toUpperCase();
 
+  // One line above the hero. A greeting is the least important thing on a money
+  // screen, so anything that needs attention takes the slot instead.
+  const hour = now.getHours();
+  const greeting =
+    hour < 12 ? s.home.greeting.morning : hour < 18 ? s.home.greeting.afternoon : s.home.greeting.evening;
+  const rateAge = ageHours(rates);
+  const opener =
+    sync.status === "error"
+      ? s.home.status.offline
+      : fxCaption && rateAge != null && rateAge > STALE_RATE_HOURS
+        ? s.home.status.staleRates
+        : greeting;
+
+  // At most one acknowledgment per screen, decided in the domain so two can
+  // never stack. Everything it needs is already computed above.
+  const moment = momentFor({
+    entryCount: entries.length,
+    daysLoggedLastWeek: daysLoggedLastWeek(
+      entries.map((e) => new Date(e.txnDate).getTime()),
+      now,
+    ),
+    dayOfMonth: now.getDate(),
+    daysLeftInMonth: daysLeftInMonth(now),
+    plannedMinor: spendingRows.reduce((sum, r) => sum + (r.target ?? 0), 0),
+    spentMinor: spendingRows.reduce((sum, r) => sum + r.spent, 0),
+    safeToSpendMinor: safe,
+  });
+
   // First run: a zeroed home tells a new user nothing. Send them to setup,
   // which builds a whole starter chart rather than a single pocket.
   if (accounts.length === 0) {
@@ -229,6 +262,8 @@ export default function HomeScreen() {
         {/* Fed from this screen's observables: the checklist asks the same
             three tables, and its own subscriptions doubled the work here. */}
         <SetupChecklist accounts={accounts} entries={entries} lines={lines} />
+
+        <Text className="text-body font-sans-medium text-dim px-1">{opener}</Text>
 
         <Card>
           <View className="flex-row items-center justify-between">
@@ -346,6 +381,13 @@ export default function HomeScreen() {
             </View>
             <Amount minor={safe} currency={base} size="lg" tone="neutral" />
           </View>
+          {/* The screen's one acknowledgment, if there is one. A line in a card
+              that already exists, never a surface of its own. */}
+          {moment && (
+            <Text className="text-caption font-sans-medium text-dim mt-3">
+              {s.moments[moment]}
+            </Text>
+          )}
         </Card>
 
         {/* One-tap peek at the plan; full screen lives under More. */}

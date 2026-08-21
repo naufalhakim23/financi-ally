@@ -94,7 +94,14 @@ export function Donut({
   );
 }
 
-export type LegendItem = { id: string; label: string; value: number; color: string };
+export type LegendItem = {
+  id: string;
+  label: string;
+  value: number;
+  color: string;
+  /** Second line, e.g. what a folded "everything else" row covers. */
+  note?: string;
+};
 
 /**
  * Mandatory companion to any ramp chart: it doubles as the value table, so
@@ -119,9 +126,16 @@ export function ChartLegend({
               className="w-2.5 h-2.5 rounded-full shrink-0"
               style={{ backgroundColor: item.color }}
             />
-            <Text className="flex-1 text-body font-sans-medium text-ink" numberOfLines={1}>
-              {item.label}
-            </Text>
+            <View className="flex-1 min-w-0">
+              <Text className="text-body font-sans-medium text-ink" numberOfLines={1}>
+                {item.label}
+              </Text>
+              {item.note && (
+                <Text className="text-caption font-sans-medium text-faint" numberOfLines={1}>
+                  {item.note}
+                </Text>
+              )}
+            </View>
             <Text className="text-amount-sm font-mono-medium text-faint">{pct}%</Text>
             <Text className="text-amount-sm font-mono-bold text-ink">
               {formatValue(item.value)}

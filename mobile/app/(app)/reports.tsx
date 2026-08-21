@@ -11,7 +11,7 @@ import {
   type NetWorth,
 } from "../../src/lib/api";
 import { useAuth } from "../../src/lib/auth";
-import { format } from "../../src/lib/money";
+import { useStrings } from "../../src/lib/wording";
 import {
   BarChart3,
   Card,
@@ -22,11 +22,13 @@ import {
   SectionLabel,
   Skeleton,
   TrendBars,
+  formatGrouped,
   seriesColor,
   ScreenHeader,
   useTheme,
 } from "../../src/components/ui";
 import { messageFor } from "../../src/lib/errors";
+import type { Strings } from "../../src/lib/wording";
 
 function monthStart(d = new Date()): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
@@ -40,24 +42,25 @@ function monthEnd(d = new Date()): string {
 // wedges is a color lookup puzzle, not a chart.
 const MAX_SLICES = 7;
 
-type Slice = { id: string; label: string; value: number; color: string };
+type Slice = { id: string; label: string; value: number; color: string; note?: string };
 
-function toSlices(spending: CategorySpend[]): Slice[] {
+function toSlices(spending: CategorySpend[], s: Strings): Slice[] {
   const sorted = [...spending]
-    .filter((s) => s.spent_minor > 0)
+    .filter((x) => x.spent_minor > 0)
     .sort((a, b) => b.spent_minor - a.spent_minor);
-  const head = sorted.slice(0, MAX_SLICES).map((s, i) => ({
-    id: s.account_id,
-    label: s.account_name,
-    value: s.spent_minor,
+  const head: Slice[] = sorted.slice(0, MAX_SLICES).map((x, i) => ({
+    id: x.account_id,
+    label: x.account_name,
+    value: x.spent_minor,
     color: seriesColor(i),
   }));
   const rest = sorted.slice(MAX_SLICES);
   if (rest.length > 0) {
     head.push({
       id: "__other",
-      label: `Other (${rest.length})`,
-      value: rest.reduce((s, r) => s + r.spent_minor, 0),
+      label: s.reports.otherSlice,
+      note: s.reports.otherSliceCount(rest.length),
+      value: rest.reduce((sum, r) => sum + r.spent_minor, 0),
       color: seriesColor(MAX_SLICES),
     });
   }
@@ -66,6 +69,7 @@ function toSlices(spending: CategorySpend[]): Slice[] {
 
 export default function Reports() {
   const { user, baseCurrency: base } = useAuth();
+  const s = useStrings();
   const { C } = useTheme();
   const [nw, setNw] = useState<NetWorth | null>(null);
   const [cf, setCf] = useState<CashFlow | null>(null);
@@ -98,9 +102,9 @@ export default function Reports() {
       setSpending(s);
       setSeries(m);
     } catch (e) {
-      if (mine === gen.current) setErr(messageFor(e, "Couldn't load your reports"));
+      if (mine === gen.current) setErr(messageFor(e, s.reports.loadFailed));
     }
-  }, [from, to]);
+  }, [from, to, s]);
 
   useEffect(() => {
     let cancelled = false;
@@ -121,7 +125,7 @@ export default function Reports() {
     setRefreshing(false);
   }
 
-  const slices = toSlices(spending);
+  const slices = toSlices(spending, s);
   const totalSpent = slices.reduce((s, x) => s + x.value, 0);
   const currentMonthKey = monthStart();
   const trend = (series?.points ?? []).map((p) => {
@@ -139,7 +143,12 @@ export default function Reports() {
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-background">
-      <ScreenHeader title="Reports" backLabel="More" onBack={() => router.back()} />
+      <ScreenHeader
+        title={s.reports.title}
+        backLabel={s.reports.backLabel}
+        backAccessibilityLabel={s.common.backTo(s.reports.backLabel)}
+        onBack={() => router.back()}
+      />
       <ScrollView
       className="flex-1 bg-background"
       contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
@@ -171,21 +180,29 @@ export default function Reports() {
       ) : (
         <>
           <Card className="mb-card-gap">
-            <SectionLabel>Net worth · {nw?.base_currency ?? base}</SectionLabel>
+            <SectionLabel>
+              {s.reports.withCurrency(s.reports.netWorth, nw?.base_currency ?? base)}
+            </SectionLabel>
             <Text className="text-ink text-amount-lg font-mono-bold mt-1">
-              {nw?.base_currency ?? base}&nbsp;{format(nw?.base_currency ?? base, nw?.net_minor ?? 0)}
+              {nw?.base_currency ?? base}&nbsp;
+              {formatGrouped(nw?.base_currency ?? base, nw?.net_minor ?? 0)}
             </Text>
             <View className="flex-row mt-3" style={{ gap: 16 }}>
               <View className="flex-1">
-                <SectionLabel>Assets</SectionLabel>
+                <SectionLabel>{s.reports.assets}</SectionLabel>
                 <Text className="text-success text-amount font-mono-bold mt-1">
-                  {nw?.total_asset.currency ?? base}&nbsp;{format(nw?.total_asset.currency ?? base, nw?.total_asset.base_minor ?? 0)}
+                  {nw?.total_asset.currency ?? base}&nbsp;
+                  {formatGrouped(nw?.total_asset.currency ?? base, nw?.total_asset.base_minor ?? 0)}
                 </Text>
               </View>
               <View className="flex-1">
-                <SectionLabel>Liabilities</SectionLabel>
+                <SectionLabel>{s.reports.liabilities}</SectionLabel>
                 <Text className="text-error text-amount font-mono-bold mt-1">
-                  {nw?.total_liability.currency ?? base}&nbsp;{format(nw?.total_liability.currency ?? base, nw?.total_liability.base_minor ?? 0)}
+                  {nw?.total_liability.currency ?? base}&nbsp;
+                  {formatGrouped(
+                    nw?.total_liability.currency ?? base,
+                    nw?.total_liability.base_minor ?? 0,
+                  )}
                 </Text>
               </View>
             </View>
@@ -193,11 +210,13 @@ export default function Reports() {
 
           {trend.length > 0 && (
             <Card className="mb-card-gap">
-              <SectionLabel>Monthly spend · {series?.base_currency ?? base}</SectionLabel>
+              <SectionLabel>
+                {s.reports.withCurrency(s.reports.monthlySpend, series?.base_currency ?? base)}
+              </SectionLabel>
               <View className="mt-3">
                 <TrendBars
                   points={trend}
-                  formatValue={(v) => `${format(series?.base_currency ?? base, v)}`}
+                  formatValue={(v) => formatGrouped(series?.base_currency ?? base, v)}
                 />
               </View>
             </Card>
@@ -205,28 +224,30 @@ export default function Reports() {
 
           {cf && (
             <Card className="mb-card-gap">
-              <SectionLabel>Cash flow · {base}</SectionLabel>
+              <SectionLabel>{s.reports.withCurrency(s.reports.cashFlow, base)}</SectionLabel>
               <View className="flex-row mt-2" style={{ gap: 16 }}>
                 <View className="flex-1">
-                  <SectionLabel>Income</SectionLabel>
+                  <SectionLabel>{s.reports.income}</SectionLabel>
                   <Text className="text-success text-amount font-mono-bold mt-1">
-                    {cf.income_minor.currency}&nbsp;{format(cf.income_minor.currency, cf.income_minor.base_minor)}
+                    {cf.income_minor.currency}&nbsp;
+                    {formatGrouped(cf.income_minor.currency, cf.income_minor.base_minor)}
                   </Text>
                 </View>
                 <View className="flex-1">
-                  <SectionLabel>Expenses</SectionLabel>
+                  <SectionLabel>{s.reports.expenses}</SectionLabel>
                   <Text className="text-error text-amount font-mono-bold mt-1">
-                    {cf.expense_minor.currency}&nbsp;{format(cf.expense_minor.currency, cf.expense_minor.base_minor)}
+                    {cf.expense_minor.currency}&nbsp;
+                    {formatGrouped(cf.expense_minor.currency, cf.expense_minor.base_minor)}
                   </Text>
                 </View>
                 <View className="flex-1">
-                  <SectionLabel>Net</SectionLabel>
+                  <SectionLabel>{s.reports.net}</SectionLabel>
                   <Text
                     className={`text-amount font-mono-bold mt-1 ${
                       cf.net_minor >= 0 ? "text-success" : "text-error"
                     }`}
                   >
-                    {base}&nbsp;{format(base, cf.net_minor)}
+                    {base}&nbsp;{formatGrouped(base, cf.net_minor)}
                   </Text>
                 </View>
               </View>
@@ -235,15 +256,17 @@ export default function Reports() {
 
           {slices.length > 0 ? (
             <Card>
-              <SectionLabel>Spending by category · {base}</SectionLabel>
+              <SectionLabel>
+                {s.reports.withCurrency(s.reports.spendingByCategory, base)}
+              </SectionLabel>
               <View className="items-center mt-4 mb-2">
                 <Donut
                   slices={slices}
                   center={
                     <View className="items-center">
-                      <SectionLabel>Total</SectionLabel>
+                      <SectionLabel>{s.reports.total}</SectionLabel>
                       <Text className="text-ink text-amount font-mono-bold mt-0.5">
-                        {format(base, totalSpent)}
+                        {formatGrouped(base, totalSpent)}
                       </Text>
                     </View>
                   }
@@ -254,7 +277,7 @@ export default function Reports() {
               <View className="mt-2">
                 <ChartLegend
                   items={slices}
-                  formatValue={(v) => `${base} ${format(base, v)}`}
+                  formatValue={(v) => `${base} ${formatGrouped(base, v)}`}
                 />
               </View>
             </Card>
@@ -262,9 +285,9 @@ export default function Reports() {
             !err && (
               <EmptyState
                 glyph={BarChart3}
-                title="Nothing to report yet"
-                body="Log an expense and this month's breakdown shows up here."
-                actionLabel="Add an entry"
+                title={s.reports.empty.title}
+                body={s.reports.empty.body}
+                actionLabel={s.reports.empty.action}
                 onAction={() => router.push("/(app)/entry-new")}
               />
             )

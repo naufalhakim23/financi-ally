@@ -1,10 +1,10 @@
 import { useEffect } from "react";
-import { Text, View } from "react-native";
-import { Stack } from "expo-router";
+import { Pressable, Text, View } from "react-native";
+import { router, Stack } from "expo-router";
 
 import { useTheme } from "../../src/components/ui";
 import { refreshPending, useSyncState } from "../../src/lib/syncState";
-import { WordingProvider } from "../../src/lib/wording";
+import { useStrings } from "../../src/lib/wording";
 
 // Authed shell. The tab group owns the four destinations; everything pushed on
 // top of them — details, the add sheet, settings — lives here so it arrives
@@ -15,6 +15,7 @@ import { WordingProvider } from "../../src/lib/wording";
 // row, which the stock header cannot lay out.
 export default function AppLayout() {
   const sync = useSyncState();
+  const s = useStrings();
   const { C } = useTheme();
 
   // On mount, reflect writes from a previous session that never pushed.
@@ -29,56 +30,62 @@ export default function AppLayout() {
       ? {
           tone: "bg-error-wash border-error-edge",
           text: "text-error-strong",
-          message: `${sync.rejected} ${sync.rejected === 1 ? "entry was" : "entries were"} rejected — review and re-enter`,
+          message: s.sync.rejected(sync.rejected),
         }
       : sync.status === "error"
         ? {
             tone: "bg-warning-wash border-warning-edge",
             text: "text-warning-strong",
-            message: sync.pending
-              ? "Offline — changes are saved on this device"
-              : "Couldn't reach the server — will retry on next sync",
+            message: sync.pending ? s.sync.offline : s.sync.unreachable,
           }
         : null;
 
   return (
-    <WordingProvider>
-      <View className="flex-1 bg-background">
-        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: C.background } }}>
-          <Stack.Screen name="(tabs)" />
-          {/* The add flow is a sheet in the hi-fi, not a full page: react-native-screens
-              gives us the scrim, the grabber and the rounded top natively, so the
-              screen itself only draws its content. */}
-          <Stack.Screen
-            name="entry-new"
-            options={{
-              presentation: "formSheet",
-              sheetAllowedDetents: [0.96],
-              sheetGrabberVisible: true,
-              sheetCornerRadius: 20,
-            }}
-          />
-          <Stack.Screen name="pocket-new" options={{ presentation: "modal" }} />
-          <Stack.Screen name="setup" />
-          <Stack.Screen name="month/[month]" />
-          <Stack.Screen name="entry/[id]" />
-          <Stack.Screen name="wording" />
-          <Stack.Screen name="appearance" />
-          <Stack.Screen name="budgets" />
-          <Stack.Screen name="recurring" />
-          <Stack.Screen name="ledgers" />
-          <Stack.Screen name="reports" />
-        </Stack>
+    <View className="flex-1 bg-background">
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: C.background } }}>
+        <Stack.Screen name="(tabs)" />
+        {/* A sheet, not a page: react-native-screens draws the scrim, grabber and
+            rounded top, and owns the transition. */}
+        <Stack.Screen
+          name="entry-new"
+          options={{
+            presentation: "formSheet",
+            sheetAllowedDetents: [0.96],
+            sheetGrabberVisible: true,
+            sheetCornerRadius: 20,
+          }}
+        />
+        <Stack.Screen name="pocket-new" options={{ presentation: "modal" }} />
+        <Stack.Screen name="setup" />
+        <Stack.Screen name="month/[month]" />
+        <Stack.Screen name="entry/[id]" />
+        <Stack.Screen name="wording" />
+        <Stack.Screen name="appearance" />
+        <Stack.Screen name="budgets" />
+        <Stack.Screen name="recurring" />
+        <Stack.Screen name="ledgers" />
+        <Stack.Screen name="reports" />
+      </Stack>
 
-        {strip && (
-          <View
-            className={`absolute left-0 right-0 bottom-[92px] mx-4 rounded-xl border px-3 py-2 ${strip.tone}`}
-            accessibilityLiveRegion="polite"
-          >
-            <Text className={`text-caption font-sans-semibold ${strip.text}`}>{strip.message}</Text>
-          </View>
-        )}
-      </View>
-    </WordingProvider>
+      {strip && (
+        // Lands on the entry list, where affected rows carry their own badges.
+        <Pressable
+          onPress={() =>
+            router.push({
+              pathname: "/(app)/(tabs)/history",
+              params: { tab: String(Date.now()) },
+            })
+          }
+          accessibilityRole="button"
+          accessibilityLabel={s.sync.showEntries(strip.message)}
+          className={`absolute left-0 right-0 bottom-[92px] mx-4 rounded-xl border px-3 py-2 ${strip.tone}`}
+          accessibilityLiveRegion="polite"
+        >
+          <Text className={`text-caption font-sans-semibold ${strip.text}`}>
+            {strip.message} · {s.sync.view}
+          </Text>
+        </Pressable>
+      )}
+    </View>
   );
 }

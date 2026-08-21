@@ -2,7 +2,9 @@ import { Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChevronLeft, Plus } from "lucide-react-native";
 
-import { usePressed } from "./core";
+import { usePressed, usePressedScale } from "./core";
+import { haptic } from "./haptics";
+import { AnimatedPressable } from "./motion";
 import { ICON, useTheme, type Glyph } from "./tokens";
 
 // ─── Navigation chrome (direction 2a) ───────────────────────────────────────
@@ -62,7 +64,10 @@ function TabItem({ slot, active, onPress }: { slot: TabSlot; active: boolean; on
   const { glyph: G, label } = slot;
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => {
+        if (!active) haptic.tap();
+        onPress();
+      }}
       accessibilityRole="tab"
       accessibilityState={{ selected: active }}
       accessibilityLabel={label}
@@ -80,9 +85,9 @@ function TabItem({ slot, active, onPress }: { slot: TabSlot; active: boolean; on
 
 function Fab({ onPress, label }: { onPress: () => void; label: string }) {
   const { C, ELEVATION } = useTheme();
-  const { pressed, handlers } = usePressed();
+  const { pressed, pressStyle, handlers } = usePressedScale("tapLight");
   return (
-    <Pressable
+    <AnimatedPressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
@@ -90,10 +95,10 @@ function Fab({ onPress, label }: { onPress: () => void; label: string }) {
       className={`w-14 h-14 rounded-full items-center justify-center ${
         pressed ? "bg-primary-pressed" : "bg-primary"
       }`}
-      style={[{ marginTop: -28 }, ELEVATION.float]}
+      style={[{ marginTop: -28 }, ELEVATION.float, pressStyle]}
     >
       <Plus size={ICON.xxl} color={C.onPrimary} strokeWidth={1.75} />
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 
@@ -105,12 +110,19 @@ function Fab({ onPress, label }: { onPress: () => void; label: string }) {
 export function ScreenHeader({
   title,
   backLabel,
+  backAccessibilityLabel,
   onBack,
   actionLabel,
   onAction,
 }: {
   title: string;
   backLabel?: string;
+  /**
+   * Spoken label for the back affordance. The kit cannot compose "Back to X"
+   * itself without hardcoding English, so callers pass the phrase from the
+   * string catalog; the visible label stands in when they don't.
+   */
+  backAccessibilityLabel?: string;
   onBack?: () => void;
   actionLabel?: string;
   onAction?: () => void;
@@ -123,7 +135,7 @@ export function ScreenHeader({
           <Pressable
             onPress={onBack}
             accessibilityRole="button"
-            accessibilityLabel={backLabel ? `Back to ${backLabel}` : "Back"}
+            accessibilityLabel={backAccessibilityLabel ?? backLabel}
             className="flex-row items-center min-h-touch"
           >
             <ChevronLeft size={ICON.lg} color={C.info} strokeWidth={2} />
@@ -179,9 +191,9 @@ export function IconButton({
   onPress: () => void;
 }) {
   const { C, ELEVATION } = useTheme();
-  const { pressed, handlers } = usePressed();
+  const { pressed, pressStyle, handlers } = usePressedScale("tap");
   return (
-    <Pressable
+    <AnimatedPressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
@@ -189,9 +201,9 @@ export function IconButton({
       className={`w-10 h-10 rounded-xl items-center justify-center ${
         pressed ? "bg-surface-pressed" : "bg-surface"
       }`}
-      style={ELEVATION.card}
+      style={[ELEVATION.card, pressStyle]}
     >
       <G size={ICON.xl} color={C.dim} strokeWidth={1.75} />
-    </Pressable>
+    </AnimatedPressable>
   );
 }

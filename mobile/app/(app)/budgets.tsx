@@ -8,6 +8,7 @@ import { useAuth } from "../../src/lib/auth";
 import { database } from "../../src/lib/db";
 import { format, toMinor } from "../../src/lib/money";
 import { useObservable } from "../../src/lib/useObserve";
+import { useStrings } from "../../src/lib/wording";
 import { Account } from "../../src/model/models";
 import {
   AmountField,
@@ -25,6 +26,7 @@ import {
   Target,
   accountGlyph,
   categorySlot,
+  formatGrouped,
   ScreenHeader,
   useTheme,
 } from "../../src/components/ui";
@@ -37,6 +39,7 @@ function currentMonth(): string {
 
 export default function Budgets() {
   const { user, baseCurrency: base } = useAuth();
+  const s = useStrings();
   const { C } = useTheme();
   const period = currentMonth();
   const [items, setItems] = useState<BudgetWithSpent[]>([]);
@@ -80,9 +83,9 @@ export default function Budgets() {
       const rows = await authedApi.listBudgets(period);
       if (mine === gen.current) setItems(rows);
     } catch (e) {
-      if (mine === gen.current) setErr(messageFor(e, "Couldn't load the spending plan"));
+      if (mine === gen.current) setErr(messageFor(e, s.budgets.loadFailed));
     }
-  }, [period]);
+  }, [period, s]);
 
   useEffect(() => {
     let cancelled = false;
@@ -106,7 +109,7 @@ export default function Budgets() {
   }
 
   const accountFor = (id: string) => accounts.find((a) => a.id === id);
-  const nameFor = (id: string) => accountFor(id)?.name ?? "—";
+  const nameFor = (id: string) => accountFor(id)?.name ?? s.common.missing;
 
   const spentTotal = items.reduce((s, b) => s + b.spent_minor, 0);
   const targetTotal = items.reduce((s, b) => s + b.target_minor, 0);
@@ -138,14 +141,14 @@ export default function Budgets() {
     setFormErr(null);
     const id = editingId;
     const accountId = formAccountId ?? "";
-    if (!accountId) { setFormErr("Select a category"); return; }
-    if (!formTarget) { setFormErr("Enter a budget amount"); return; }
+    if (!accountId) { setFormErr(s.budgets.form.noCategory); return; }
+    if (!formTarget) { setFormErr(s.budgets.form.noAmount); return; }
     let minor: number;
     try {
       const a = expenseAccounts.find((ac) => ac.id === accountId) ?? accountFor(accountId);
       minor = toMinor(a?.currency ?? base, formTarget);
-    } catch { setFormErr("Enter a valid amount"); return; }
-    if (minor <= 0) { setFormErr("Amount must be greater than zero"); return; }
+    } catch { setFormErr(s.budgets.form.badAmount); return; }
+    if (minor <= 0) { setFormErr(s.budgets.form.zeroAmount); return; }
 
     setFormBusy(true);
     try {
@@ -157,7 +160,7 @@ export default function Budgets() {
       closeForm();
       void fetchBudgets();
     } catch (e) {
-      setFormErr(e instanceof Error ? e.message : "save failed");
+      setFormErr(messageFor(e, s.budgets.form.saveFailed));
     } finally {
       setFormBusy(false);
     }
@@ -172,7 +175,7 @@ export default function Budgets() {
       setPendingDelete(null);
       void fetchBudgets();
     } catch (e) {
-      setErr(messageFor(e, "Couldn't delete that budget"));
+      setErr(messageFor(e, s.budgets.deleteFailed));
       setPendingDelete(null);
     } finally {
       setDeleteBusy(false);
@@ -183,7 +186,12 @@ export default function Budgets() {
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-background">
-      <ScreenHeader title="The spending plan" backLabel="More" onBack={() => router.back()} />
+      <ScreenHeader
+        title={s.budgets.title}
+        backLabel={s.budgets.backLabel}
+        backAccessibilityLabel={s.common.backTo(s.budgets.backLabel)}
+        onBack={() => router.back()}
+      />
       <ScrollView
         className="flex-1"
         contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
@@ -194,15 +202,15 @@ export default function Budgets() {
         <Card className="mb-card-gap">
           <View className="flex-row items-end justify-between mb-3">
             <View>
-              <SectionLabel>Total spent</SectionLabel>
+              <SectionLabel>{s.budgets.totalSpent}</SectionLabel>
               <Text className="text-ink text-amount-lg font-mono-bold mt-1">
-                {base}&nbsp;{format(base, spentTotal)}
+                {base}&nbsp;{formatGrouped(base, spentTotal)}
               </Text>
             </View>
             <View className="items-end">
-              <SectionLabel>Budget</SectionLabel>
+              <SectionLabel>{s.budgets.budget}</SectionLabel>
               <Text className="text-faint text-amount font-mono-bold mt-1">
-                {base}&nbsp;{format(base, targetTotal)}
+                {base}&nbsp;{formatGrouped(base, targetTotal)}
               </Text>
             </View>
           </View>
@@ -213,9 +221,11 @@ export default function Budgets() {
                 overallPct >= 100 ? "text-error" : overallPct >= 75 ? "text-warning" : "text-success"
               }`}
             >
-              {Math.round(overallPct)}% used
+              {s.budgets.used(Math.round(overallPct))}
             </Text>
-            <Text className="text-mono-meta font-mono text-faint">{period.slice(0, 7)}</Text>
+            <Text className="text-caption font-sans-medium text-faint">
+              {s.budgets.periodTitle(period)}
+            </Text>
           </View>
         </Card>
 
@@ -237,8 +247,8 @@ export default function Budgets() {
           <View className="mb-card-gap">
             <EmptyState
               glyph={Target}
-              title="No budgets this month"
-              body="Set a monthly target on a category to see spent-vs-target here."
+              title={s.budgets.empty.title}
+              body={s.budgets.empty.body}
             />
           </View>
         )}
@@ -262,8 +272,11 @@ export default function Budgets() {
                           {nameFor(b.account_id)}
                         </Text>
                         <Text className="text-faint text-mono-meta font-mono">
-                          {b.currency} {format(b.currency, b.spent_minor)} /{" "}
-                          {format(b.currency, b.target_minor)}
+                          {s.budgets.spentOfTarget(
+                            b.currency,
+                            formatGrouped(b.currency, b.spent_minor),
+                            formatGrouped(b.currency, b.target_minor),
+                          )}
                         </Text>
                       </View>
                       <Text
@@ -271,19 +284,19 @@ export default function Budgets() {
                           pct >= 100 ? "text-error" : pct >= 75 ? "text-warning" : "text-success"
                         }`}
                       >
-                        {Math.round(pct)}%
+                        {s.budgets.categoryPct(Math.round(pct))}
                       </Text>
                     </View>
                     <ProgressBar pct={pct} />
                     <View className="flex-row justify-end mt-1" style={{ gap: 4 }}>
                       <Button
-                        label="Edit"
+                        label={s.common.edit}
                         variant="tertiary"
                         fullWidth={false}
                         onPress={() => openEdit(b)}
                       />
                       <Button
-                        label="Delete"
+                        label={s.common.delete}
                         variant="tertiary"
                         fullWidth={false}
                         onPress={() => setPendingDelete(b)}
@@ -297,7 +310,7 @@ export default function Budgets() {
         )}
 
         <Button
-          label={availableExpenses.length > 0 ? "Set budget" : "Edit targets"}
+          label={availableExpenses.length > 0 ? s.budgets.setBudget : s.budgets.editTargets}
           onPress={openNew}
         />
       </ScrollView>
@@ -305,21 +318,23 @@ export default function Budgets() {
       <Sheet
         visible={showForm}
         onClose={closeForm}
-        title={editingId ? "Edit budget" : "Set budget"}
+        title={editingId ? s.budgets.editBudget : s.budgets.setBudget}
       >
         {!editingId && (
           <ChipGroup
-            label="Category"
+            label={s.budgets.category}
             value={formAccountId}
             options={availableExpenses.map((a) => ({ value: a.id, label: a.name }))}
-            emptyText="Every category already has a budget"
+            emptyText={s.budgets.everyCategoryBudgeted}
             onSelect={setFormAccountId}
           />
         )}
 
         {editingId && (
           <View className="mb-4">
-            <Text className="text-label font-sans-semibold text-ink mb-1.5">Category</Text>
+            <Text className="text-label font-sans-semibold text-ink mb-1.5">
+              {s.budgets.category}
+            </Text>
             <View className="bg-surface-container rounded-lg px-4 py-3 min-h-touch justify-center">
               <Text className="text-body font-sans-medium text-ink">
                 {nameFor(formAccountId ?? "")}
@@ -329,25 +344,25 @@ export default function Budgets() {
         )}
 
         <AmountField
-          label="Monthly target"
+          label={s.budgets.monthlyTarget}
           value={formTarget}
           onChange={setFormTarget}
           currency={formCurrency}
           error={formErr}
         />
 
-        <Button label="Save" onPress={saveBudget} busy={formBusy} />
+        <Button label={s.common.save} onPress={saveBudget} busy={formBusy} />
       </Sheet>
 
       <Dialog
         visible={pendingDelete != null}
-        title="Delete this budget?"
+        title={s.budgets.confirmDelete.title}
         body={
           pendingDelete
-            ? `${nameFor(pendingDelete.account_id)} loses its monthly target. Spending already logged is not affected.`
+            ? s.budgets.confirmDelete.body(nameFor(pendingDelete.account_id))
             : undefined
         }
-        confirmLabel="Delete"
+        confirmLabel={s.common.delete}
         busy={deleteBusy}
         onConfirm={confirmDelete}
         onCancel={() => setPendingDelete(null)}

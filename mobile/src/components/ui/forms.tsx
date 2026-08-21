@@ -9,7 +9,9 @@ import {
 } from "react-native";
 import { ChevronDown, Delete, Eye, EyeOff } from "lucide-react-native";
 
-import { Chip, groupDigits, usePressed } from "./core";
+import { Chip, groupDigits, usePressed, usePressedScale } from "./core";
+import { haptic } from "./haptics";
+import { AnimatedPressable } from "./motion";
 import { ListRow } from "./lists";
 import { Sheet } from "./overlays";
 import { ICON, useTheme } from "./tokens";
@@ -342,7 +344,10 @@ export function SegmentedControl<T extends string>({
         return (
           <Pressable
             key={o.value}
-            onPress={() => onChange(o.value)}
+            onPress={() => {
+              if (!active) haptic.tap();
+              onChange(o.value);
+            }}
             accessibilityRole="tab"
             accessibilityState={{ selected: active }}
             className={`flex-1 py-2.5 items-center ${active ? "bg-surface" : ""}`}
@@ -419,9 +424,9 @@ export function Keypad({ onKey }: { onKey: (key: KeypadKey) => void }) {
 
 function KeypadButton({ value, onPress }: { value: KeypadKey; onPress: () => void }) {
   const { C } = useTheme();
-  const { pressed, handlers } = usePressed();
+  const { pressed, pressStyle, handlers } = usePressedScale("tap");
   return (
-    <Pressable
+    <AnimatedPressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={value === "back" ? "Delete last digit" : value}
@@ -430,7 +435,7 @@ function KeypadButton({ value, onPress }: { value: KeypadKey; onPress: () => voi
         pressed ? "bg-surface-container-high" : "bg-surface-container"
       }`}
       // Three per row with two 8px gaps between them.
-      style={{ width: "31.5%", minHeight: 52 }}
+      style={[{ width: "31.5%", minHeight: 52 }, pressStyle]}
     >
       {value === "back" ? (
         <Delete size={22} color={C.dim} strokeWidth={1.75} />
@@ -445,7 +450,7 @@ function KeypadButton({ value, onPress }: { value: KeypadKey; onPress: () => voi
           {value}
         </Text>
       )}
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 

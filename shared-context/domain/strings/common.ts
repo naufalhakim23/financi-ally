@@ -1,0 +1,27 @@
+// Words belonging to no one screen.
+
+export const common = {
+  save: "Save",
+  cancel: "Cancel",
+  create: "Create",
+  edit: "Edit",
+  delete: "Delete",
+  back: "Back",
+  backTo: (destination: string) => `Back to ${destination}`,
+  done: "Done",
+  skip: "Skip",
+  continue: "Continue",
+  finish: "Finish",
+  tryAgain: "Try again",
+  new: "New",
+  add: "Add",
+  clear: "Clear",
+  any: "Any",
+  search: "Search",
+  filter: "Filter",
+  missing: "—",
+  home: "Home",
+  entries: (n: number) => (n === 1 ? "entry" : "entries"),
+  months: (n: number) => (n === 1 ? "month" : "months"),
+  personalSpace: "Personal",
+};

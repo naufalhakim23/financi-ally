@@ -16,7 +16,8 @@
     "build:local:ios": "eas build --profile development --platform ios --local",
     "gen": "openapi-typescript ../shared-context/contracts/openapi.yaml -o src/lib/api-types.ts",
     "lint": "eslint .",
-    "check": "tsc -p tsconfig.check.json && node .check/lib/checks.js && node scripts/check-tokens.mjs && eslint . && node --test scripts/eslint-rules.test.mjs"
+    "typecheck": "tsc --noEmit",
+    "check": "yarn typecheck && tsc -p tsconfig.check.json && node .check/lib/checks.js && node scripts/check-tokens.mjs && eslint . && node --test scripts/eslint-rules.test.mjs"
   },
   "dependencies": {
     "@expo-google-fonts/ibm-plex-mono": "^0.4.1",
@@ -31,6 +32,7 @@
     "expo-crypto": "~57.0.1",
     "expo-dev-client": "^57.0.9",
     "expo-font": "^57.0.1",
+    "expo-haptics": "~57.0.1",
     "expo-linking": "~57.0.3",
     "expo-router": "~57.0.7",
     "expo-secure-store": "~57.0.1",

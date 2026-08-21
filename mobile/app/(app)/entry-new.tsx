@@ -10,10 +10,12 @@ import { useAuth } from "../../src/lib/auth";
 import { accountSigned } from "../../src/lib/balances";
 import { spendingForMonth } from "../../src/lib/buckets";
 import { database } from "../../src/lib/db";
+import { messageFor } from "../../src/lib/errors";
+import { createAccount } from "../../src/lib/setup";
 import { EMPTY_RATES, convert, type RateTable } from "../../src/lib/fx";
 import { syncDatabase } from "../../src/lib/sync";
 import { useObservable } from "../../src/lib/useObserve";
-import { useWording } from "../../src/lib/wording";
+import { useStrings, useWording } from "../../src/lib/wording";
 import { Account, Budget, Entry, JournalLine } from "../../src/model/models";
 import {
   AmountWell,
@@ -30,11 +32,15 @@ import {
   applyKey,
   categorySlot,
   formatGrouped,
+  haptic,
   ICON,
   useTheme,
 } from "../../src/components/ui";
 
 type Mode = "out" | "in" | "move";
+
+// Per mode: the pocket you spend from is rarely the one you move between.
+const lastFromKey = (mode: Mode) => `entry.lastFrom.${mode}`;
 
 // Which account types each side of the entry may point at. An entry is always
 // a balanced pair, so the mode fully determines both sides' candidates.
@@ -44,34 +50,18 @@ const SIDES: Record<Mode, { from: string[]; to: string[] }> = {
   move: { from: ["asset", "liability"], to: ["asset", "liability"] },
 };
 
-// What to say, and where to send them, when a side has nothing to offer.
-// Categories and income sources have no create screen of their own on this
-// client — the setup wizard is where they come from.
-const NEED = {
-  pocket: {
-    title: "Set up a pocket first",
-    body: "A pocket is a bank account, cash, an e-wallet, or a card. Money has to come out of one.",
-    actionLabel: "Create a pocket",
-    href: "/(app)/pocket-new",
-  },
-  expense: {
-    title: "Add a category first",
-    body: "Spending lands in a category — groceries, rent, transport. Setup can create a starter set.",
-    actionLabel: "Set up categories",
-    href: "/(app)/setup",
-  },
-  income: {
-    title: "Add an income source first",
-    body: "Money coming in needs a source: a salary, freelance work, a gift.",
-    actionLabel: "Set up income",
-    href: "/(app)/setup",
-  },
+// Where a missing side sends them. Copy is at `entry.new.need`.
+const NEED_HREF = {
+  pocket: "/(app)/pocket-new",
+  expense: "/(app)/setup",
+  income: "/(app)/setup",
 } as const;
 
 export default function EntryNew() {
   const params = useLocalSearchParams<{ mode?: string; from?: string; to?: string; amount?: string }>();
   const { guest, baseCurrency: base } = useAuth();
   const { t, showSides } = useWording();
+  const s = useStrings();
   const { C } = useTheme();
 
   const [mode, setMode] = useState<Mode>(
@@ -85,7 +75,11 @@ export default function EntryNew() {
   const [toId, setToId] = useState<string | null>(params.to ?? null);
   const [memo, setMemo] = useState("");
   const [noteOpen, setNoteOpen] = useState(false);
+  const [newCatOpen, setNewCatOpen] = useState(false);
+  const [newCatName, setNewCatName] = useState("");
+  const [newCatBusy, setNewCatBusy] = useState(false);
   const [picking, setPicking] = useState<"from" | "to" | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -141,11 +135,11 @@ export default function EntryNew() {
       const row = spending.find((r) => r.account.id === a.id);
       const spent = formatGrouped(base, row?.spent ?? 0);
       return row?.target != null
-        ? `${spent} of ${formatGrouped(base, row.target)} this month`
-        : `${spent} this month`;
+        ? s.entry.new.categoryOfTarget(spent, formatGrouped(base, row.target))
+        : s.entry.new.categorySpent(spent);
     }
     if (a.type === "asset" || a.type === "liability") {
-      return `${formatGrouped(a.currency, accountSigned(a, lines))} left`;
+      return s.entry.new.pocketLeft(formatGrouped(a.currency, accountSigned(a, lines)));
     }
     return a.currency;
   }
@@ -160,6 +154,20 @@ export default function EntryNew() {
     setToId((cur) => (cur && toOptions.some((a) => a.id === cur) ? cur : null));
   }, [mode, accounts]);
 
+  // Fills a blank only: a deep-link param or the user's own pick always wins.
+  // `fromId` is a dep, not just a guard: the effect above clears it in the same commit.
+  useEffect(() => {
+    if (fromId || accounts.length === 0) return;
+    let stale = false;
+    void database.localStorage.get<string>(lastFromKey(mode)).then((saved) => {
+      if (stale || !saved) return;
+      setFromId((cur) => (cur ? cur : fromOptions.some((a) => a.id === saved) ? saved : cur));
+    });
+    return () => {
+      stale = true;
+    };
+  }, [accounts.length, mode, fromId]);
+
   // Resolved against the options, not all accounts: an id that arrived by deep
   // link or went stale when an account was archived resolves to null and never
   // reaches save().
@@ -167,29 +175,36 @@ export default function EntryNew() {
   const to = toOptions.find((a) => a.id === toId) ?? null;
   const currency = from?.currency ?? base;
 
+  function reject(msg: string) {
+    haptic.warn();
+    setErr(msg);
+  }
+
   async function save() {
     setErr(null);
     if (!from || !to) {
-      setErr(`Pick where the money comes ${mode === "in" ? "from" : "out of"} and where it goes`);
+      reject(s.entry.new.errors.pickBoth(mode));
       return;
     }
     if (from.id === to.id) {
-      setErr("Pick two different accounts");
+      reject(s.entry.new.errors.sameAccount);
       return;
     }
     // Both legs post in the source currency; cross-currency needs an fx_rate
     // this screen does not collect yet, and the server rejects the entry.
     if (from.currency !== to.currency) {
-      setErr(`Both sides must use the same currency — ${from.name} is ${from.currency}, ${to.name} is ${to.currency}`);
+      reject(
+        s.entry.new.errors.currencyMismatch(from.name, from.currency, to.name, to.currency),
+      );
       return;
     }
     const minor = Number(digits || "0");
     if (!Number.isSafeInteger(minor)) {
-      setErr("Enter a valid amount");
+      reject(s.entry.new.errors.badAmount);
       return;
     }
     if (minor <= 0) {
-      setErr("Amount must be greater than zero");
+      reject(s.entry.new.errors.zeroAmount);
       return;
     }
 
@@ -226,9 +241,12 @@ export default function EntryNew() {
       } catch (e) {
         console.warn("[entry] sync deferred", e);
       }
+      haptic.success();
+      void database.localStorage.set(lastFromKey(mode), from.id);
       router.back();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "save failed");
+      haptic.error();
+      setErr(messageFor(e, s.entry.new.errors.saveFailed));
     } finally {
       setBusy(false);
     }
@@ -241,25 +259,34 @@ export default function EntryNew() {
     const inBase = convert(minor, currency, base, rates);
     return inBase == null
       ? null
-      : `≈ ${formatGrouped(base, inBase)} ${base} · converted at today's rate`;
-  }, [digits, currency, base, rates]);
+      : s.entry.new.convertedAt(formatGrouped(base, inBase), base);
+  }, [digits, currency, base, rates, s]);
 
   const pickOptions = picking === "from" ? fromOptions : toOptions;
   // Which side is actually empty, not just "something is". Saying "set up a
   // pocket first" to someone who has three pockets and no categories sends them
   // to create a fourth pocket and hit the same wall.
-  const missing =
+  const missingKind =
     fromOptions.length === 0
-      ? NEED[mode === "in" ? "income" : "pocket"]
+      ? mode === "in"
+        ? ("income" as const)
+        : ("pocket" as const)
       : toOptions.length === 0
-        ? NEED[mode === "out" ? "expense" : "pocket"]
+        ? mode === "out"
+          ? ("expense" as const)
+          : ("pocket" as const)
         : null;
+  const missing = missingKind ? s.entry.new.need[missingKind] : null;
+
+  // Out is expressible by rail + remembered pocket, so the rest folds. The other
+  // modes have no rail, so their destination needs the rows.
+  const expanded = detailsOpen || mode !== "out";
 
   return (
     <SafeAreaView edges={["bottom"]} className="flex-1 bg-surface">
       <View className="flex-row items-center justify-between px-4 py-3">
         <Pressable onPress={() => router.back()} accessibilityRole="button" className="min-h-touch justify-center">
-          <Text className="text-body-strong font-sans-semibold text-dim">Cancel</Text>
+          <Text className="text-body-strong font-sans-semibold text-dim">{s.common.cancel}</Text>
         </Pressable>
         <Text className="text-headline font-sans-semibold text-ink">{t("addEntry")}</Text>
         <Pressable
@@ -271,7 +298,7 @@ export default function EntryNew() {
           <Text
             className={`text-body-strong font-sans-semibold ${missing ? "text-disabled" : "text-info"}`}
           >
-            Save
+            {s.entry.new.save}
           </Text>
         </Pressable>
       </View>
@@ -282,13 +309,13 @@ export default function EntryNew() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {missing && (
+        {missing && missingKind && (
           <EmptyState
             glyph={Wallet}
             title={missing.title}
             body={missing.body}
-            actionLabel={missing.actionLabel}
-            onAction={() => router.push(missing.href)}
+            actionLabel={missing.action}
+            onAction={() => router.push(NEED_HREF[missingKind])}
           />
         )}
 
@@ -296,9 +323,9 @@ export default function EntryNew() {
           value={mode}
           onChange={(m) => setMode(m as Mode)}
           options={[
-            { value: "out", label: "Out" },
-            { value: "in", label: "In" },
-            { value: "move", label: "Move" },
+            { value: "out", label: s.entry.new.modes.out },
+            { value: "in", label: s.entry.new.modes.in },
+            { value: "move", label: s.entry.new.modes.move },
           ]}
         />
 
@@ -308,49 +335,86 @@ export default function EntryNew() {
           helper={err ?? converted ?? undefined}
         />
 
-        <View className="border border-outline rounded-lg overflow-hidden">
-          <PickerRow
-            label={mode === "in" ? "from" : t("outOf").toLowerCase()}
-            account={from}
-            subtitle={from ? subtitleFor(from) : undefined}
-            placeholder="Choose"
-            onPress={() => setPicking("from")}
-          />
-          <View className="h-px bg-outline-variant" />
-          <PickerRow
+        {mode === "out" && toOptions.length > 0 && (
+          <CategoryRail
             label={t("into").toLowerCase()}
-            account={to}
-            subtitle={to ? subtitleFor(to) : undefined}
-            placeholder="Choose"
-            onPress={() => setPicking("to")}
+            options={toOptions}
+            selectedId={toId}
+            onSelect={(id) => {
+              haptic.tap();
+              setToId(id);
+            }}
+            onAdd={() => setNewCatOpen(true)}
           />
-        </View>
-
-        {showSides && from && to && (
-          <View className="flex-row items-center justify-between bg-surface-container rounded-lg px-3.5 py-2.5">
-            <Text className="text-mono-meta font-mono text-dim">
-              Dr {to.name} {formatGrouped(currency, Number(digits || 0))}
-            </Text>
-            <Text className="text-mono-meta font-mono text-dim">
-              Cr {from.name} {formatGrouped(currency, Number(digits || 0))}
-            </Text>
-          </View>
         )}
 
-        <View className="flex-row" style={{ gap: 8 }}>
-          <MetaChip glyph={Calendar} label="Today" active />
-          <MetaChip glyph={Plus} label={memo ? "Note added" : "Note"} active={!!memo} onPress={() => setNoteOpen(true)} />
-        </View>
+        {expanded ? (
+          <>
+            <View className="border border-outline rounded-lg overflow-hidden">
+              <PickerRow
+                label={mode === "in" ? s.entry.new.from : t("outOf").toLowerCase()}
+                account={from}
+                subtitle={from ? subtitleFor(from) : undefined}
+                placeholder={s.entry.new.choose}
+                onPress={() => setPicking("from")}
+              />
+              {mode !== "out" && (
+                <>
+                  <View className="h-px bg-outline-variant" />
+                  <PickerRow
+                    label={t("into").toLowerCase()}
+                    account={to}
+                    subtitle={to ? subtitleFor(to) : undefined}
+                    placeholder={s.entry.new.choose}
+                    onPress={() => setPicking("to")}
+                  />
+                </>
+              )}
+            </View>
+
+            {showSides && from && to && (
+              <View className="flex-row items-center justify-between bg-surface-container rounded-lg px-3.5 py-2.5">
+                <Text className="text-mono-meta font-mono text-dim">
+                  Dr {to.name} {formatGrouped(currency, Number(digits || 0))}
+                </Text>
+                <Text className="text-mono-meta font-mono text-dim">
+                  Cr {from.name} {formatGrouped(currency, Number(digits || 0))}
+                </Text>
+              </View>
+            )}
+
+            <View className="flex-row" style={{ gap: 8 }}>
+              <MetaChip glyph={Calendar} label={s.entry.new.today} active />
+              <MetaChip
+                glyph={Plus}
+                label={memo ? s.entry.new.noteAdded : s.entry.new.note}
+                active={!!memo}
+                onPress={() => setNoteOpen(true)}
+              />
+            </View>
+          </>
+        ) : (
+          <SummaryChip
+            pocket={from?.name ?? null}
+            hasNote={!!memo}
+            onPress={() => setDetailsOpen(true)}
+          />
+        )}
 
         <Keypad onKey={(k: KeypadKey) => setDigits((d) => applyKey(d, k))} />
 
-        <Button label="Save transaction" onPress={save} busy={busy} disabled={!!missing} />
+        <Button
+          label={s.entry.new.saveAction}
+          onPress={save}
+          busy={busy}
+          disabled={!!missing}
+        />
       </ScrollView>
 
       <Sheet
         visible={picking !== null}
         onClose={() => setPicking(null)}
-        title={picking === "from" ? "Where from" : "Where to"}
+        title={picking === "from" ? s.entry.new.pickFrom : s.entry.new.pickTo}
       >
         {pickOptions.map((a, i) => (
           <ListRow
@@ -369,20 +433,158 @@ export default function EntryNew() {
         ))}
       </Sheet>
 
-      <Sheet visible={noteOpen} onClose={() => setNoteOpen(false)} title="Note">
+      <Sheet
+        visible={newCatOpen}
+        onClose={() => setNewCatOpen(false)}
+        title={s.entry.new.newCategory}
+      >
         <TextInput
-          value={memo}
-          onChangeText={setMemo}
-          placeholder="What was this for?"
+          value={newCatName}
+          onChangeText={setNewCatName}
+          placeholder={s.entry.new.newCategoryPlaceholder}
           placeholderTextColor={C.disabled}
           autoFocus
           className="bg-surface-container rounded-lg px-4 py-3 min-h-touch text-body font-sans-medium text-ink"
         />
         <View className="mt-4">
-          <Button label="Done" onPress={() => setNoteOpen(false)} />
+          <Button
+            label={s.entry.new.addCategory}
+            busy={newCatBusy}
+            disabled={!newCatName.trim() || !from}
+            onPress={async () => {
+              if (!from) return;
+              setNewCatBusy(true);
+              try {
+                // Must match the source pocket's currency or Save rejects the pair.
+                // Read off `from` rather than the base-currency fallback: a
+                // category created in the wrong currency is unusable and sticks.
+                const id = await createAccount("expense", newCatName.trim(), from.currency);
+                haptic.success();
+                setToId(id);
+                setNewCatOpen(false);
+                setNewCatName("");
+              } catch (e) {
+                haptic.error();
+                setErr(messageFor(e, s.entry.new.addCategoryFailed));
+                setNewCatOpen(false);
+              } finally {
+                setNewCatBusy(false);
+              }
+            }}
+          />
+        </View>
+      </Sheet>
+
+      <Sheet visible={noteOpen} onClose={() => setNoteOpen(false)} title={s.entry.new.note}>
+        <TextInput
+          value={memo}
+          onChangeText={setMemo}
+          placeholder={s.entry.new.notePlaceholder}
+          placeholderTextColor={C.disabled}
+          autoFocus
+          className="bg-surface-container rounded-lg px-4 py-3 min-h-touch text-body font-sans-medium text-ink"
+        />
+        <View className="mt-4">
+          <Button label={s.common.done} onPress={() => setNoteOpen(false)} />
         </View>
       </Sheet>
     </SafeAreaView>
+  );
+}
+
+// The collapsed form in one line. Always names the pocket, since it is all that
+// stands between a remembered default and a posted entry.
+function SummaryChip({
+  pocket,
+  hasNote,
+  onPress,
+}: {
+  pocket: string | null;
+  hasNote: boolean;
+  onPress: () => void;
+}) {
+  const { C } = useTheme();
+  const s = useStrings();
+  const parts = [
+    pocket ? s.entry.new.summary.from(pocket) : s.entry.new.summary.noPocket,
+    s.entry.new.summary.today,
+    ...(hasNote ? [s.entry.new.summary.hasNote] : []),
+  ];
+
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={s.entry.new.summary.expand}
+      className="flex-row items-center bg-surface-container rounded-full pl-4 pr-3 py-2.5 min-h-touch self-start"
+      style={{ gap: 6 }}
+    >
+      <Text className={`text-label font-sans-semibold ${pocket ? "text-ink" : "text-error-strong"}`}>
+        {parts.join(" · ")}
+      </Text>
+      <ChevronRight size={ICON.md} color={C.dim} strokeWidth={2} />
+    </Pressable>
+  );
+}
+
+function CategoryRail({
+  label,
+  options,
+  selectedId,
+  onSelect,
+  onAdd,
+}: {
+  label: string;
+  options: Account[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  onAdd: () => void;
+}) {
+  const s = useStrings();
+  return (
+    <View style={{ gap: 8 }}>
+      <Text className="text-overline font-sans-semibold text-faint uppercase px-1">{label}</Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ gap: 8, paddingRight: 4 }}
+      >
+        {options.map((a) => {
+          const active = a.id === selectedId;
+          return (
+            <Pressable
+              key={a.id}
+              onPress={() => onSelect(a.id)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              accessibilityLabel={s.entry.new.railCategory(a.name)}
+              className={`items-center rounded-xl border px-2 py-2 ${
+                active ? "border-primary bg-surface-container" : "border-outline bg-surface"
+              }`}
+              style={{ width: 76, gap: 6 }}
+            >
+              <IconBox glyph={accountGlyph(a.name, a.type)} slot={categorySlot(a.id)} size={32} />
+              <Text
+                className={`text-caption font-sans-semibold ${active ? "text-ink" : "text-dim"}`}
+                numberOfLines={1}
+              >
+                {a.name}
+              </Text>
+            </Pressable>
+          );
+        })}
+        <Pressable
+          onPress={onAdd}
+          accessibilityRole="button"
+          accessibilityLabel={s.entry.new.newCategory}
+          className="items-center justify-center rounded-xl border border-outline bg-surface px-2 py-2"
+          style={{ width: 76, gap: 6 }}
+        >
+          <IconBox glyph={Plus} size={32} />
+          <Text className="text-caption font-sans-semibold text-dim">{s.entry.new.railNew}</Text>
+        </Pressable>
+      </ScrollView>
+    </View>
   );
 }
 

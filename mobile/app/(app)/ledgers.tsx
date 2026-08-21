@@ -10,8 +10,10 @@ import {
   type LedgerMembership,
 } from "../../src/lib/api";
 import { useAuth } from "../../src/lib/auth";
+import { messageFor } from "../../src/lib/errors";
 import { switchLedger } from "../../src/lib/ledgers";
 import { useLedgerState } from "../../src/lib/ledgerStore";
+import { useStrings } from "../../src/lib/wording";
 import {
   Badge,
   BookOpen,
@@ -44,10 +46,11 @@ function formatExpiry(iso: string): string {
 export default function Ledgers() {
   const { user } = useAuth();
   const { active } = useLedgerState();
+  const s = useStrings();
   const { C } = useTheme();
 
   const [books, setBooks] = useState<LedgerMembership[]>([]);
-  const [members, setMembers] = useState<LedgerMember[]>([]);
+  const [members, setMembers] = useState<LedgerMember[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -64,9 +67,9 @@ export default function Ledgers() {
     try {
       setBooks(await authedApi.listLedgers());
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "couldn't load your books");
+      setErr(messageFor(e, s.books.loadFailed));
     }
-  }, []);
+  }, [s]);
 
   useEffect(() => {
     load();
@@ -88,6 +91,7 @@ export default function Ledgers() {
       setMembers([]);
       return;
     }
+    setMembers(null);
     let cancelled = false;
     authedApi
       .listLedgerMembers(current.ledger.id)
@@ -115,11 +119,11 @@ export default function Ledgers() {
     try {
       await switchLedger(target.kind === "personal" ? null : target);
       setPendingSwitch(null);
-      setNotice(`Now in ${target.name}`);
+      setNotice(s.books.switched(target.name));
       load();
     } catch (e) {
       setPendingSwitch(null);
-      setErr(e instanceof Error ? e.message : "couldn't switch books");
+      setErr(messageFor(e, s.books.switchFailed));
     } finally {
       setSwitching(false);
     }
@@ -133,7 +137,7 @@ export default function Ledgers() {
 
   async function createBook() {
     if (!newName.trim()) {
-      setCreateErr("Give the book a name");
+      setCreateErr(s.books.createSheet.noName);
       return;
     }
     setCreateBusy(true);
@@ -142,10 +146,10 @@ export default function Ledgers() {
       await authedApi.createLedger(newName.trim());
       setShowCreate(false);
       setNewName("");
-      setNotice("Book created. Switch to it to start adding entries");
+      setNotice(s.books.created);
       load();
     } catch (e) {
-      setCreateErr(e instanceof Error ? e.message : "couldn't create the book");
+      setCreateErr(messageFor(e, s.books.createFailed));
     } finally {
       setCreateBusy(false);
     }
@@ -159,7 +163,7 @@ export default function Ledgers() {
 
   async function joinBook() {
     if (!code.trim()) {
-      setJoinErr("Enter the code you were given");
+      setJoinErr(s.books.joinSheet.noCode);
       return;
     }
     setJoinBusy(true);
@@ -168,10 +172,10 @@ export default function Ledgers() {
       const joined = await authedApi.joinLedger(code.trim());
       setShowJoin(false);
       setCode("");
-      setNotice(`Joined ${joined.name}. Switch to it to see the shared entries`);
+      setNotice(s.books.joined(joined.name));
       load();
     } catch (e) {
-      setJoinErr(e instanceof Error ? e.message : "couldn't join with that code");
+      setJoinErr(messageFor(e, s.books.joinFailed));
     } finally {
       setJoinBusy(false);
     }
@@ -189,7 +193,7 @@ export default function Ledgers() {
       const inv = await authedApi.createLedgerInvite(current.ledger.id);
       setInvite({ code: inv.code, expires: inv.expires_at });
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "couldn't create an invite code");
+      setErr(messageFor(e, s.books.inviteFailed));
     } finally {
       setInviteBusy(false);
     }
@@ -210,11 +214,11 @@ export default function Ledgers() {
       await switchLedger(null);
       await authedApi.removeLedgerMember(leaving, user.id);
       setPendingLeave(false);
-      setNotice("You left the book and are back in your personal one");
+      setNotice(s.books.left);
       load();
     } catch (e) {
       setPendingLeave(false);
-      setErr(e instanceof Error ? e.message : "couldn't leave the book");
+      setErr(messageFor(e, s.books.leaveFailed));
     } finally {
       setLeaveBusy(false);
     }
@@ -222,7 +226,12 @@ export default function Ledgers() {
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-background">
-      <ScreenHeader title="Books" backLabel="More" onBack={() => router.back()} />
+      <ScreenHeader
+        title={s.books.title}
+        backLabel={s.books.backLabel}
+        backAccessibilityLabel={s.common.backTo(s.books.backLabel)}
+        onBack={() => router.back()}
+      />
       <ScrollView
         className="flex-1"
         contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
@@ -231,14 +240,12 @@ export default function Ledgers() {
         }
       >
         <Card className="mb-card-gap">
-          <SectionLabel>Currently in</SectionLabel>
+          <SectionLabel>{s.books.currentlyIn}</SectionLabel>
           <Text className="text-ink text-amount-lg font-mono-bold mt-1">
-            {current?.ledger.name ?? "Personal"}
+            {current?.ledger.name ?? s.books.personal}
           </Text>
           <Text className="text-faint text-caption font-sans-medium mt-1">
-            {isShared
-              ? `shared · everything you add here is visible to ${members.length > 1 ? `${members.length - 1} other${members.length > 2 ? "s" : ""}` : "the other members"}`
-              : "private to you"}
+            {isShared ? s.books.sharedWithOthers(members?.length ?? 0) : s.books.privateToYou}
           </Text>
         </Card>
 
@@ -253,7 +260,7 @@ export default function Ledgers() {
           </Card>
         )}
 
-        <SectionLabel>Your books</SectionLabel>
+        <SectionLabel>{s.books.yourBooks}</SectionLabel>
         <Card padded={false} className="mb-card-gap mt-2">
           {books.map((b, i) => (
             <ListRow
@@ -261,13 +268,13 @@ export default function Ledgers() {
               title={b.ledger.name}
               subtitle={
                 b.ledger.kind === "personal"
-                  ? `private · ${b.ledger.base_currency}`
-                  : `shared · ${b.ledger.base_currency} · ${b.role}`
+                  ? s.books.bookPersonal(b.ledger.base_currency)
+                  : s.books.bookShared(b.ledger.base_currency, b.role)
               }
               glyph={b.ledger.kind === "personal" ? BookOpen : Users}
               divider={i > 0}
               trailing={
-                b.ledger.id === current?.ledger.id ? <Badge>current</Badge> : undefined
+                b.ledger.id === current?.ledger.id ? <Badge>{s.books.current}</Badge> : undefined
               }
               onPress={
                 b.ledger.id === current?.ledger.id
@@ -280,39 +287,45 @@ export default function Ledgers() {
 
         {isShared && (
           <>
-            <SectionLabel>Members</SectionLabel>
+            <SectionLabel>{s.books.members}</SectionLabel>
             <Card padded={false} className="mb-card-gap mt-2">
-              {members.map((m, i) => (
+              {(members ?? []).map((m, i) => (
                 <ListRow
                   key={m.user_id}
                   title={m.email}
-                  subtitle={m.role === "owner" ? "owner" : "member"}
+                  subtitle={m.role === "owner" ? s.books.owner : s.books.member}
                   glyph={Users}
                   divider={i > 0}
-                  trailing={m.user_id === user?.id ? <Badge>you</Badge> : undefined}
+                  trailing={m.user_id === user?.id ? <Badge>{s.books.you}</Badge> : undefined}
                 />
               ))}
             </Card>
 
             <Card className="mb-card-gap">
-              <SectionLabel>Invite someone</SectionLabel>
+              <SectionLabel>{s.books.invite}</SectionLabel>
               {invite ? (
                 <>
                   <Text className="text-ink text-amount-lg font-mono-bold mt-2 tracking-widest">
                     {invite.code}
                   </Text>
                   <Text className="text-faint text-caption font-sans-medium mt-1">
-                    they enter this under Books → Join · expires {formatExpiry(invite.expires)}
+                    {s.books.inviteHint(formatExpiry(invite.expires))}
                   </Text>
                 </>
               ) : (
                 <Text className="text-faint text-caption font-sans-medium mt-1">
-                  a new code replaces any code you shared before
+                  {s.books.inviteReplaces}
                 </Text>
               )}
               <View className="mt-3 self-start">
                 <Button
-                  label={inviteBusy ? "Creating…" : invite ? "New code" : "Create a code"}
+                  label={
+                    inviteBusy
+                      ? s.books.creatingCode
+                      : invite
+                        ? s.books.newCode
+                        : s.books.createCode
+                  }
                   variant="tertiary"
                   fullWidth={false}
                   disabled={inviteBusy}
@@ -324,19 +337,35 @@ export default function Ledgers() {
         )}
 
         <View style={{ gap: 12 }}>
-          <Button label="Create a shared book" onPress={() => setShowCreate(true)} />
-          <Button label="Join with a code" variant="secondary" onPress={() => setShowJoin(true)} />
+          <Button label={s.books.createShared} onPress={() => setShowCreate(true)} />
+          <Button
+            label={s.books.joinWithCode}
+            variant="secondary"
+            onPress={() => setShowJoin(true)}
+          />
           {isShared && (
-            <Button label="Leave this book" variant="tertiary" onPress={() => setPendingLeave(true)} />
+            <Button
+              label={s.books.leaveBook}
+              variant="tertiary"
+              onPress={() => setPendingLeave(true)}
+            />
           )}
         </View>
       </ScrollView>
 
-      <Sheet visible={showCreate} title="New shared book" onClose={() => setShowCreate(false)}>
-        <Field label="Name" value={newName} onChange={setNewName} placeholder="Rumah" />
+      <Sheet
+        visible={showCreate}
+        title={s.books.createSheet.title}
+        onClose={() => setShowCreate(false)}
+      >
+        <Field
+          label={s.books.createSheet.name}
+          value={newName}
+          onChange={setNewName}
+          placeholder={s.books.createSheet.namePlaceholder}
+        />
         <Text className="text-faint text-caption font-sans-medium mt-2">
-          It starts empty. Add its pockets and categories after you switch to it: a shared book
-          keeps its own accounts, separate from your personal ones.
+          {s.books.createSheet.hint}
         </Text>
         {createErr && (
           <Text
@@ -348,16 +377,16 @@ export default function Ledgers() {
           </Text>
         )}
         <View className="mt-4">
-          <Button label="Create" busy={createBusy} onPress={createBook} />
+          <Button label={s.common.create} busy={createBusy} onPress={createBook} />
         </View>
       </Sheet>
 
-      <Sheet visible={showJoin} title="Join a book" onClose={() => setShowJoin(false)}>
+      <Sheet visible={showJoin} title={s.books.joinSheet.title} onClose={() => setShowJoin(false)}>
         <Field
-          label="Code"
+          label={s.books.joinSheet.code}
           value={code}
           onChange={setCode}
-          placeholder="K7M2QX9B"
+          placeholder={s.books.joinSheet.codePlaceholder}
           autoCap="characters"
         />
         {joinErr && (
@@ -370,15 +399,15 @@ export default function Ledgers() {
           </Text>
         )}
         <View className="mt-4">
-          <Button label="Join" busy={joinBusy} onPress={joinBook} />
+          <Button label={s.books.joinSheet.submit} busy={joinBusy} onPress={joinBook} />
         </View>
       </Sheet>
 
       <Dialog
         visible={pendingSwitch !== null}
-        title={`Switch to ${pendingSwitch?.name ?? ""}?`}
-        body="This device will re-download that book's entries. Anything you added offline is sent first, so nothing is lost."
-        confirmLabel="Switch"
+        title={s.books.confirmSwitch.title(pendingSwitch?.name ?? "")}
+        body={s.books.confirmSwitch.body}
+        confirmLabel={s.books.confirmSwitch.confirm}
         busy={switching}
         onConfirm={confirmSwitch}
         onCancel={() => setPendingSwitch(null)}
@@ -386,13 +415,15 @@ export default function Ledgers() {
 
       <Dialog
         visible={pendingLeave}
-        title="Leave this book?"
+        title={s.books.confirmLeave.title}
         body={
-          members.length > 1
-            ? "You'll stop seeing its entries on this device. The book and its history stay with the other members."
-            : "You're the only one left, so the book closes when you go. Its history goes with it."
+          members === null
+            ? s.books.confirmLeave.bodyUnknown
+            : members.length > 1
+              ? s.books.confirmLeave.bodyOthers
+              : s.books.confirmLeave.bodyLast
         }
-        confirmLabel="Leave"
+        confirmLabel={s.books.confirmLeave.confirm}
         busy={leaveBusy}
         onConfirm={confirmLeave}
         onCancel={() => setPendingLeave(false)}

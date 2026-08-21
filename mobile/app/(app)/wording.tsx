@@ -3,7 +3,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Home, LayoutGrid, LineChart, MoreHorizontal, Plus } from "lucide-react-native";
 
-import { TERM_ROWS, term, useWording, type Wording } from "../../src/lib/wording";
+import { TERM_ROWS, term, useStrings, useWording, type Wording } from "../../src/lib/wording";
 import {
   Card,
   ScreenHeader,
@@ -19,10 +19,16 @@ import {
 // radius before the change lands.
 export default function WordingScreen() {
   const { mode, setMode, showSides, setShowSides } = useWording();
+  const s = useStrings();
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-background">
-      <ScreenHeader title="How it is worded" backLabel="More" onBack={() => router.back()} />
+      <ScreenHeader
+        title={s.settings.wording.title}
+        backLabel={s.settings.wording.backLabel}
+        backAccessibilityLabel={s.common.backTo(s.settings.wording.backLabel)}
+        onBack={() => router.back()}
+      />
 
       <ScrollView
         className="flex-1"
@@ -33,19 +39,22 @@ export default function WordingScreen() {
           value={mode}
           onChange={(m) => setMode(m as Wording)}
           options={[
-            { value: "normal", label: "Normal" },
-            { value: "finance", label: "Finance" },
+            { value: "normal", label: s.settings.wording.normalLabel },
+            { value: "finance", label: s.settings.wording.financeLabel },
           ]}
         />
         <Text className="text-caption font-sans-medium text-dim">
-          Same data, same screens — only the words change, plus one extra line on each entry.
-          Switch back any time.
+          {s.settings.wording.explainer}
         </Text>
 
         <Card padded={false}>
           <View className="flex-row bg-surface-container px-4 py-2.5" style={{ gap: 12 }}>
-            <Text className="flex-1 text-overline font-sans-semibold text-faint uppercase">normal</Text>
-            <Text className="flex-1 text-overline font-sans-semibold text-faint uppercase">finance</Text>
+            <Text className="flex-1 text-overline font-sans-semibold text-faint uppercase">
+              {s.settings.wording.columnNormal}
+            </Text>
+            <Text className="flex-1 text-overline font-sans-semibold text-faint uppercase">
+              {s.settings.wording.columnFinance}
+            </Text>
           </View>
           {TERM_ROWS.map((row) => (
             <View
@@ -73,15 +82,15 @@ export default function WordingScreen() {
 
         <Card>
           <SwitchRow
-            label="Show the two sides on entries"
-            helper="the debit and credit behind each move"
+            label={s.settings.wording.showSides}
+            helper={s.settings.wording.showSidesHelper}
             value={showSides}
             onChange={setShowSides}
           />
         </Card>
 
         <Card>
-          <SectionLabel>preview · tab bar</SectionLabel>
+          <SectionLabel>{s.settings.wording.preview}</SectionLabel>
           <View className="mt-3.5">
             <TabPreview mode="normal" active={mode === "normal"} />
             <View className="h-px bg-outline-variant my-3.5" />
@@ -97,7 +106,9 @@ const PREVIEW_GLYPHS = [Home, LineChart, LayoutGrid, MoreHorizontal];
 
 function TabPreview({ mode, active }: { mode: Wording; active: boolean }) {
   const { C } = useTheme();
-  const labels = ["Home", term("history", mode), term("buckets", mode), "More"];
+  const s = useStrings();
+  // Terms read for the row's own mode, not the active one: both rows show at once.
+  const labels = [s.common.home, term("history", mode), term("buckets", mode), s.more.title];
   const color = active ? C.ink : C.faint;
 
   return (

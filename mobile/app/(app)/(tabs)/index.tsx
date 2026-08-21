@@ -1,9 +1,10 @@
 import { useCallback, useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
+import Animated from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronDown, Search, TriangleAlert } from "lucide-react-native";
+import { BarChart3, ChevronDown, PieChart, Repeat, Search, TriangleAlert } from "lucide-react-native";
 
 import { authedApi } from "../../../src/lib/api";
 import { useAuth } from "../../../src/lib/auth";
@@ -15,37 +16,48 @@ import {
   spendingForMonth,
 } from "../../../src/lib/buckets";
 import { database } from "../../../src/lib/db";
-import { EMPTY_RATES, convert, rateCaption, type RateTable } from "../../../src/lib/fx";
+import { EMPTY_RATES, ageHours, convert, rateCaption, type RateTable } from "../../../src/lib/fx";
+import { daysLoggedLastWeek, loggedEntries, momentFor } from "@financially/domain/moments";
 import { useLedgerState } from "../../../src/lib/ledgerStore";
 import { useSyncState } from "../../../src/lib/syncState";
 import { useObservable } from "../../../src/lib/useObserve";
 import { useSyncRefresh } from "../../../src/lib/useSyncRefresh";
-import { useWording } from "../../../src/lib/wording";
+import { useStrings, useWording } from "../../../src/lib/wording";
 import { SetupChecklist } from "../../../src/components/setup-checklist";
 import { Account, Budget, Entry, JournalLine } from "../../../src/model/models";
 import {
   Amount,
+  AnimatedPressable,
   Badge,
   Card,
   Chip,
   EmptyState,
   IconButton,
   ListRow,
+  ProgressBar,
   SectionLabel,
+  Skeleton,
   TrendBars,
   Wallet,
   accountGlyph,
   formatGrouped,
   ICON,
+  usePressedScale,
   useTheme,
+  useValueFade,
+  type Glyph,
 } from "../../../src/components/ui";
 
 type Range = "6M" | "1Y" | "All";
 const RANGE_MONTHS: Record<Range, number> = { "6M": 6, "1Y": 12, All: 36 };
 
+// Rates refresh daily; past this every converted figure is worth a caveat.
+const STALE_RATE_HOURS = 24;
+
 export default function HomeScreen() {
   const { user, guest, baseCurrency: base } = useAuth();
   const { t } = useWording();
+  const s = useStrings();
   const { C } = useTheme();
   const sync = useSyncState();
   const { active } = useLedgerState();
@@ -92,6 +104,7 @@ export default function HomeScreen() {
   const pull = useSyncRefresh(refetchServerReads);
 
   const worth = netWorth(accounts, lines);
+  const worthFade = useValueFade(worth);
 
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -107,6 +120,13 @@ export default function HomeScreen() {
   const spendingRows = spendingForMonth(accounts, lines, monthEntryIds, budgets, base, monthStart);
   const buckets = buildBuckets(accounts, (a) => accountSigned(a, lines), base, rates, spendingRows);
   const safe = safeToSpend(spendingRows);
+  const safeFade = useValueFade(safe);
+
+  // Three categories closest to (or past) target.
+  const planPeek = spendingRows
+    .filter((r) => r.target != null && r.target > 0)
+    .sort((a, b) => b.spent / (b.target ?? 1) - a.spent / (a.target ?? 1))
+    .slice(0, 3);
 
   const points = seriesQuery.data?.points ?? [];
 
@@ -158,6 +178,37 @@ export default function HomeScreen() {
 
   const initials = (user?.email ?? "?").slice(0, 2).toUpperCase();
 
+  // Anything needing attention takes the greeting's slot.
+  const hour = now.getHours();
+  const greeting =
+    hour < 12 ? s.home.greeting.morning : hour < 18 ? s.home.greeting.afternoon : s.home.greeting.evening;
+  const rateAge = ageHours(rates);
+  const opener =
+    sync.status === "error"
+      ? s.home.status.offline
+      : fxCaption && rateAge != null && rateAge > STALE_RATE_HOURS
+        ? s.home.status.staleRates
+        : greeting;
+
+  // No memo: `spendingRows` is rebuilt each render, so a cache on it never hits.
+  const logged = loggedEntries(
+    entries,
+    lines,
+    new Set(accounts.filter((a) => a.type === "equity").map((a) => a.id)),
+  );
+  const moment = momentFor({
+    entryCount: logged.length,
+    daysLoggedLastWeek: daysLoggedLastWeek(
+      logged.map((e) => new Date(e.txnDate).getTime()),
+      now,
+    ),
+    dayOfMonth: now.getDate(),
+    daysLeftInMonth: daysLeftInMonth(now),
+    plannedMinor: spendingRows.reduce((sum, r) => sum + (r.target ?? 0), 0),
+    spentMinor: spendingRows.reduce((sum, r) => sum + r.spent, 0),
+    safeToSpendMinor: safe,
+  });
+
   // First run: a zeroed home tells a new user nothing. Send them to setup,
   // which builds a whole starter chart rather than a single pocket.
   if (accounts.length === 0) {
@@ -165,9 +216,9 @@ export default function HomeScreen() {
       <SafeAreaView edges={["top"]} className="flex-1 bg-background justify-center px-4">
         <EmptyState
           glyph={Wallet}
-          title="Set up your money"
-          body="Pick the pockets you keep money in and the things you spend it on. Takes a minute."
-          actionLabel="Get started"
+          title={s.home.firstRun.title}
+          body={s.home.firstRun.body}
+          actionLabel={s.home.firstRun.action}
           onAction={() => router.push("/(app)/setup")}
         />
       </SafeAreaView>
@@ -180,19 +231,19 @@ export default function HomeScreen() {
         <Pressable
           onPress={() => router.push("/(app)/ledgers")}
           accessibilityRole="button"
-          accessibilityLabel={`Book: ${active?.name ?? "Personal"}. Change book`}
+          accessibilityLabel={s.home.bookSwitcher(active?.name ?? s.common.personalSpace)}
           className="flex-row items-center bg-secondary rounded-full px-3 py-2 min-h-touch"
           style={{ gap: 6 }}
         >
           <Text className="text-label font-sans-semibold text-on-secondary" numberOfLines={1}>
-            {active?.name ?? "Personal"}
+            {active?.name ?? s.common.personalSpace}
           </Text>
           <ChevronDown size={ICON.sm} color={C.dim} strokeWidth={2} />
         </Pressable>
         <View className="flex-row items-center" style={{ gap: 8 }}>
           <IconButton
             glyph={Search}
-            label="Search"
+            label={s.home.search}
             onPress={() =>
               router.push({
                 pathname: "/(app)/(tabs)/history",
@@ -218,6 +269,8 @@ export default function HomeScreen() {
             three tables, and its own subscriptions doubled the work here. */}
         <SetupChecklist accounts={accounts} entries={entries} lines={lines} />
 
+        <Text className="text-body font-sans-medium text-dim px-1">{opener}</Text>
+
         <Card>
           <View className="flex-row items-center justify-between">
             <SectionLabel>
@@ -225,14 +278,16 @@ export default function HomeScreen() {
             </SectionLabel>
             {sync.status === "error" && (
               <Badge tone="warning" glyph={TriangleAlert}>
-                offline
+                {s.home.offline}
               </Badge>
             )}
           </View>
 
-          <Text className="text-amount-hero font-mono-bold text-ink mt-2">
-            {formatGrouped(base, worth)}
-          </Text>
+          <Animated.View style={worthFade}>
+            <Text className="text-amount-hero font-mono-bold text-ink mt-2">
+              {formatGrouped(base, worth)}
+            </Text>
+          </Animated.View>
           <View className="flex-row items-baseline mt-1" style={{ gap: 8 }}>
             <Text
               className={`text-amount-sm font-mono-medium ${
@@ -243,19 +298,23 @@ export default function HomeScreen() {
               {formatGrouped(base, thisMonthNet)}
             </Text>
             <Text className="text-caption font-sans-medium text-faint">
-              {pct >= 0 ? "+" : ""}
-              {pct.toFixed(1)}% this month
+              {s.home.changeThisMonth(pct)}
               {worthAbroad != null && foreignCurrency
                 ? ` · ≈ ${foreignCurrency} ${formatGrouped(foreignCurrency, worthAbroad)}`
                 : ""}
             </Text>
           </View>
 
-          {worthSeries.length > 0 && (
+          {worthSeries.length > 0 ? (
             <View className="mt-3.5">
               <TrendBars points={worthSeries} height={64} gap={4} showLabels={false} />
             </View>
-          )}
+          ) : seriesQuery.isLoading && !guest ? (
+            // Only the server-fed trend pulses; local figures already painted.
+            <View className="mt-3.5">
+              <Skeleton className="h-16 w-full" />
+            </View>
+          ) : null}
 
           <View className="flex-row items-center justify-between mt-3.5">
             <View className="flex-row" style={{ gap: 6 }}>
@@ -278,12 +337,13 @@ export default function HomeScreen() {
 
         <View className="flex-row items-center justify-between mt-1">
           <SectionLabel>{t("buckets")}</SectionLabel>
-          <Text
-            className="text-label font-sans-semibold text-info"
+          <Pressable
+            accessibilityRole="button"
+            hitSlop={12}
             onPress={() => router.push("/(app)/(tabs)/buckets")}
           >
-            Manage
-          </Text>
+            <Text className="text-label font-sans-semibold text-info">{s.home.manage}</Text>
+          </Pressable>
         </View>
 
         <Card padded={false}>
@@ -303,7 +363,7 @@ export default function HomeScreen() {
                 amountTone="neutral"
                 meta={
                   b.total == null
-                    ? "rate unavailable"
+                    ? s.home.rateUnavailable
                     : b.children.length > 1
                       ? b.children
                           .slice(0, 2)
@@ -322,14 +382,100 @@ export default function HomeScreen() {
             <View className="flex-1">
               <Text className="text-body-strong font-sans-semibold text-ink">{t("safeToSpend")}</Text>
               <Text className="text-caption font-sans-medium text-faint mt-0.5">
-                {daysLeftInMonth(now)} days left in{" "}
-                {now.toLocaleDateString(undefined, { month: "long" })}
+                {s.home.daysLeft(
+                  daysLeftInMonth(now),
+                  now.toLocaleDateString(undefined, { month: "long" }),
+                )}
               </Text>
             </View>
-            <Amount minor={safe} currency={base} size="lg" tone="neutral" />
+            <Animated.View style={safeFade}>
+              <Amount minor={safe} currency={base} size="lg" tone="neutral" />
+            </Animated.View>
           </View>
+          {moment && (
+            <Text className="text-caption font-sans-medium text-dim mt-3">
+              {s.moments[moment]}
+            </Text>
+          )}
         </Card>
+
+        {/* One-tap peek at the plan; full screen lives under More. */}
+        {planPeek.length > 0 && (
+          <>
+            <View className="flex-row items-center justify-between mt-1">
+              <SectionLabel>{s.home.planLabel}</SectionLabel>
+              <Pressable
+                accessibilityRole="button"
+                hitSlop={12}
+                onPress={() => router.push(guest ? "/register" : "/(app)/budgets")}
+              >
+                <Text className="text-label font-sans-semibold text-info">{s.home.seeAll}</Text>
+              </Pressable>
+            </View>
+            <Card>
+              <View style={{ gap: 12 }}>
+                {planPeek.map((r) => {
+                  const used = r.target ? Math.round((r.spent / r.target) * 100) : 0;
+                  return (
+                    <View key={r.account.id} style={{ gap: 6 }}>
+                      <View className="flex-row items-baseline justify-between">
+                        <Text className="text-body font-sans-medium text-ink" numberOfLines={1}>
+                          {r.account.name}
+                        </Text>
+                        <Text className="text-mono-meta font-mono text-faint">
+                          {s.home.planProgress(
+                            formatGrouped(base, r.spent),
+                            formatGrouped(base, r.target ?? 0),
+                          )}
+                        </Text>
+                      </View>
+                      <ProgressBar pct={used} />
+                    </View>
+                  );
+                })}
+              </View>
+            </Card>
+          </>
+        )}
+
+        <View className="flex-row mt-1" style={{ gap: 8 }}>
+          <QuickAction
+            glyph={PieChart}
+            label={s.home.quick.plan}
+            onPress={() => router.push(guest ? "/register" : "/(app)/budgets")}
+          />
+          <QuickAction
+            glyph={BarChart3}
+            label={s.home.quick.reports}
+            onPress={() => router.push(guest ? "/register" : "/(app)/reports")}
+          />
+          <QuickAction
+            glyph={Repeat}
+            label={s.home.quick.repeating}
+            onPress={() => router.push(guest ? "/register" : "/(app)/recurring")}
+          />
+        </View>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function QuickAction({ glyph: G, label, onPress }: { glyph: Glyph; label: string; onPress: () => void }) {
+  const { C, ELEVATION } = useTheme();
+  const { pressed, pressStyle, handlers } = usePressedScale("tap");
+  return (
+    <AnimatedPressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      {...handlers}
+      className={`flex-1 items-center rounded-2xl border border-outline py-3 ${
+        pressed ? "bg-surface-pressed" : "bg-surface"
+      }`}
+      style={[ELEVATION.card, pressStyle, { gap: 6 }]}
+    >
+      <G size={ICON.xl} color={C.dim} strokeWidth={1.75} />
+      <Text className="text-label font-sans-semibold text-ink">{label}</Text>
+    </AnimatedPressable>
   );
 }

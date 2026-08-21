@@ -2,8 +2,16 @@ import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from "react-na
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ChevronLeft } from "lucide-react-native";
 import { Pressable } from "react-native";
+import { router } from "expo-router";
 
 import { ICON, useTheme } from "./ui";
+import { useStrings } from "../lib/wording";
+
+// Reachable from first run (no history) and from gated features (history).
+export function backToWelcome() {
+  if (router.canGoBack()) router.back();
+  else router.replace("/welcome");
+}
 
 /**
  * The shell every unauthenticated screen sits in: safe area, the keyboard
@@ -21,17 +29,14 @@ export function AuthScreen({
 }: {
   /** The line under the wordmark; says what this screen is for. */
   caption: string;
-  /**
-   * Where Back goes. Authoritative, not a fallback: these screens navigate with
-   * `replace`, so the history stack does not describe the flow. Omit on
-   * first-run screens to hide the affordance.
-   */
+  /** Where Back goes; omit on first-run screens to hide the affordance. */
   onBack?: () => void;
   children: React.ReactNode;
   /** Fine print pinned under the form — terms, reassurance, a hint. */
   footer?: React.ReactNode;
 }) {
   const { C } = useTheme();
+  const s = useStrings();
 
   return (
     <SafeAreaView edges={["top", "bottom"]} className="flex-1 bg-background">
@@ -46,12 +51,12 @@ export function AuthScreen({
             <Pressable
               onPress={onBack}
               accessibilityRole="button"
-              accessibilityLabel="Back"
+              accessibilityLabel={s.common.back}
               className="flex-row items-center self-start min-h-touch px-2"
               hitSlop={4}
             >
               <ChevronLeft size={ICON.xl} color={C.info} strokeWidth={2} />
-              <Text className="text-body-strong font-sans-semibold text-info ml-0.5">Back</Text>
+              <Text className="text-body-strong font-sans-semibold text-info ml-0.5">{s.common.back}</Text>
             </Pressable>
           )}
         </View>
@@ -66,7 +71,7 @@ export function AuthScreen({
             accessibilityRole="header"
             className="text-display font-sans-bold text-ink text-center mb-1"
           >
-            Financi-Ally
+            {s.auth.wordmark}
           </Text>
           <Text className="text-body font-sans-medium text-dim text-center mb-8">{caption}</Text>
 
@@ -99,10 +104,11 @@ export function FormError({ message }: { message: string | null }) {
 
 /** "or" rule between the credential form and the OAuth button. */
 export function OrDivider() {
+  const s = useStrings();
   return (
     <View className="flex-row items-center my-4" style={{ gap: 12 }}>
       <View className="flex-1 h-px bg-outline" />
-      <Text className="text-caption font-sans-medium text-faint">or</Text>
+      <Text className="text-caption font-sans-medium text-faint">{s.auth.or}</Text>
       <View className="flex-1 h-px bg-outline" />
     </View>
   );

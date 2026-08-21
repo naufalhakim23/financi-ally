@@ -2,14 +2,15 @@ import { useMemo, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
-import { Camera, Check } from "lucide-react-native";
+import { Check } from "lucide-react-native";
 
 import { useAuth } from "../../../src/lib/auth";
 import { database } from "../../../src/lib/db";
+import { useLedgerState } from "../../../src/lib/ledgerStore";
 import { buildEntryViews, monthKey, monthLabel } from "../../../src/lib/ledger";
 import { syncDatabase } from "../../../src/lib/sync";
 import { useObservable } from "../../../src/lib/useObserve";
-import { useWording } from "../../../src/lib/wording";
+import { useStrings, useWording } from "../../../src/lib/wording";
 import { Account, Entry, JournalLine } from "../../../src/model/models";
 import {
   Badge,
@@ -26,15 +27,14 @@ import {
   accountGlyph,
   categorySlot,
   formatGrouped,
-  ICON,
-  useTheme,
 } from "../../../src/components/ui";
 
 export default function EntryDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { baseCurrency: base } = useAuth();
   const { t, showSides } = useWording();
-  const { C } = useTheme();
+  const s = useStrings();
+  const activeBook = useLedgerState().active;
   const [confirming, setConfirming] = useState(false);
   const [moving, setMoving] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -108,9 +108,18 @@ export default function EntryDetail() {
   if (!view) {
     return (
       <SafeAreaView edges={["top"]} className="flex-1 bg-background">
-        <ScreenHeader title="Entry" backLabel="Back" onBack={() => router.back()} />
+        <ScreenHeader
+          title={s.entry.detail.title}
+          backLabel={s.common.back}
+          backAccessibilityLabel={s.common.back}
+          onBack={() => router.back()}
+        />
         <View className="px-4">
-          <EmptyState glyph={Receipt} title="Entry not found" body="It may have been deleted." />
+          <EmptyState
+            glyph={Receipt}
+            title={s.entry.detail.notFound.title}
+            body={s.entry.detail.notFound.body}
+          />
         </View>
       </SafeAreaView>
     );
@@ -129,8 +138,9 @@ export default function EntryDetail() {
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-background">
       <ScreenHeader
-        title="Entry"
-        backLabel={monthLabel(monthKey(when)).split(" ")[0]}
+        title={s.entry.detail.title}
+        backLabel={monthLabel(monthKey(when), { year: false })}
+        backAccessibilityLabel={s.common.backTo(monthLabel(monthKey(when), { year: false }))}
         onBack={() => router.back()}
       />
 
@@ -159,23 +169,30 @@ export default function EntryDetail() {
               {formatGrouped(view.currency || base, view.amountMinor)}
             </Text>
             <Text className="text-body-lg font-sans-semibold text-ink">
-              {category?.name ?? view.entry.memo ?? "Entry"}
+              {category?.name ?? view.entry.memo ?? s.entry.detail.fallbackName}
             </Text>
             <Text className="text-caption font-sans-medium text-faint">
-              {when.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })} ·{" "}
-              {when.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })} · Personal
+              {s.entry.detail.when(
+                when.toLocaleDateString(undefined, {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                }),
+                when.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }),
+                activeBook?.name ?? s.common.personalSpace,
+              )}
             </Text>
           </View>
         </Card>
 
         <Card padded={false}>
-          <DetailRow label={t("outOf")} value={view.from?.name ?? "—"} />
+          <DetailRow label={t("outOf")} value={view.from?.name ?? s.common.missing} />
           <View className="h-px bg-outline-variant" />
-          <DetailRow label={t("into")} value={view.to?.name ?? "—"} />
+          <DetailRow label={t("into")} value={view.to?.name ?? s.common.missing} />
           {!!view.entry.memo && (
             <>
               <View className="h-px bg-outline-variant" />
-              <DetailRow label="note" value={view.entry.memo} dim />
+              <DetailRow label={s.entry.detail.note} value={view.entry.memo} dim />
             </>
           )}
         </Card>
@@ -184,52 +201,49 @@ export default function EntryDetail() {
         {showSides && (
           <Card>
             <View className="flex-row items-center justify-between">
-              <SectionLabel>the two sides</SectionLabel>
+              <SectionLabel>{s.entry.detail.twoSides}</SectionLabel>
               <Badge tone="success" glyph={Check}>
-                balanced
+                {s.entry.detail.balanced}
               </Badge>
             </View>
             <View className="flex-row items-center justify-between mt-2.5">
-              <Text className="text-body font-sans-medium text-ink">{view.to?.name ?? "—"}</Text>
+              <Text className="text-body font-sans-medium text-ink">
+                {view.to?.name ?? s.common.missing}
+              </Text>
               <Text className="text-amount font-mono-medium text-ink">
                 Dr {formatGrouped(view.currency || base, view.amountMinor)}
               </Text>
             </View>
             <View className="h-px bg-outline-variant my-2.5" />
             <View className="flex-row items-center justify-between">
-              <Text className="text-body font-sans-medium text-ink">{view.from?.name ?? "—"}</Text>
+              <Text className="text-body font-sans-medium text-ink">
+                {view.from?.name ?? s.common.missing}
+              </Text>
               <Text className="text-amount font-mono-medium text-ink">
                 Cr {formatGrouped(view.currency || base, view.amountMinor)}
               </Text>
             </View>
             <Text className="text-caption font-sans-medium text-faint mt-2.5">
-              shown because wording is set to finance
+              {s.entry.detail.twoSidesWhy}
             </Text>
           </Card>
         )}
 
         {view.runningBalance != null && view.runningCurrency && (
           <View className="bg-surface-container rounded-lg px-3.5 py-3 flex-row items-center justify-between">
-            <Text className="text-caption font-sans-medium text-dim">balance after this entry</Text>
+            <Text className="text-caption font-sans-medium text-dim">
+              {s.entry.detail.balanceAfter}
+            </Text>
             <Text className="text-amount-sm font-mono-medium text-ink">
               {formatGrouped(view.runningCurrency, view.runningBalance)}
             </Text>
           </View>
         )}
 
-        {/* Receipts have no upload path yet; the placeholder says what will
-            appear rather than offering an action that does nothing. */}
-        <View className="bg-surface border border-dashed border-outline-strong rounded-2xl p-3.5 items-center">
-          <Camera size={ICON.xxl} color={C.disabled} strokeWidth={1.75} />
-          <Text className="text-caption font-sans-medium text-faint mt-1.5">
-            A receipt photo you add will appear here
-          </Text>
-        </View>
-
         <View className="flex-row mt-2" style={{ gap: 8 }}>
           <View className="flex-1">
             <Button
-              label="Duplicate"
+              label={s.entry.detail.duplicate}
               variant="secondary"
               onPress={() =>
                 router.push(
@@ -242,16 +256,32 @@ export default function EntryDetail() {
           </View>
           {moveTargets.length > 0 && (
             <View className="flex-1">
-              <Button label="Move" variant="secondary" onPress={() => setMoving(true)} />
+              <Button
+                label={s.entry.detail.move}
+                variant="secondary"
+                onPress={() => setMoving(true)}
+              />
             </View>
           )}
           <View className="flex-1">
-            <Button label="Delete" variant="destructive" onPress={() => setConfirming(true)} />
+            <Button
+              label={s.common.delete}
+              variant="destructive"
+              onPress={() => setConfirming(true)}
+            />
           </View>
         </View>
       </ScrollView>
 
-      <Sheet visible={moving} onClose={() => setMoving(false)} title={`Move to another ${category?.type ?? "category"}`}>
+      <Sheet
+        visible={moving}
+        onClose={() => setMoving(false)}
+        title={s.entry.detail.moveTo(
+          category
+            ? s.entry.detail.moveKind[category.type as keyof typeof s.entry.detail.moveKind]
+            : s.entry.detail.moveFallbackKind,
+        )}
+      >
         {moveTargets.map((a, i) => (
           <ListRow
             key={a.id}
@@ -267,9 +297,9 @@ export default function EntryDetail() {
 
       <Dialog
         visible={confirming}
-        title="Delete this entry?"
-        body="Both sides of the entry are removed. This cannot be undone."
-        confirmLabel="Delete"
+        title={s.entry.detail.confirmDelete.title}
+        body={s.entry.detail.confirmDelete.body}
+        confirmLabel={s.common.delete}
         busy={busy}
         onConfirm={remove}
         onCancel={() => setConfirming(false)}

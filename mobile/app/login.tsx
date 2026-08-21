@@ -2,16 +2,18 @@ import { useRef, useState } from "react";
 import { TextInput, View } from "react-native";
 import { router } from "expo-router";
 
-import { AuthScreen, FormError, OrDivider } from "../src/components/auth-screen";
+import { AuthScreen, backToWelcome, FormError, OrDivider } from "../src/components/auth-screen";
 import { useGuestMerge } from "../src/components/guest-merge";
 import { Button, Field } from "../src/components/ui";
 import { useAuth } from "../src/lib/auth";
 import { messageFor } from "../src/lib/errors";
 import { isGuest } from "../src/lib/guestStore";
 import { emailError } from "../src/lib/validate";
+import { useStrings } from "../src/lib/wording";
 
 export default function LoginScreen() {
   const { login, googleSignin, googleEnabled } = useAuth();
+  const s = useStrings();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -26,7 +28,7 @@ export default function LoginScreen() {
   // Length isn't checked here: an existing account may predate the current
   // minimum, and telling someone their real password is "too short" at the
   // sign-in door is a dead end.
-  const passwordErr = password ? null : "Enter your password";
+  const passwordErr = password ? null : s.auth.login.noPassword;
   const invalid = emailErr ?? passwordErr;
 
   async function submit() {
@@ -39,7 +41,7 @@ export default function LoginScreen() {
       await login(email.trim(), password);
       await afterSignIn(wasGuest);
     } catch (e) {
-      setError(messageFor(e, "Sign in failed"));
+      setError(messageFor(e, s.auth.login.failed));
     } finally {
       setBusy(false);
     }
@@ -53,19 +55,19 @@ export default function LoginScreen() {
       await googleSignin();
       await afterSignIn(wasGuest);
     } catch (e) {
-      setError(messageFor(e, "Google sign-in failed"));
+      setError(messageFor(e, s.auth.login.googleFailed));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <AuthScreen caption="Sign in to your account" onBack={() => router.replace("/welcome")}>
+    <AuthScreen caption={s.auth.login.caption} onBack={backToWelcome}>
       <Field
-        label="Email"
+        label={s.auth.emailLabel}
         value={email}
         onChange={setEmail}
-        placeholder="you@example.com"
+        placeholder={s.auth.emailPlaceholder}
         keyboardType="email-address"
         autoCap="none"
         autoComplete="email"
@@ -76,10 +78,10 @@ export default function LoginScreen() {
       />
       <Field
         ref={passwordRef}
-        label="Password"
+        label={s.auth.login.passwordLabel}
         value={password}
         onChange={setPassword}
-        placeholder="Your password"
+        placeholder={s.auth.login.passwordPlaceholder}
         secure
         autoCap="none"
         autoComplete="current-password"
@@ -91,7 +93,7 @@ export default function LoginScreen() {
 
       <View className="self-end -mt-2 mb-3">
         <Button
-          label="Forgot password?"
+          label={s.auth.login.forgot}
           variant="tertiary"
           onPress={() =>
             // Carry whatever was typed so the next screen doesn't ask again.
@@ -102,13 +104,13 @@ export default function LoginScreen() {
 
       <FormError message={error} />
 
-      <Button label="Sign in" onPress={submit} busy={busy} />
+      <Button label={s.auth.login.submit} onPress={submit} busy={busy} />
 
       {googleEnabled && (
         <>
           <OrDivider />
           <Button
-            label="Continue with Google"
+            label={s.auth.login.google}
             onPress={google}
             variant="secondary"
             disabled={busy}
@@ -118,7 +120,7 @@ export default function LoginScreen() {
 
       <View className="mt-6 self-center">
         <Button
-          label="No account? Create one"
+          label={s.auth.login.toRegister}
           variant="tertiary"
           onPress={() => router.replace("/register")}
         />

@@ -53,8 +53,6 @@ export function clearSetupState() {
 
 export type SetupItem = {
   key: "pocket" | "category" | "income" | "entry";
-  label: string;
-  hint: string;
   done: boolean;
 };
 
@@ -91,25 +89,10 @@ export function useSetupState(accounts: Account[], entries: Entry[], lines: Jour
   }, [accounts, entries, lines]);
 
   const items: SetupItem[] = [
-    {
-      key: "pocket",
-      label: "Add a pocket",
-      hint: "cash, bank, e-wallet",
-      done: has("asset") || has("liability"),
-    },
-    { key: "category", label: "Add a category", hint: "what you spend on", done: has("expense") },
-    {
-      key: "income",
-      label: "Add an income source",
-      hint: "where money comes from",
-      done: has("income"),
-    },
-    {
-      key: "entry",
-      label: "Record your first entry",
-      hint: "and the numbers start moving",
-      done: hasEntry,
-    },
+    { key: "pocket", done: has("asset") || has("liability") },
+    { key: "category", done: has("expense") },
+    { key: "income", done: has("income") },
+    { key: "entry", done: hasEntry },
   ];
 
   const dismiss = useCallback(() => {
@@ -128,6 +111,49 @@ export function useSetupState(accounts: Account[], entries: Entry[], lines: Jour
     dismissed,
     dismiss,
   };
+}
+
+// Ad-hoc account create. Dedupes on (type, name); revives an archived match.
+export async function createAccount(
+  type: AccountType,
+  name: string,
+  currency: string,
+): Promise<string> {
+  const existing = (await database.get<Account>("accounts").query().fetch()).find(
+    (a) => a.type === type && a.name === name && a.currency === currency,
+  );
+  if (existing) {
+    if (existing.archived) {
+      await database.write(() =>
+        existing.update((a) => {
+          a.archived = false;
+        }),
+      );
+    } else {
+      return existing.id;
+    }
+  }
+
+  const id = existing
+    ? existing.id
+    : (
+        await database.write(() =>
+          database.get<Account>("accounts").create((a) => {
+            a.type = type;
+            a.currency = currency;
+            a.name = name;
+            a.parentId = null;
+            a.archived = false;
+          }),
+        )
+      ).id;
+
+  try {
+    await syncDatabase();
+  } catch (e) {
+    console.warn("[setup] sync deferred", e);
+  }
+  return id;
 }
 
 /**

@@ -1,9 +1,21 @@
 import { useState } from "react";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Text, View } from "react-native";
 import { Plus } from "lucide-react-native";
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 
 import { format } from "../../lib/money";
-import { ICON, type Palette, useTheme, type Glyph, slotColor, slotTint } from "./tokens";
+import {
+  DURATION,
+  EASING,
+  ICON,
+  type Palette,
+  useTheme,
+  type Glyph,
+  slotColor,
+  slotTint,
+} from "./tokens";
+import { haptic, type HapticKind } from "./haptics";
+import { AnimatedPressable, PRESS_SCALE, useBarWidth, useReducedMotion } from "./motion";
 
 /**
  * Pressed state as a boolean plus the handlers that drive it.
@@ -19,6 +31,33 @@ export function usePressed() {
     handlers: {
       onPressIn: () => setPressed(true),
       onPressOut: () => setPressed(false),
+    },
+  };
+}
+
+// Press-scale + haptic variant of usePressed, split off so plain list rows don't allocate shared values. Render on AnimatedPressable.
+export function usePressedScale(hapticKind?: HapticKind) {
+  const [pressed, setPressed] = useState(false);
+  const s = useSharedValue(1);
+  // Reduced motion drops the transform; tone and haptic still answer the press.
+  const reduced = useReducedMotion();
+  const pressStyle = useAnimatedStyle(() => ({ transform: [{ scale: reduced ? 1 : s.value }] }));
+  return {
+    pressed,
+    pressStyle,
+    handlers: {
+      onPressIn: () => {
+        setPressed(true);
+        s.value = withTiming(PRESS_SCALE, {
+          duration: DURATION.instant,
+          easing: EASING.standard,
+        });
+        if (hapticKind) haptic[hapticKind]();
+      },
+      onPressOut: () => {
+        setPressed(false);
+        s.value = withTiming(1, { duration: DURATION.fast, easing: EASING.exit });
+      },
     },
   };
 }
@@ -132,15 +171,16 @@ export function Button({
   const tertiary = variant === "tertiary";
   const pad = tertiary ? "px-2 py-1" : "px-4 py-3.5 min-h-touch";
   const textColor = off ? s.disabledText : s.text;
-  const { pressed, handlers } = usePressed();
+  const { pressed, pressStyle, handlers } = usePressedScale("tapLight");
 
   return (
-    <Pressable
+    <AnimatedPressable
       onPress={onPress}
       disabled={off}
       accessibilityRole="button"
       accessibilityState={{ disabled: off, busy }}
       {...handlers}
+      style={pressStyle}
       className={[
         "flex-row items-center justify-center",
         tertiary ? "" : "rounded-xl",
@@ -162,25 +202,25 @@ export function Button({
           </Text>
         </>
       )}
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 
 /** Floating add affordance. The only element besides sheets that truly floats. */
 export function Fab({ onPress, size = 56 }: { onPress: () => void; size?: number }) {
   const { C, ELEVATION } = useTheme();
-  const { pressed, handlers } = usePressed();
+  const { pressed, pressStyle, handlers } = usePressedScale("tapLight");
   return (
-    <Pressable
+    <AnimatedPressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel="Add entry"
       {...handlers}
       className={`rounded-full items-center justify-center ${pressed ? "bg-primary-pressed" : "bg-primary"}`}
-      style={[{ width: size, height: size }, ELEVATION.float]}
+      style={[{ width: size, height: size }, ELEVATION.float, pressStyle]}
     >
       <Plus size={ICON.xxl} color={C.onPrimary} strokeWidth={1.75} />
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 
@@ -265,11 +305,14 @@ export function Amount({
 
 /** Semantic progress bar: <75% success, 75–99% warning, 100%+ error. */
 export function ProgressBar({ pct }: { pct: number }) {
-  const clipped = Math.max(0, Math.min(pct, 100));
   const color = pct >= 100 ? "bg-error" : pct >= 75 ? "bg-warning" : "bg-success";
+  const fill = useBarWidth(pct);
   return (
     <View className="w-full h-1.5 rounded-full bg-surface-container-high overflow-hidden">
-      <View className={`h-1.5 rounded-full ${color}`} style={{ width: `${clipped}%` }} />
+      {/* NativeWind resolves className at build time, so it stays off animated views. */}
+      <Animated.View style={fill}>
+        <View className={`h-1.5 w-full rounded-full ${color}`} />
+      </Animated.View>
     </View>
   );
 }
@@ -347,13 +390,14 @@ export function Chip({
   active?: boolean;
   onPress: () => void;
 }) {
-  const { pressed, handlers } = usePressed();
+  const { pressed, pressStyle, handlers } = usePressedScale("tap");
   return (
-    <Pressable
+    <AnimatedPressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
       {...handlers}
+      style={pressStyle}
       className={`rounded-full px-3.5 py-2 border ${
         active
           ? "bg-primary border-primary"
@@ -367,6 +411,6 @@ export function Chip({
       >
         {label}
       </Text>
-    </Pressable>
+    </AnimatedPressable>
   );
 }

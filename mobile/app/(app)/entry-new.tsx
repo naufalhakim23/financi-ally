@@ -470,6 +470,10 @@ export default function EntryNew() {
           />
         )}
 
+      </ScrollView>
+
+      {/* Pinned: inside the ScrollView, a rejected Save rendered its error off-screen. */}
+      <View className="px-4 pt-3 pb-2 border-t border-outline-variant bg-surface" style={{ gap: 14 }}>
         <Keypad onKey={(k: KeypadKey) => setDigits((d) => applyKey(d, k))} />
 
         <Button
@@ -478,7 +482,7 @@ export default function EntryNew() {
           busy={busy}
           disabled={blocked}
         />
-      </ScrollView>
+      </View>
 
       <Sheet
         visible={picking !== null}

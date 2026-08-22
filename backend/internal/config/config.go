@@ -84,6 +84,8 @@ type AuthConfig struct {
 	// forced on in production, where a refresh token over cleartext is a
 	// credential leak, not a configuration preference.
 	WebCookieSecure bool
+	// RegistrationOpen gates POST /auth/register. See internal/handler/registration.go.
+	RegistrationOpen bool
 	// WebCookiePath scopes the refresh cookie to the auth routes *as the browser
 	// sees them* — a deploy fact, not a code one. Wrong value fails quietly:
 	// login works, then a reload signs the user out.
@@ -121,6 +123,7 @@ func Load() (*Config, error) {
 			WebCookieAuth:       getEnvBool("WEB_COOKIE_AUTH", false),
 			WebCookieSecure:     getEnvBool("WEB_COOKIE_SECURE", false),
 			WebCookiePath:       getEnv("WEB_COOKIE_PATH", "/api/auth"),
+			RegistrationOpen:    getEnvBool("REGISTRATION_OPEN", true),
 		},
 		Google: GoogleOAuthConfig{
 			ClientID:     getEnv("GOOGLE_OAUTH_CLIENT_ID", ""),

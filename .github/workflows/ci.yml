@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: financially
+          POSTGRES_USER: financially
+          POSTGRES_PASSWORD: financially
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U financially"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      # Integration tests self-skip without this; CI would pass testing nothing.
+      DATABASE_URL: postgres://financially:financially@localhost:5432/financially?sslmode=disable
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - run: go vet ./...
+      - run: go build ./...
+      # -p 1: the integration tests share one database and truncate it.
+      - run: go test -p 1 ./...
+
+  domain:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: shared-context/domain
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+          cache-dependency-path: shared-context/domain/yarn.lock
+      - run: yarn install --frozen-lockfile
+      - run: yarn run check
+      - run: yarn run test
+
+  mobile:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+          cache-dependency-path: mobile/yarn.lock
+      - run: yarn install --frozen-lockfile
+      - run: yarn run check
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+          cache-dependency-path: web/yarn.lock
+      - run: yarn install --frozen-lockfile
+      - run: yarn run check
+      - run: yarn run lint

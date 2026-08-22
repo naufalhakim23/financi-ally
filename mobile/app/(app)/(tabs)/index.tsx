@@ -196,9 +196,7 @@ export default function HomeScreen() {
   // The greeting owns the title; anything needing attention takes the line
   // under it, where the date would otherwise sit.
   const subline =
-    sync.status === "error"
-      ? s.home.status.offline
-      : fxCaption && rateAge != null && rateAge > STALE_RATE_HOURS
+    fxCaption && rateAge != null && rateAge > STALE_RATE_HOURS
         ? s.home.status.staleRates
         : now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
 

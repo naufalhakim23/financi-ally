@@ -88,7 +88,7 @@ export default function Setup() {
       >
         <View>
           <Text className="text-headline font-sans-semibold text-ink">{current.title}</Text>
-          <Text className="text-body font-sans-medium text-dim mt-1">{current.hint}</Text>
+          <Text className="text-body font-sans text-dim mt-1">{current.hint}</Text>
         </View>
 
         <View className="flex-row flex-wrap" style={{ gap: 8 }}>

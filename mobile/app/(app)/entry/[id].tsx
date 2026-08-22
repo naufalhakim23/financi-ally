@@ -207,7 +207,7 @@ export default function EntryDetail() {
               </Badge>
             </View>
             <View className="flex-row items-center justify-between mt-2.5">
-              <Text className="text-body font-sans-medium text-ink">
+              <Text className="text-body font-sans text-ink">
                 {view.to?.name ?? s.common.missing}
               </Text>
               <Text className="text-amount font-mono-medium text-ink">
@@ -216,7 +216,7 @@ export default function EntryDetail() {
             </View>
             <View className="h-px bg-outline-variant my-2.5" />
             <View className="flex-row items-center justify-between">
-              <Text className="text-body font-sans-medium text-ink">
+              <Text className="text-body font-sans text-ink">
                 {view.from?.name ?? s.common.missing}
               </Text>
               <Text className="text-amount font-mono-medium text-ink">
@@ -312,7 +312,7 @@ function DetailRow({ label, value, dim = false }: { label: string; value: string
   return (
     <View className="flex-row items-center px-4 py-3.5" style={{ gap: 12 }}>
       <Text className="text-overline font-sans-semibold text-faint uppercase w-[60px]">{label}</Text>
-      <Text className={`flex-1 text-body font-sans-medium ${dim ? "text-dim" : "text-ink"}`}>
+      <Text className={`flex-1 text-body font-sans ${dim ? "text-dim" : "text-ink"}`}>
         {value}
       </Text>
     </View>

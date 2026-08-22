@@ -454,7 +454,7 @@ export default function HomeScreen() {
                   return (
                     <View key={r.account.id} style={{ gap: 6 }}>
                       <View className="flex-row items-baseline justify-between">
-                        <Text className="text-body font-sans-medium text-ink" numberOfLines={1}>
+                        <Text className="text-body font-sans text-ink" numberOfLines={1}>
                           {r.account.name}
                         </Text>
                         <Text className="text-mono-meta font-mono text-faint">

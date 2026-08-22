@@ -256,7 +256,7 @@ export default function Ledgers() {
         )}
         {notice && (
           <Card className="mb-card-gap">
-            <Text className="text-dim text-body font-sans-medium">{notice}</Text>
+            <Text className="text-dim text-body font-sans">{notice}</Text>
           </Card>
         )}
 
@@ -369,7 +369,7 @@ export default function Ledgers() {
         </Text>
         {createErr && (
           <Text
-            className="text-error text-body font-sans-medium mt-3"
+            className="text-error text-body font-sans mt-3"
             accessibilityLiveRegion="polite"
             role="alert"
           >
@@ -391,7 +391,7 @@ export default function Ledgers() {
         />
         {joinErr && (
           <Text
-            className="text-error text-body font-sans-medium mt-3"
+            className="text-error text-body font-sans mt-3"
             accessibilityLiveRegion="polite"
             role="alert"
           >

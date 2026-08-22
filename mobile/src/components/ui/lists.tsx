@@ -154,7 +154,7 @@ export function EmptyState({
           {title}
         </Text>
         {body && (
-          <Text className="text-dim text-body font-sans-medium text-center mt-1">{body}</Text>
+          <Text className="text-dim text-body font-sans text-center mt-1">{body}</Text>
         )}
         {actionLabel && onAction && (
           <View className="mt-3">
@@ -179,7 +179,7 @@ export function ErrorNotice({ message, onRetry }: { message: string; onRetry?: (
         <TriangleAlert size={ICON.lg} color={C.warning} strokeWidth={1.75} />
         <View className="flex-1">
           <Text
-            className="text-body font-sans-medium text-ink"
+            className="text-body font-sans text-ink"
             accessibilityLiveRegion="polite"
             role="alert"
           >
@@ -264,7 +264,7 @@ export function BucketChildRow({
         style={{ gap: 10 }}
       >
         <View className="flex-1 min-w-0">
-          <Text className="text-body font-sans-medium text-ink" numberOfLines={1}>
+          <Text className="text-body font-sans text-ink" numberOfLines={1}>
             {name}
           </Text>
           <Text className="text-mono-meta font-mono text-faint">{meta}</Text>

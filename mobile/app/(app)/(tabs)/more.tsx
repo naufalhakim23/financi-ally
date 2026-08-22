@@ -19,7 +19,17 @@ import { syncDatabase } from "../../../src/lib/sync";
 import { useSyncState } from "../../../src/lib/syncState";
 import { useThemePreference } from "../../../src/lib/theme";
 import { useStrings, useWording } from "../../../src/lib/wording";
-import { Badge, BookOpen, Button, Card, ListRow, SectionLabel, TitleBar, Users } from "../../../src/components/ui";
+import {
+  Badge,
+  BookOpen,
+  Button,
+  Card,
+  Dialog,
+  ListRow,
+  SectionLabel,
+  TitleBar,
+  Users,
+} from "../../../src/components/ui";
 import { useLedgerState } from "../../../src/lib/ledgerStore";
 
 // Everything direction 2a does not give a tab. Budgets, recurring rules and
@@ -33,6 +43,7 @@ export default function MoreScreen() {
   const { active: activeLedger } = useLedgerState();
   const sync = useSyncState();
   const [syncing, setSyncing] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
   async function doSync() {
     if (syncing) return;
@@ -178,11 +189,26 @@ export default function MoreScreen() {
         </Card>
 
         <View className="mt-2">
-          <Button label={s.more.signOut} variant="destructive" glyph={LogOut} onPress={logout} />
+          <Button
+            label={s.more.signOut}
+            variant="destructive"
+            glyph={LogOut}
+            onPress={() => setSigningOut(true)}
+          />
         </View>
           </>
         )}
       </ScrollView>
+
+      <Dialog
+        visible={signingOut}
+        title={s.more.confirmSignOut.title}
+        body={sync.pending ? s.more.confirmSignOut.pending : s.more.confirmSignOut.synced}
+        confirmLabel={s.more.signOut}
+        cancelLabel={s.more.confirmSignOut.stay}
+        onConfirm={logout}
+        onCancel={() => setSigningOut(false)}
+      />
     </SafeAreaView>
   );
 }

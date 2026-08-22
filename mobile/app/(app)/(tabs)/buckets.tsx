@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { RefreshControl, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, ChevronUp, Plus } from "lucide-react-native";
 
@@ -45,7 +45,15 @@ export default function BucketsScreen() {
   const s = useStrings();
   const { C } = useTheme();
   const pull = useSyncRefresh();
-  const [open, setOpen] = useState<BucketId | null>("cash");
+  // Home's bucket rows each open their own bucket here rather than all landing
+  // on the same collapsed screen. The tab stays mounted across navigations, so
+  // the caller's nonce is what re-applies a repeat request.
+  const { open: openParam, n } = useLocalSearchParams<{ open?: string; n?: string }>();
+  const [open, setOpen] = useState<BucketId | null>((openParam as BucketId) ?? "cash");
+
+  useEffect(() => {
+    if (openParam) setOpen(openParam as BucketId);
+  }, [openParam, n]);
 
   const accountsObs = useMemo(() => database.get<Account>("accounts").query().observe(), []);
   const linesObs = useMemo(() => database.get<JournalLine>("journal_lines").query().observe(), []);

@@ -432,7 +432,18 @@ export default function HomeScreen() {
                       : undefined
                 }
                 chevron
-                onPress={() => router.push("/(app)/(tabs)/buckets")}
+                onPress={() =>
+                  router.push(
+                    b.id === "spending" && !guest
+                      ? "/(app)/budgets"
+                      : {
+                          pathname: "/(app)/(tabs)/buckets",
+                          // Nonce: the tab stays mounted, so only a fresh value
+                          // re-opens a bucket the user has since collapsed.
+                          params: { open: b.id, n: String(Date.now()) },
+                        },
+                  )
+                }
               />
             ))}
         </Card>

@@ -288,7 +288,7 @@ export default function HomeScreen() {
 
         <View className="px-1">
           <Text className="text-title font-sans-bold text-ink">{greeting}</Text>
-          <Text className="text-label font-sans-medium text-faint mt-0.5">{subline}</Text>
+          <Text className="text-label font-sans-semibold text-faint mt-0.5">{subline}</Text>
         </View>
 
         <Card hero>

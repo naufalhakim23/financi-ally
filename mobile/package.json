@@ -17,7 +17,7 @@
     "gen": "openapi-typescript ../shared-context/contracts/openapi.yaml -o src/lib/api-types.ts",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "check": "yarn typecheck && tsc -p tsconfig.check.json && node .check/lib/checks.js && node scripts/check-tokens.mjs && eslint . && node --test scripts/eslint-rules.test.mjs"
+    "check": "yarn typecheck && tsc -p tsconfig.check.json && TZ=Europe/London node .check/lib/checks.js && node scripts/check-tokens.mjs && eslint . && node --test scripts/eslint-rules.test.mjs"
   },
   "dependencies": {
     "@expo-google-fonts/ibm-plex-mono": "^0.4.1",

@@ -297,7 +297,7 @@ export function GroupedBars({
 export function LegendDot({ color, label }: { color: string; label: string }) {
   return (
     <View className="flex-row items-center" style={{ gap: 5 }}>
-      <View className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: color }} />
+      <View className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
       <Text className="text-caption font-sans-medium text-dim">{label}</Text>
     </View>
   );

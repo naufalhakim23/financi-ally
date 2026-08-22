@@ -2,7 +2,7 @@ import { Pressable, Text, View } from "react-native";
 import { router } from "expo-router";
 import { Check, X } from "lucide-react-native";
 
-import { Button, Card, ICON, SectionLabel, useTheme } from "./ui";
+import { Button, Card, ICON, ProgressBar, SectionLabel, useTheme } from "./ui";
 import { useStrings } from "../lib/wording";
 import { useSetupState, type SetupItem } from "../lib/setup";
 import { Account, Entry, JournalLine } from "../model/models";
@@ -51,11 +51,10 @@ export function SetupChecklist({
       </View>
 
       <View className="flex-row items-center mt-2.5" style={{ gap: 10 }}>
-        <View className="flex-1 h-1.5 rounded-full bg-surface-container-high overflow-hidden">
-          <View
-            className="h-1.5 rounded-full bg-ink"
-            style={{ width: `${(done / items.length) * 100}%` }}
-          />
+        <View className="flex-1">
+          {/* Neutral, not the spend ramp: finishing setup is progress, so a bar
+              that turned red on the last step would read as a failure. */}
+          <ProgressBar pct={(done / items.length) * 100} tone="neutral" />
         </View>
         <Text className="text-mono-meta font-mono text-faint">
           {s.setup.checklist.progress(done, items.length)}
@@ -67,7 +66,7 @@ export function SetupChecklist({
           <View key={item.key} className="flex-row items-center py-2" style={{ gap: 10 }}>
             <View
               className={`w-5 h-5 rounded-full items-center justify-center border ${
-                item.done ? "bg-success border-success" : "border-outline"
+                item.done ? "bg-primary border-primary" : "border-outline"
               }`}
             >
               {item.done && <Check size={ICON.xs} color={C.onPrimary} strokeWidth={3} />}

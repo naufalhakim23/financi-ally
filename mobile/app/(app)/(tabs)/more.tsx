@@ -12,7 +12,6 @@ import {
   RefreshCw,
   Repeat,
   Type,
-  Wallet,
 } from "lucide-react-native";
 
 import { useAuth } from "../../../src/lib/auth";
@@ -20,7 +19,17 @@ import { syncDatabase } from "../../../src/lib/sync";
 import { useSyncState } from "../../../src/lib/syncState";
 import { useThemePreference } from "../../../src/lib/theme";
 import { useStrings, useWording } from "../../../src/lib/wording";
-import { Badge, BookOpen, Button, Card, ListRow, SectionLabel, TitleBar, Users } from "../../../src/components/ui";
+import {
+  Badge,
+  BookOpen,
+  Button,
+  Card,
+  Dialog,
+  ListRow,
+  SectionLabel,
+  TitleBar,
+  Users,
+} from "../../../src/components/ui";
 import { useLedgerState } from "../../../src/lib/ledgerStore";
 
 // Everything direction 2a does not give a tab. Budgets, recurring rules and
@@ -34,6 +43,7 @@ export default function MoreScreen() {
   const { active: activeLedger } = useLedgerState();
   const sync = useSyncState();
   const [syncing, setSyncing] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
   async function doSync() {
     if (syncing) return;
@@ -68,6 +78,7 @@ export default function MoreScreen() {
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24, gap: 12 }}
         showsVerticalScrollIndicator={false}
       >
+        <SectionLabel>{s.more.sectionMoney}</SectionLabel>
         <Card padded={false}>
           <ListRow
             glyph={activeLedger ? Users : BookOpen}
@@ -77,28 +88,6 @@ export default function MoreScreen() {
               activeLedger ? s.more.booksShared(activeLedger.name) : s.more.booksPersonal,
               "/(app)/ledgers",
             )}
-          />
-          <ListRow
-            divider
-            glyph={Type}
-            title={s.more.wording}
-            subtitle={mode === "finance" ? s.more.wordingFinance : s.more.wordingNormal}
-            chevron
-            onPress={() => router.push("/(app)/wording")}
-          />
-          <ListRow
-            divider
-            glyph={Palette}
-            title={s.more.appearance}
-            subtitle={
-              themePref === "system"
-                ? s.more.appearanceSystem
-                : themePref === "dark"
-                  ? s.more.appearanceDark
-                  : s.more.appearanceLight
-            }
-            chevron
-            onPress={() => router.push("/(app)/appearance")}
           />
           <ListRow
             divider
@@ -121,13 +110,30 @@ export default function MoreScreen() {
             chevron
             {...gated(s.more.reportsSubtitle, "/(app)/reports")}
           />
+        </Card>
+
+        <SectionLabel>{s.more.sectionApp}</SectionLabel>
+        <Card padded={false}>
+          <ListRow
+            glyph={Type}
+            title={s.more.wording}
+            subtitle={mode === "finance" ? s.more.wordingFinance : s.more.wordingNormal}
+            chevron
+            onPress={() => router.push("/(app)/wording")}
+          />
           <ListRow
             divider
-            glyph={Wallet}
-            title={s.more.addPocket}
-            subtitle={s.more.addPocketSubtitle}
+            glyph={Palette}
+            title={s.more.appearance}
+            subtitle={
+              themePref === "system"
+                ? s.more.appearanceSystem
+                : themePref === "dark"
+                  ? s.more.appearanceDark
+                  : s.more.appearanceLight
+            }
             chevron
-            onPress={() => router.push("/(app)/pocket-new")}
+            onPress={() => router.push("/(app)/appearance")}
           />
         </Card>
 
@@ -183,11 +189,26 @@ export default function MoreScreen() {
         </Card>
 
         <View className="mt-2">
-          <Button label={s.more.signOut} variant="destructive" glyph={LogOut} onPress={logout} />
+          <Button
+            label={s.more.signOut}
+            variant="destructive"
+            glyph={LogOut}
+            onPress={() => setSigningOut(true)}
+          />
         </View>
           </>
         )}
       </ScrollView>
+
+      <Dialog
+        visible={signingOut}
+        title={s.more.confirmSignOut.title}
+        body={sync.pending ? s.more.confirmSignOut.pending : s.more.confirmSignOut.synced}
+        confirmLabel={s.more.signOut}
+        cancelLabel={s.more.confirmSignOut.stay}
+        onConfirm={logout}
+        onCancel={() => setSigningOut(false)}
+      />
     </SafeAreaView>
   );
 }

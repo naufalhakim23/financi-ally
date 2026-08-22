@@ -6,6 +6,7 @@
 //   lists    ListRow, EmptyState, Skeleton
 //   forms    Field, AmountField, Select, ChipGroup, SegmentedControl, SwitchRow
 //   overlays Sheet, Dialog
+//   date     DateSheet, dayLabel, startOfDay
 //   charts   Donut, TrendBars, StackedBar, GroupedBars, ChartLegend
 //   nav      TabBar, ScreenHeader, TitleBar, IconButton
 //
@@ -19,5 +20,6 @@ export * from "./core";
 export * from "./lists";
 export * from "./forms";
 export * from "./overlays";
+export * from "./date";
 export * from "./charts";
 export * from "./nav";

@@ -72,13 +72,7 @@ export default function Setup() {
             {s.setup.step(step + 1, STARTER_STEPS.length)}
           </Text>
         </View>
-        <Text
-          className="text-body-strong font-sans-semibold text-dim"
-          accessibilityRole="button"
-          onPress={leave}
-        >
-          {s.common.skip}
-        </Text>
+        <Button label={s.common.skip} variant="tertiary" fullWidth={false} onPress={leave} />
       </View>
 
       <ScrollView
@@ -107,15 +101,23 @@ export default function Setup() {
         {!!err && <Text className="text-caption font-sans-semibold text-error-strong">{err}</Text>}
       </ScrollView>
 
-      <View className="px-4 pb-2" style={{ gap: 8 }}>
-        {last ? (
-          <Button label={s.common.finish} onPress={finish} busy={busy} />
-        ) : (
-          <Button label={s.common.continue} onPress={() => setStep((n) => n + 1)} />
-        )}
+      <View className="flex-row px-4 pb-2" style={{ gap: 8 }}>
         {step > 0 && (
-          <Button label={s.common.back} variant="secondary" onPress={() => setStep((n) => n - 1)} />
+          <View className="flex-1">
+            <Button
+              label={s.common.back}
+              variant="secondary"
+              onPress={() => setStep((n) => n - 1)}
+            />
+          </View>
         )}
+        <View className="flex-[2]">
+          {last ? (
+            <Button label={s.common.finish} onPress={finish} busy={busy} />
+          ) : (
+            <Button label={s.common.continue} onPress={() => setStep((n) => n + 1)} />
+          )}
+        </View>
       </View>
     </SafeAreaView>
   );

@@ -27,6 +27,11 @@ export const home = {
     repeating: "Repeating",
   },
 
+  // A guest tapping a server-backed destination should see the wall before
+  // they hit it, the way the More list already does it.
+  locked: (label: string) => `${label}. Sign in to unlock`,
+  avatar: (who: string) => `Account: ${who}. Open More`,
+
   firstRun: {
     title: "Set up your money",
     body: "Pick the pockets you keep money in and the things you spend it on. Takes a minute.",

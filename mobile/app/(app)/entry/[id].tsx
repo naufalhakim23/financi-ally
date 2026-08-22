@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { Check } from "lucide-react-native";
 
 import { useAuth } from "../../../src/lib/auth";
@@ -19,11 +19,9 @@ import {
   Dialog,
   EmptyState,
   IconBox,
-  ListRow,
   Receipt,
   ScreenHeader,
   SectionLabel,
-  Sheet,
   accountGlyph,
   categorySlot,
   formatGrouped,
@@ -36,7 +34,6 @@ export default function EntryDetail() {
   const s = useStrings();
   const activeBook = useLedgerState().active;
   const [confirming, setConfirming] = useState(false);
-  const [moving, setMoving] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const accountsObs = useMemo(() => database.get<Account>("accounts").query().observe(), []);
@@ -52,6 +49,19 @@ export default function EntryDetail() {
   const view = useMemo(
     () => buildEntryViews(entries, lines, accounts).find((v) => v.entry.id === id) ?? null,
     [entries, lines, accounts, id],
+  );
+
+  // The entry can vanish under this screen: deleted here, or removed on another
+  // device and pulled in. `entries.length` guards the first render, when the
+  // observable has not delivered yet and everything looks missing.
+  //
+  // Focus-scoped, because router.back() from a screen that is not on top pops
+  // whatever is above it instead.
+  const gone = !view && entries.length > 0;
+  useFocusEffect(
+    useCallback(() => {
+      if (gone) router.back();
+    }, [gone]),
   );
 
   async function remove() {
@@ -70,38 +80,9 @@ export default function EntryDetail() {
       } catch {
         // Offline is fine — the deletion is local and pushes on the next cycle.
       }
-      router.back();
     } finally {
       setBusy(false);
       setConfirming(false);
-    }
-  }
-
-  /**
-   * Re-file the entry under a different category, leaving both amounts and the
-   * money side untouched. Only the category line moves, so the entry stays
-   * balanced by construction — no re-post, no server round trip beyond sync.
-   */
-  async function moveTo(accountId: string) {
-    if (!view) return;
-    const side = view.direction === "in" ? "credit" : "debit";
-    const line = lines.find((l) => l.entryId === id && l.dc === side);
-    if (!line) return;
-    setBusy(true);
-    try {
-      await database.write(async () => {
-        await line.update((l: JournalLine) => {
-          l.accountId = accountId;
-        });
-      });
-      try {
-        await syncDatabase();
-      } catch {
-        // Offline is fine — the change is local and pushes on the next cycle.
-      }
-    } finally {
-      setBusy(false);
-      setMoving(false);
     }
   }
 
@@ -126,14 +107,29 @@ export default function EntryDetail() {
   }
 
   const category = view.direction === "out" ? view.to : view.from;
-  // A move sits between two money accounts, so it has no category to re-file.
-  const moveTargets =
-    view.direction === "move" || !category
-      ? []
-      : accounts.filter((a) => a.type === category.type && !a.archived && a.id !== category.id);
   const when = new Date(view.entry.txnDate);
   const negative = view.direction === "out";
   const sign = view.direction === "move" ? "" : negative ? "−" : "+";
+
+  /**
+   * Params for the add screen, prefilled from this entry.
+   *
+   * `replace` is what separates Edit from Duplicate: a posted entry is
+   * immutable server-side, so an edit is a delete plus a fresh post, and the
+   * add screen does both in one write when it is given an `edit` id.
+   */
+  const prefill = (replace: boolean) => {
+    const q = new URLSearchParams({
+      mode: view.direction,
+      amount: String(view.amountMinor),
+      from: view.from?.id ?? "",
+      to: view.to?.id ?? "",
+      memo: view.entry.memo ?? "",
+      date: String(view.entry.txnDate),
+    });
+    if (replace) q.set("edit", view.entry.id);
+    return `/(app)/entry-new?${q.toString()}`;
+  };
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-background">
@@ -178,7 +174,6 @@ export default function EntryDetail() {
                   month: "short",
                   year: "numeric",
                 }),
-                when.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }),
                 activeBook?.name ?? s.common.personalSpace,
               )}
             </Text>
@@ -243,26 +238,20 @@ export default function EntryDetail() {
         <View className="flex-row mt-2" style={{ gap: 8 }}>
           <View className="flex-1">
             <Button
-              label={s.entry.detail.duplicate}
+              label={s.entry.detail.edit}
               variant="secondary"
-              onPress={() =>
-                router.push(
-                  `/(app)/entry-new?amount=${view.amountMinor}&from=${view.from?.id ?? ""}&to=${
-                    view.to?.id ?? ""
-                  }`,
-                )
-              }
+              // Replaces this screen rather than stacking on it: the entry it
+              // describes stops existing the moment the edit saves.
+              onPress={() => router.replace(prefill(true))}
             />
           </View>
-          {moveTargets.length > 0 && (
-            <View className="flex-1">
-              <Button
-                label={s.entry.detail.move}
-                variant="secondary"
-                onPress={() => setMoving(true)}
-              />
-            </View>
-          )}
+          <View className="flex-1">
+            <Button
+              label={s.entry.detail.duplicate}
+              variant="secondary"
+              onPress={() => router.push(prefill(false))}
+            />
+          </View>
           <View className="flex-1">
             <Button
               label={s.common.delete}
@@ -272,28 +261,6 @@ export default function EntryDetail() {
           </View>
         </View>
       </ScrollView>
-
-      <Sheet
-        visible={moving}
-        onClose={() => setMoving(false)}
-        title={s.entry.detail.moveTo(
-          category
-            ? s.entry.detail.moveKind[category.type as keyof typeof s.entry.detail.moveKind]
-            : s.entry.detail.moveFallbackKind,
-        )}
-      >
-        {moveTargets.map((a, i) => (
-          <ListRow
-            key={a.id}
-            divider={i > 0}
-            glyph={accountGlyph(a.name, a.type)}
-            slot={categorySlot(a.id)}
-            title={a.name}
-            subtitle={a.currency}
-            onPress={() => moveTo(a.id)}
-          />
-        ))}
-      </Sheet>
 
       <Dialog
         visible={confirming}

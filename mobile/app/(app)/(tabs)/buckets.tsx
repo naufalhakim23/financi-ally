@@ -97,7 +97,7 @@ export default function BucketsScreen() {
 
   const toggle = (id: BucketId) => setOpen((cur) => (cur === id ? null : id));
 
-  function header(b: Bucket, expandable: boolean) {
+  function header(b: Bucket) {
     const negative = b.id === "owed";
     return (
       <ListRow
@@ -111,15 +111,15 @@ export default function BucketsScreen() {
         amountSize="lg"
         amountTone="neutral"
         meta={b.total == null ? s.buckets.rateUnavailable : undefined}
-        chevron={expandable}
+        chevron
         chevronGlyph={open === b.id ? ChevronUp : ChevronDown}
-        onPress={expandable ? () => toggle(b.id) : undefined}
+        onPress={() => toggle(b.id)}
       />
     );
   }
 
   const byId = (id: BucketId) => buckets.find((b) => b.id === id)!;
-  const moneyBuckets: BucketId[] = ["cash", "foreign"];
+  const moneyBuckets: BucketId[] = ["cash", "foreign", "owed"];
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-background">
@@ -154,7 +154,7 @@ export default function BucketsScreen() {
           const expanded = open === id;
           return (
             <Card key={id} padded={false}>
-              {header(b, true)}
+              {header(b)}
               {expanded &&
                 b.children.map((c) => (
                   <BucketChildRow
@@ -224,7 +224,6 @@ export default function BucketsScreen() {
           </Card>
         )}
 
-        {byId("owed").children.length > 0 && <Card padded={false}>{header(byId("owed"), false)}</Card>}
       </ScrollView>
     </SafeAreaView>
   );

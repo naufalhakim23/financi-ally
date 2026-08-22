@@ -1,8 +1,8 @@
 ---
-version: 2.0
+version: 2.1
 name: Financi-Ally
 description: Offline-first personal expense & budget tracker — double-entry ledger, multi-currency, mobile (iOS + Android).
-supersedes: DESIGN.md alpha, v1.0 (JetBrains Mono numerals), and v1.x (cool slate ramp, chrome blue — see Retired directions). Sea-glass identity per docs/rfc/0002.
+supersedes: DESIGN.md alpha, v1.0 (JetBrains Mono numerals), v1.x (cool slate ramp, chrome blue), and v2.0 (Outfit UI face — see Retired directions). Sea-glass identity per docs/rfc/0002; typeface per docs/decision_logs/0015.
 
 # ─────────────────────────────────────────────────────────────
 # TOKENS — normative. Two layers: raw scales, then semantic
@@ -168,22 +168,23 @@ colors-dark:
 
 typography:
   # Roles carry size + weight + line-height + tracking.
-  # UI = Outfit. Every numeral = IBM Plex Mono.
-  display-xl: { fontFamily: Outfit, fontSize: 40px, fontWeight: 700, lineHeight: 1.05, letterSpacing: "-0.02em" }
-  display:    { fontFamily: Outfit, fontSize: 32px, fontWeight: 700, lineHeight: 1.10, letterSpacing: "-0.02em" }
-  title:      { fontFamily: Outfit, fontSize: 24px, fontWeight: 700, lineHeight: 1.25, letterSpacing: "-0.01em" }
-  headline:   { fontFamily: Outfit, fontSize: 20px, fontWeight: 600, lineHeight: 1.30, letterSpacing: "-0.01em" }
-  body-lg:    { fontFamily: Outfit, fontSize: 17px, fontWeight: 500, lineHeight: 1.50 }
-  body:       { fontFamily: Outfit, fontSize: 15px, fontWeight: 500, lineHeight: 1.50 }
-  body-strong:{ fontFamily: Outfit, fontSize: 15px, fontWeight: 600, lineHeight: 1.45 }
-  label:      { fontFamily: Outfit, fontSize: 13px, fontWeight: 600, lineHeight: 1.35 }
-  caption:    { fontFamily: Outfit, fontSize: 12px, fontWeight: 500, lineHeight: 1.35 }
-  overline:   { fontFamily: Outfit, fontSize: 11px, fontWeight: 600, lineHeight: 1.20, letterSpacing: "0.08em", textTransform: uppercase }
+  # UI = Plus Jakarta Sans (v2.1). Every numeral = IBM Plex Mono.
+  # No role sits below 12px — the scale and the prose rule now agree.
+  display-xl: { fontFamily: PlusJakartaSans, fontSize: 40px, fontWeight: 700, lineHeight: 1.05, letterSpacing: "-0.02em" }
+  display:    { fontFamily: PlusJakartaSans, fontSize: 32px, fontWeight: 700, lineHeight: 1.10, letterSpacing: "-0.02em" }
+  title:      { fontFamily: PlusJakartaSans, fontSize: 24px, fontWeight: 700, lineHeight: 1.25, letterSpacing: "-0.01em" }
+  headline:   { fontFamily: PlusJakartaSans, fontSize: 20px, fontWeight: 600, lineHeight: 1.30, letterSpacing: "-0.01em" }
+  body-lg:    { fontFamily: PlusJakartaSans, fontSize: 17px, fontWeight: 500, lineHeight: 1.50 }
+  body:       { fontFamily: PlusJakartaSans, fontSize: 15px, fontWeight: 400, lineHeight: 1.50 }
+  body-strong:{ fontFamily: PlusJakartaSans, fontSize: 15px, fontWeight: 600, lineHeight: 1.45 }
+  label:      { fontFamily: PlusJakartaSans, fontSize: 13px, fontWeight: 600, lineHeight: 1.35 }
+  caption:    { fontFamily: PlusJakartaSans, fontSize: 12px, fontWeight: 500, lineHeight: 1.35 }
+  overline:   { fontFamily: PlusJakartaSans, fontSize: 12px, fontWeight: 600, lineHeight: 1.20, letterSpacing: "0.08em", textTransform: uppercase }
   amount-hero:{ fontFamily: IBMPlexMono, fontSize: 34px, fontWeight: 700, lineHeight: 1.00, letterSpacing: "-0.02em" }
   amount-lg:  { fontFamily: IBMPlexMono, fontSize: 22px, fontWeight: 700, lineHeight: 1.10, letterSpacing: "-0.01em" }
   amount:     { fontFamily: IBMPlexMono, fontSize: 15px, fontWeight: 500, lineHeight: 1.40 }
   amount-sm:  { fontFamily: IBMPlexMono, fontSize: 13px, fontWeight: 500, lineHeight: 1.40 }
-  mono-meta:  { fontFamily: IBMPlexMono, fontSize: 11px, fontWeight: 400, lineHeight: 1.35 }
+  mono-meta:  { fontFamily: IBMPlexMono, fontSize: 12px, fontWeight: 400, lineHeight: 1.35 }
 
 rounded:
   # v2.0: one step softer. Buttons/inputs xl, cards 2xl, icon tiles their own step.
@@ -389,6 +390,18 @@ Chosen from three prototyped directions in `design-explore/01-humane-visual/`; r
 | 6 | **`faint` darkened to `#726C64`** | The straight warm translation of the old value fell to 4.26:1 on `background`; the darker step passes 4.5 on background, surface and wells. |
 | 7 | **White text needs `accent-strong` fill** | White on `accent` is 4.25:1 — enough for the FAB glyph (3:1 graphical), not for a 13px label. Any accent fill carrying text uses `accent-strong` (5.8:1). |
 
+### What changed in v2.1 (and why)
+
+The typeface half of the same warmth brief. RFC 0002 listed the faces as deliberately unchanged; that left
+the largest carrier of warmth in a text-heavy UI untouched. Decision log `docs/decision_logs/0015`.
+
+| # | Change | Why |
+|---|---|---|
+| 1 | **UI face: Outfit → Plus Jakarta Sans** | Humanist rather than geometric, so it agrees with IBM Plex Mono instead of arguing with it in every row; holds together at the 12–13px sizes four roles depend on; and it is an Indonesian face for a product whose base currency is usually IDR. |
+| 2 | **`body` weight 500 → 400** | Against `body-strong` at 600 the old pair was a one-step gap doing all the title-versus-subtitle work. Two steps is visible; one was not. `caption` stays 500 — at 12px in `faint` it needs the weight and has no `-strong` sibling. |
+| 3 | **`overline` and `mono-meta` 11px → 12px** | The Typography prose has said "never set UI text below 12px" since v1.1 while the scale defined two roles at 11px. The rule wins; nothing in the scale sits below 12px now. |
+| 4 | **Sans family keys go face-agnostic** (`Sans`/`Sans-Medium`/…) | The mono keys were already abstract; the sans keys were literally `Outfit`, which is what made this swap touch `tailwind.config.js` at all. The next face move touches `app/_layout.tsx` and nothing else. |
+
 ## Colors
 
 The palette is quiet so the numbers do the talking, and warm so the quiet doesn't read as cold. A
@@ -436,24 +449,42 @@ are inert on dark — depth comes from the tonal ladder and `outline` only.
 
 ## Typography
 
-**Outfit** for all UI text; **IBM Plex Mono** for every numeral. Mono numerals are non-negotiable for
-money: they're tabular, so columns align and digits don't jump as values change. Outfit 400/500/600/700 and
-IBM Plex Mono 400/500/700 are loaded in `app/_layout.tsx`.
+**Plus Jakarta Sans** for all UI text; **IBM Plex Mono** for every numeral. Mono numerals are
+non-negotiable for money: they're tabular, so columns align and digits don't jump as values change. Plus
+Jakarta Sans 400/500/600/700 and IBM Plex Mono 400/500/700 are loaded in `app/_layout.tsx`.
+
+Plus Jakarta Sans replaced Outfit in v2.1 (see Retired directions). Three reasons, in order. **It is
+humanist where Outfit was geometric**, so it agrees with the mono it sits beside in every list row instead
+of arguing with it — the same warmth argument that picked IBM Plex Mono, finally applied to the face that
+carries 90% of the words. **It holds up at 12–13px**, where four roles and every row subtitle live and where
+geometric faces flatten first. And **it is from here**: drawn by Tokotype and commissioned as the typeface
+of the city of Jakarta, which for a tracker whose base currency is usually IDR is identity rather than
+decoration. The sea-glass round (RFC 0002) warmed the neutrals and added the accent but listed the typeface
+as unchanged; this closes that gap, and it is the larger half of the warmth brief.
 
 IBM Plex Mono was chosen over JetBrains Mono, DM Mono, Spline Sans Mono and Recursive: its humanist skeleton
 and warmer terminals read as a statement rather than a terminal, while fixed advance widths keep tabular
-columns aligned. No size, weight or line-height changed with the swap. In code the family keys stay
-face-agnostic (`Mono` / `Mono-Medium` / `Mono-Bold`), so a future move touches `app/_layout.tsx` only —
-never a call site.
+columns aligned. It is unchanged in v2.1 — the mismatch was always on the sans side.
+
+In code **both** family key sets are face-agnostic (`Sans` / `Sans-Medium` / `Sans-SemiBold` / `Sans-Bold`
+and `Mono` / `Mono-Medium` / `Mono-Bold`), so a future move of either face touches `app/_layout.tsx` only —
+never `tailwind.config.js`, never a call site. Through v2.0 the sans keys were literally `Outfit`; that is
+what made this swap wider than it needed to be, and it will not recur.
 
 - **Hierarchy**: `display-xl`/`display` for hero screens, `title` for screen titles, `headline` for card and
-  sheet titles, `body`/`body-lg` for content (Medium 500 default), `body-strong` and `label` for names and
+  sheet titles, `body`/`body-lg` for content (Regular 400 default), `body-strong` and `label` for names and
   buttons, `caption` for helper text, `overline` for section labels.
 - **Amounts**: one `amount-hero` per screen at most. `amount-lg` for card totals, `amount` inline in rows,
   `amount-sm` for the `≈ base` conversion line, `mono-meta` for rates and timestamps.
-- **Never** set UI text below 12px, and never set an amount in Outfit.
+- **Never** set UI text below 12px, and never set an amount in the sans. As of v2.1 the token scale obeys
+  this: `overline` and `mono-meta` moved 11px → 12px, and no role sits below it.
+- **`body` is 400, `body-strong` is 600.** Two steps apart, not one. A 500/600 pair — which is what v1.x
+  through v2.0 shipped — is a distinction most people cannot see, and it was carrying the whole
+  title-versus-subtitle hierarchy. `caption` deliberately stays at 500: at 12px in `faint` it needs the
+  weight, and it has no `-strong` sibling to separate from.
 - Because weight is carried by the loaded font family rather than synthesized, a type role in code is always
-  a size class **plus** a family class: `text-body-strong font-sans-semibold`, `text-amount font-mono-medium`.
+  a size class **plus** a family class: `text-body-strong font-sans-semibold`, `text-body font-sans`,
+  `text-amount font-mono-medium`.
 
 ## Information architecture
 
@@ -731,11 +762,24 @@ eighth hi-fi screen. What remains is below.
 | Chart ramp in dark mode | Ramp re-validated against dark `surface` `#1C1917` | Validated on `#FFFFFF` only; the ramp and its 12% tints are shared across both themes unchanged | Med |
 | Motion | Enter/exit/press durations and easings applied | **Closed on mobile.** `EASING` sits beside `DURATION`; sheets and dialogs animate in/out on the tokens, headline figures cross-fade, progress bars ease their width, press-scale is on every discrete affordance, and reduced-motion is honoured in the primitives. Web is unchanged | Low |
 | Platform-adaptive chrome | — | Unified, iOS-flavored on both | Low |
-| Brand mark | — | None exists; the wordmark is set in Outfit Bold wherever a logo would go | Low |
+| Brand mark | — | None exists; the wordmark is set in Plus Jakarta Sans Bold wherever a logo would go | Low |
 
 ## Retired directions
 
 **Numeral face** was JetBrains Mono through v1.0; replaced by IBM Plex Mono on 2026-07-31 (see Typography).
+
+**UI face** was Outfit from the alpha through v2.0; replaced by Plus Jakarta Sans on 2026-08-22 (decision
+log 0015). Outfit is a geometric display face and the app sets four roles at 12–13px, where that genre
+flattens first; it also disagreed with the humanist mono in every list row. The sea-glass round listed the
+typeface as deliberately unchanged, which left the largest carrier of warmth in a text UI untouched while
+eleven neutrals moved. Sizes, line-heights and tracking are unchanged by the swap except where noted below.
+
+**11px type roles** — `overline` and `mono-meta` sat at 11px from v1.1 through v2.0, contradicting the
+Typography rule "never set UI text below 12px" in the same document. Both moved to 12px on 2026-08-22;
+the rule stands and the scale now obeys it.
+
+**`body` at weight 500** shipped from v1.1 through v2.0 against a `body-strong` of 600 — a one-step gap
+carrying the app's whole text hierarchy. `body` dropped to 400 on 2026-08-22. `caption` stays at 500.
 
 **Cool slate neutrals** (`#F2F3F7` background / `#1A1F2E` ink family) were the ramp through v1.3; replaced
 by the warm-gray sea-glass ramp on 2026-08-17 (RFC 0002). Same alias names, so the swap is values-only.
@@ -749,7 +793,7 @@ Prototypes preserved in `design-explore/01-humane-visual/variants/`.
 
 ---
 
-**Last updated**: 2026-08-17 · **Version**: 2.0
+**Last updated**: 2026-08-22 · **Version**: 2.1
 **How AI agents should read this**: tokens above are normative — use them verbatim. Prose is rationale — it
 answers "why" so judgment calls during implementation match the brand's intent. When prose and tokens
 disagree, tokens win.

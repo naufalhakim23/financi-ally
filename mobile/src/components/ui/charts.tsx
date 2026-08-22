@@ -130,7 +130,7 @@ export function ChartLegend({
               style={{ backgroundColor: item.color }}
             />
             <View className="flex-1 min-w-0">
-              <Text className="text-body font-sans-medium text-ink" numberOfLines={1}>
+              <Text className="text-body font-sans text-ink" numberOfLines={1}>
                 {item.label}
               </Text>
               {item.note && (

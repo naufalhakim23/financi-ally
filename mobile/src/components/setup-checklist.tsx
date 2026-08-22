@@ -73,7 +73,7 @@ export function SetupChecklist({
             </View>
             <View className="flex-1">
               <Text
-                className={`text-body font-sans-medium ${item.done ? "text-dim" : "text-ink"}`}
+                className={`text-body font-sans ${item.done ? "text-dim" : "text-ink"}`}
                 numberOfLines={1}
               >
                 {s.setup.checklist.items[item.key].label}

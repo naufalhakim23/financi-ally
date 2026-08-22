@@ -518,7 +518,7 @@ export default function EntryNew() {
           placeholder={s.entry.new.newCategoryPlaceholder}
           placeholderTextColor={C.disabled}
           autoFocus
-          className="bg-surface-container rounded-xl px-4 py-3 min-h-touch text-body font-sans-medium text-ink"
+          className="bg-surface-container rounded-xl px-4 py-3 min-h-touch text-body font-sans text-ink"
         />
         <View className="mt-4">
           <Button
@@ -567,7 +567,7 @@ export default function EntryNew() {
           placeholder={s.entry.new.notePlaceholder}
           placeholderTextColor={C.disabled}
           autoFocus
-          className="bg-surface-container rounded-xl px-4 py-3 min-h-touch text-body font-sans-medium text-ink"
+          className="bg-surface-container rounded-xl px-4 py-3 min-h-touch text-body font-sans text-ink"
         />
         <View className="mt-4">
           <Button label={s.common.done} onPress={() => setNoteOpen(false)} />
@@ -705,7 +705,7 @@ function PickerRow({
       ) : null}
       <View className="flex-1">
         <Text
-          className={`text-body font-sans-medium ${account ? "text-ink" : "text-disabled"}`}
+          className={`text-body font-sans ${account ? "text-ink" : "text-disabled"}`}
           numberOfLines={1}
         >
           {account?.name ?? placeholder}

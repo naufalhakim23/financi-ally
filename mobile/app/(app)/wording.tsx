@@ -63,14 +63,14 @@ export default function WordingScreen() {
               style={{ gap: 12 }}
             >
               <Text
-                className={`flex-1 text-body font-sans-medium ${
+                className={`flex-1 text-body font-sans ${
                   mode === "normal" ? "text-ink" : "text-dim"
                 }`}
               >
                 {row.normal}
               </Text>
               <Text
-                className={`flex-1 text-body font-sans-medium ${
+                className={`flex-1 text-body font-sans ${
                   mode === "finance" ? "text-ink" : "text-dim"
                 }`}
               >

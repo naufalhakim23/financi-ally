@@ -78,8 +78,8 @@ module.exports = {
         "on-info": "rgb(var(--on-info) / <alpha-value>)",
       },
       // Type roles carry size + line-height + tracking. Weight comes from the
-      // font family (font-sans-semibold etc.) so the loaded Outfit/JetBrains
-      // variants render rather than being synthesized.
+      // font family (font-sans-semibold etc.) so the loaded weight variants
+      // render rather than being synthesized by the platform.
       fontSize: {
         "display-xl": ["40px", { lineHeight: "42px", letterSpacing: "-0.8px" }],
         display: ["32px", { lineHeight: "35px", letterSpacing: "-0.64px" }],
@@ -90,21 +90,24 @@ module.exports = {
         "body-strong": ["15px", { lineHeight: "22px" }],
         label: ["13px", { lineHeight: "18px" }],
         caption: ["12px", { lineHeight: "16px" }],
-        overline: ["11px", { lineHeight: "13px", letterSpacing: "0.88px" }],
+        // v2.1: 11px -> 12px. The prose rule "never set UI text below 12px" and
+        // these two roles had contradicted each other since v1.1; the rule wins.
+        overline: ["12px", { lineHeight: "14px", letterSpacing: "0.96px" }],
         "amount-hero": ["34px", { lineHeight: "34px", letterSpacing: "-0.68px" }],
         "amount-lg": ["22px", { lineHeight: "24px", letterSpacing: "-0.22px" }],
         amount: ["15px", { lineHeight: "21px" }],
         "amount-sm": ["13px", { lineHeight: "18px" }],
-        "mono-meta": ["11px", { lineHeight: "15px" }],
+        "mono-meta": ["12px", { lineHeight: "16px" }],
       },
       fontFamily: {
         // Family names match the keys registered in app/_layout.tsx useFonts().
-        // `mono*` is face-agnostic on purpose — DESIGN.md owns which numeral face
-        // is loaded (IBM Plex Mono as of v1.1), so a swap never touches call sites.
-        sans: "Outfit",
-        "sans-medium": "Outfit-Medium",
-        "sans-semibold": "Outfit-SemiBold",
-        "sans-bold": "Outfit-Bold",
+        // Both `sans*` and `mono*` are face-agnostic on purpose — DESIGN.md owns
+        // which faces are loaded (Plus Jakarta Sans + IBM Plex Mono as of v2.1),
+        // so a swap touches _layout.tsx only, never this file or a call site.
+        sans: "Sans",
+        "sans-medium": "Sans-Medium",
+        "sans-semibold": "Sans-SemiBold",
+        "sans-bold": "Sans-Bold",
         mono: "Mono",
         "mono-medium": "Mono-Medium",
         "mono-bold": "Mono-Bold",

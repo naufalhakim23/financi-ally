@@ -73,7 +73,7 @@ export function AuthScreen({
           >
             {s.auth.wordmark}
           </Text>
-          <Text className="text-body font-sans-medium text-dim text-center mb-8">{caption}</Text>
+          <Text className="text-body font-sans text-dim text-center mb-8">{caption}</Text>
 
           {children}
 

@@ -152,7 +152,7 @@ export function Dialog({
           accessibilityViewIsModal
         >
           <Text className="text-headline font-sans-bold text-ink">{title}</Text>
-          {body && <Text className="text-body font-sans-medium text-dim mt-2">{body}</Text>}
+          {body && <Text className="text-body font-sans text-dim mt-2">{body}</Text>}
           <View className="flex-row mt-6" style={{ gap: 12 }}>
             <View className="flex-1">
               <Button label={cancelLabel} onPress={onCancel} variant="secondary" disabled={busy} />

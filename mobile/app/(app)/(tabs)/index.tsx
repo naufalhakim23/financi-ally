@@ -288,7 +288,7 @@ export default function HomeScreen() {
 
         <View className="px-1">
           <Text className="text-title font-sans-bold text-ink">{greeting}</Text>
-          <Text className="text-label font-sans-medium text-faint mt-0.5">{subline}</Text>
+          <Text className="text-label font-sans-semibold text-faint mt-0.5">{subline}</Text>
         </View>
 
         <Card hero>
@@ -473,7 +473,7 @@ export default function HomeScreen() {
                   return (
                     <View key={r.account.id} style={{ gap: 6 }}>
                       <View className="flex-row items-baseline justify-between">
-                        <Text className="text-body font-sans-medium text-ink" numberOfLines={1}>
+                        <Text className="text-body font-sans text-ink" numberOfLines={1}>
                           {r.account.name}
                         </Text>
                         <Text className="text-mono-meta font-mono text-faint">

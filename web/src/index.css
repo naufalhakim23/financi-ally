@@ -231,7 +231,7 @@
 
   /* Type roles. Every numeral is IBM Plex Mono — a money column that doesn't
      line up is a money column that gets misread. */
-  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
 
   --text-display-xl: 40px;
@@ -254,9 +254,10 @@
   --text-label--line-height: 18px;
   --text-caption: 12px;
   --text-caption--line-height: 16px;
-  --text-overline: 11px;
-  --text-overline--line-height: 13px;
-  --text-overline--letter-spacing: 0.88px;
+  /* v2.1: 11px -> 12px, closing the "never below 12px" contradiction. */
+  --text-overline: 12px;
+  --text-overline--line-height: 14px;
+  --text-overline--letter-spacing: 0.96px;
   --text-amount-hero: 34px;
   --text-amount-hero--line-height: 34px;
   --text-amount-hero--letter-spacing: -0.68px;
@@ -267,8 +268,8 @@
   --text-amount--line-height: 21px;
   --text-amount-sm: 13px;
   --text-amount-sm--line-height: 18px;
-  --text-mono-meta: 11px;
-  --text-mono-meta--line-height: 15px;
+  --text-mono-meta: 12px;
+  --text-mono-meta--line-height: 16px;
 
   --radius-sm: 6px;
   --radius-md: 8px;

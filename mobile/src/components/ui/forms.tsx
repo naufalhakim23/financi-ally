@@ -129,7 +129,7 @@ export const Field = forwardRef<TextInput, {
           editable={editable}
           accessibilityLabel={label}
           aria-invalid={!!error}
-          className={`flex-1 py-3 text-body font-sans-medium ${
+          className={`flex-1 py-3 text-body font-sans ${
             error ? "text-error" : editable ? "text-ink" : "text-dim"
           }`}
         />
@@ -241,7 +241,7 @@ export function Select<T extends string>({
         } ${error ? "border border-error-edge" : ""}`}
       >
         <Text
-          className={`text-body font-sans-medium ${selected ? "text-ink" : "text-disabled"}`}
+          className={`text-body font-sans ${selected ? "text-ink" : "text-disabled"}`}
           numberOfLines={1}
         >
           {selected?.label ?? placeholder}
@@ -251,7 +251,7 @@ export function Select<T extends string>({
 
       <Sheet visible={open} onClose={() => setOpen(false)} title={label}>
         {options.length === 0 ? (
-          <Text className="text-body font-sans-medium text-faint py-4">Nothing to choose yet</Text>
+          <Text className="text-body font-sans text-faint py-4">Nothing to choose yet</Text>
         ) : (
           options.map((o, i) => (
             <ListRow
@@ -310,7 +310,7 @@ export function ChipGroup<T extends string>({
           />
         ))}
         {options.length === 0 && (
-          <Text className="text-body font-sans-medium text-faint">{emptyText}</Text>
+          <Text className="text-body font-sans text-faint">{emptyText}</Text>
         )}
       </View>
     </FieldShell>

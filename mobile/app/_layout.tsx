@@ -7,11 +7,11 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
-  Outfit_400Regular,
-  Outfit_500Medium,
-  Outfit_600SemiBold,
-  Outfit_700Bold,
-} from "@expo-google-fonts/outfit";
+  PlusJakartaSans_400Regular,
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+} from "@expo-google-fonts/plus-jakarta-sans";
 import {
   IBMPlexMono_400Regular,
   IBMPlexMono_500Medium,
@@ -26,14 +26,17 @@ import { WordingProvider } from "../src/lib/wording";
 const queryClient = new QueryClient();
 
 // Family keys here are the exact strings tailwind.config fontFamily resolves to.
-// The `Mono` keys are deliberately face-agnostic — DESIGN.md picks the numeral
-// face (IBM Plex Mono as of v1.1) and only this map changes when it moves.
+// Both the `Sans` and `Mono` keys are deliberately face-agnostic — DESIGN.md
+// picks the faces (Plus Jakarta Sans + IBM Plex Mono as of v2.1) and only this
+// map changes when either moves. Through v2.0 the sans keys were literally
+// "Outfit", so swapping the UI face meant editing tailwind.config.js too. It
+// doesn't now: the mono convention won, and the sans follows it.
 export default function RootLayout() {
   const [loaded] = useFonts({
-    Outfit: Outfit_400Regular,
-    "Outfit-Medium": Outfit_500Medium,
-    "Outfit-SemiBold": Outfit_600SemiBold,
-    "Outfit-Bold": Outfit_700Bold,
+    Sans: PlusJakartaSans_400Regular,
+    "Sans-Medium": PlusJakartaSans_500Medium,
+    "Sans-SemiBold": PlusJakartaSans_600SemiBold,
+    "Sans-Bold": PlusJakartaSans_700Bold,
     Mono: IBMPlexMono_400Regular,
     "Mono-Medium": IBMPlexMono_500Medium,
     "Mono-Bold": IBMPlexMono_700Bold,

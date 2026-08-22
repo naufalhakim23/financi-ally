@@ -324,9 +324,16 @@ export function Amount({
   );
 }
 
-/** Semantic progress bar: <75% success, 75–99% warning, 100%+ error. */
-export function ProgressBar({ pct }: { pct: number }) {
-  const color = pct >= 100 ? "bg-error" : pct >= 75 ? "bg-warning" : "bg-success";
+/**
+ * Progress bar. `spend` reads the fill as budget consumption — <75% success,
+ * 75–99% warning, 100%+ error. `neutral` is for progress that is simply
+ * progress (setup steps, an upload), where more is better and a green-to-red
+ * ramp would be backwards.
+ */
+export function ProgressBar({ pct, tone = "spend" }: { pct: number; tone?: "spend" | "neutral" }) {
+  const color =
+    tone === "neutral" ? "bg-ink" : pct >= 100 ? "bg-error" : pct >= 75 ? "bg-warning" : "bg-success";
+  // useBarWidth already clamps to 0-100.
   const fill = useBarWidth(pct);
   return (
     <View className="w-full h-1.5 rounded-full bg-surface-container-high overflow-hidden">

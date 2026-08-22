@@ -8,7 +8,7 @@
 
 CONTRACT := shared-context/contracts/openapi.yaml
 
-.PHONY: help generate-contract gen-backend gen-mobile gen-web test-domain
+.PHONY: help generate-contract gen-backend gen-mobile gen-web test-domain analyze
 
 help:
 	@echo "FinanciAlly monorepo targets:"
@@ -17,6 +17,7 @@ help:
 	@echo "  make gen-mobile         regen mobile/src/lib/api-types.ts only"
 	@echo "  make gen-web            regen web/src/lib/api-types.ts only"
 	@echo "  make test-domain        run the shared money-logic suite (Vitest)"
+	@echo "  make analyze            entry-pattern report against DATABASE_URL"
 	@echo ""
 	@echo "Edit $(CONTRACT), then run make generate-contract."
 
@@ -36,3 +37,9 @@ gen-web:
 
 test-domain:
 	@cd shared-context/domain && yarn test
+
+# Empty until the app has been lived in for a few weeks; that is the point.
+DATABASE_URL ?= postgres://financially:financially@localhost:5433/financially?sslmode=disable
+
+analyze:
+	@psql "$(DATABASE_URL)" -f backend/scripts/entry_patterns.sql

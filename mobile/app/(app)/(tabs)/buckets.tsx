@@ -24,7 +24,6 @@ import {
   BucketChildRow,
   Button,
   Card,
-  Chip,
   EmptyState,
   ListRow,
   ProgressBar,
@@ -124,12 +123,6 @@ export default function BucketsScreen() {
           onPress={() => router.push("/(app)/pocket-new")}
         />
       </TitleBar>
-
-      {/* Spaces are the sharing boundary in direction 2a but have no backend
-          concept yet, so only the one space a user has is offered. */}
-      <View className="flex-row px-4 pb-3" style={{ gap: 8 }}>
-        <Chip label={s.buckets.space} active onPress={() => {}} />
-      </View>
 
       <ScrollView
         className="flex-1"

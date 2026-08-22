@@ -264,9 +264,14 @@ export default function HomeScreen() {
               })
             }
           />
-          <View className="w-10 h-10 rounded-full bg-accent-wash items-center justify-center">
+          <Pressable
+            onPress={() => router.push("/(app)/(tabs)/more")}
+            accessibilityRole="button"
+            accessibilityLabel={s.home.avatar(user?.email ?? s.common.personalSpace)}
+            className="w-10 h-10 rounded-full bg-accent-wash items-center justify-center"
+          >
             <Text className="text-label font-sans-semibold text-accent-strong">{initials}</Text>
-          </View>
+          </Pressable>
         </View>
       </View>
 

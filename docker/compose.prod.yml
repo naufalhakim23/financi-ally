@@ -1,0 +1,75 @@
+# Production stack for a single VPS. See docs/deploy.md.
+#
+#   docker compose -f docker/compose.prod.yml --env-file .env.prod up -d --build
+#
+# Explicit project name: compose.yml sits in the same directory, so both would
+# otherwise default to "docker" and share the postgres volume.
+name: financially-prod
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-financially}
+      POSTGRES_USER: ${POSTGRES_USER:-financially}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.prod}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-financially}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ../backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ENVIRONMENT: production
+      DATABASE_URL: postgres://${POSTGRES_USER:-financially}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-financially}?sslmode=disable
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env.prod}
+      BASE_CURRENCY_DEFAULT: ${BASE_CURRENCY_DEFAULT:-IDR}
+      # WEB_COOKIE_SECURE is forced true by config.Load under production.
+      WEB_COOKIE_AUTH: ${WEB_COOKIE_AUTH:-true}
+      WEB_COOKIE_PATH: /api/auth
+      REGISTRATION_OPEN: ${REGISTRATION_OPEN:-false}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      MAIL_FROM: ${MAIL_FROM:-Financi-Ally <onboarding@resend.dev>}
+      MAIL_MOCK: ${MAIL_MOCK:-false}
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}
+      # The scheduler resolves calendar dates in this zone, not the host's.
+      RECURRING_TZ: ${RECURRING_TZ:-Asia/Jakarta}
+    networks:
+      default:
+        aliases:
+          - backend
+
+  web:
+    build:
+      context: ..
+      dockerfile: web/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      # Bare hostname, no scheme: that is what makes Caddy provision TLS.
+      SITE_ADDRESS: ${SITE_ADDRESS:?set SITE_ADDRESS in .env.prod}
+      API_UPSTREAM: backend:8080
+    # 80 as well as 443: the ACME challenge lands there.
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:

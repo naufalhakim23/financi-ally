@@ -12,7 +12,6 @@ import {
   RefreshCw,
   Repeat,
   Type,
-  Wallet,
 } from "lucide-react-native";
 
 import { useAuth } from "../../../src/lib/auth";
@@ -68,6 +67,7 @@ export default function MoreScreen() {
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24, gap: 12 }}
         showsVerticalScrollIndicator={false}
       >
+        <SectionLabel>{s.more.sectionMoney}</SectionLabel>
         <Card padded={false}>
           <ListRow
             glyph={activeLedger ? Users : BookOpen}
@@ -77,28 +77,6 @@ export default function MoreScreen() {
               activeLedger ? s.more.booksShared(activeLedger.name) : s.more.booksPersonal,
               "/(app)/ledgers",
             )}
-          />
-          <ListRow
-            divider
-            glyph={Type}
-            title={s.more.wording}
-            subtitle={mode === "finance" ? s.more.wordingFinance : s.more.wordingNormal}
-            chevron
-            onPress={() => router.push("/(app)/wording")}
-          />
-          <ListRow
-            divider
-            glyph={Palette}
-            title={s.more.appearance}
-            subtitle={
-              themePref === "system"
-                ? s.more.appearanceSystem
-                : themePref === "dark"
-                  ? s.more.appearanceDark
-                  : s.more.appearanceLight
-            }
-            chevron
-            onPress={() => router.push("/(app)/appearance")}
           />
           <ListRow
             divider
@@ -121,13 +99,30 @@ export default function MoreScreen() {
             chevron
             {...gated(s.more.reportsSubtitle, "/(app)/reports")}
           />
+        </Card>
+
+        <SectionLabel>{s.more.sectionApp}</SectionLabel>
+        <Card padded={false}>
+          <ListRow
+            glyph={Type}
+            title={s.more.wording}
+            subtitle={mode === "finance" ? s.more.wordingFinance : s.more.wordingNormal}
+            chevron
+            onPress={() => router.push("/(app)/wording")}
+          />
           <ListRow
             divider
-            glyph={Wallet}
-            title={s.more.addPocket}
-            subtitle={s.more.addPocketSubtitle}
+            glyph={Palette}
+            title={s.more.appearance}
+            subtitle={
+              themePref === "system"
+                ? s.more.appearanceSystem
+                : themePref === "dark"
+                  ? s.more.appearanceDark
+                  : s.more.appearanceLight
+            }
             chevron
-            onPress={() => router.push("/(app)/pocket-new")}
+            onPress={() => router.push("/(app)/appearance")}
           />
         </Card>
 

@@ -24,8 +24,8 @@ export const more = {
   reports: "Reports",
   reportsSubtitle: "Cash flow and category breakdown",
 
-  addPocket: "Add a pocket",
-  addPocketSubtitle: "A bank account, cash, a card",
+  sectionMoney: "your money",
+  sectionApp: "this app",
 
   thisDevice: "this device",
 
@@ -42,4 +42,11 @@ export const more = {
   syncing: "Syncing…",
   syncNow: "Sync now",
   signOut: "Sign out",
+  // Signing out is the one action here that can strand money on the device.
+  confirmSignOut: {
+    title: "Sign out?",
+    pending: "This device still has entries that have not reached the server. Sync first, or they stay on this phone.",
+    synced: "Everything is synced. You can sign back in on any device.",
+    stay: "Stay signed in",
+  },
 };

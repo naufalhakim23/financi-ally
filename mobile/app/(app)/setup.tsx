@@ -72,13 +72,7 @@ export default function Setup() {
             {s.setup.step(step + 1, STARTER_STEPS.length)}
           </Text>
         </View>
-        <Text
-          className="text-body-strong font-sans-semibold text-dim"
-          accessibilityRole="button"
-          onPress={leave}
-        >
-          {s.common.skip}
-        </Text>
+        <Button label={s.common.skip} variant="tertiary" fullWidth={false} onPress={leave} />
       </View>
 
       <ScrollView

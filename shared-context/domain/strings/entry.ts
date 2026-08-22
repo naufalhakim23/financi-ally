@@ -3,15 +3,18 @@ import { terms } from "./terms";
 export const entry = {
   new: {
     title: terms.addEntry,
+    // A posted entry is immutable server-side, so "editing" one deletes it and
+    // posts a replacement. The screen is the same; only the wording changes.
+    editTitle: "Edit entry",
     save: "Save",
     saveAction: "Save transaction",
+    saveChanges: "Save changes",
     modes: { out: "Out", in: "In", move: "Move" },
     from: "from",
     outOf: terms.outOf,
     into: terms.into,
     choose: "Choose",
 
-    today: "Today",
     note: "Note",
     noteAdded: "Note added",
     notePlaceholder: "What was this for?",
@@ -21,7 +24,6 @@ export const entry = {
     summary: {
       from: (pocket: string) => `from ${pocket}`,
       noPocket: "Pick a pocket",
-      today: "today",
       hasNote: "note",
       expand: "Change pocket, date or note",
     },
@@ -35,6 +37,11 @@ export const entry = {
 
     pickFrom: "Where from",
     pickTo: "Where to",
+    // Both legs of an entry post in one currency, so choosing one side rules
+    // the other side's mismatched accounts out. Said, rather than left to look
+    // like the accounts went missing.
+    hiddenByCurrency: (count: number, currency: string) =>
+      `${count === 1 ? "1 account is" : `${count} accounts are`} hidden: both sides of an entry have to be in ${currency}.`,
 
     pocketLeft: (balance: string) => `${balance} left`,
     categorySpent: (spent: string) => `${spent} this month`,
@@ -47,8 +54,6 @@ export const entry = {
       pickBoth: (mode: "in" | "out" | "move") =>
         `Pick where the money comes ${mode === "in" ? "from" : "out of"} and where it goes`,
       sameAccount: "Pick two different accounts",
-      currencyMismatch: (from: string, fromCur: string, to: string, toCur: string) =>
-        `Both sides must use the same currency: ${from} is ${fromCur}, ${to} is ${toCur}`,
       badAmount: "Enter a valid amount",
       zeroAmount: "Enter an amount above zero",
       saveFailed: "That didn't save. Try again",
@@ -76,7 +81,9 @@ export const entry = {
   detail: {
     title: "Entry",
     fallbackName: "Entry",
-    when: (date: string, time: string, space: string) => `${date} · ${time} · ${space}`,
+    // No time: txn_date round-trips through a server DATE column, so a clock
+    // reading here would be invented precision.
+    when: (date: string, space: string) => `${date} · ${space}`,
     note: "note",
 
     notFound: { title: "Entry not found", body: "It may have been deleted." },
@@ -86,19 +93,8 @@ export const entry = {
     twoSidesWhy: "shown because wording is set to finance",
     balanceAfter: "balance after this entry",
 
+    edit: "Edit",
     duplicate: "Duplicate",
-    move: "Move",
-    moveTo: (kind: string) => `Move to another ${kind}`,
-    moveFallbackKind: "category",
-    // Account types reach this screen as machine values; the sheet title needs
-    // the word a user would say.
-    moveKind: {
-      expense: "category",
-      income: "income source",
-      asset: "pocket",
-      liability: "pocket",
-      equity: "account",
-    },
 
     confirmDelete: {
       title: "Delete this entry?",

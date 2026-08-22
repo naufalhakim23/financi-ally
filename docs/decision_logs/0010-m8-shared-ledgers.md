@@ -43,7 +43,9 @@ The repo's scope query joins `ledger_members`, so both cases return `ErrLedgerNo
 ### 7. `entries.user_id` became `created_by_user_id`, nullable — and survived
 Dropping it would have discarded the only record of who logged an entry, which a shared book cannot reconstruct and which M9's splitting needs. Nullable because scheduler-materialized entries have no human author.
 
-`accounts.user_id` similarly became `owner_user_id`, nullable and advisory: a household pocket may belong to one member (M9 settle-up) or to nobody (shared cash). New rows leave it null in M8.
+`accounts.user_id` was **dropped outright**, not renamed. Migration `009` says why: no write path sets it, so a nullable `owner_user_id` would have been a column that is always null pretending to be a fact. M9 settle-up therefore starts from no per-account ownership at all and must add the column itself.
+
+*(Corrected 2026-08-22 during M10. This paragraph previously claimed the column became `owner_user_id`, nullable and advisory, which migration `009` never did.)*
 
 ### 8. Switching books wipes the local database
 **Chose**: `unsafeResetDatabase()` + full re-pull on switch, after pushing pending writes and *refusing to switch* if anything is still unsynced.
@@ -69,5 +71,5 @@ The design is settled though, and it is **not** a double-entry construct. Modell
 - **Mobile runtime for M8 is unverified.** Types check and the checks pass, but the switch path (`unsafeResetDatabase` → re-pull) has not run on a device. It is the one piece with real teeth: it deletes local data.
 - Local schema went to **v3** (adds `entries.fx_rate`, which `/sync/pull` had always sent and WatermelonDB was silently dropping). The migration is in place, but an existing local database upgrading in place is untested on-device.
 - Apple Sign-In still outstanding (carried from M1).
-- No backend deployment: still no Dockerfile, no CI, and `eas.json` production `EXPO_PUBLIC_API_URL` is a deliberate `.invalid` placeholder.
-- `accounts.owner_user_id` is written by nobody in M8; M9 gives it a writer and a UI.
+- No backend deployment: still no Dockerfile, no CI, and `eas.json` production `EXPO_PUBLIC_API_URL` is a deliberate `.invalid` placeholder. *(Closed in M10, see `0016`; the placeholder remains, deliberately.)*
+- `accounts` carries no owner column at all; M9 settle-up has to introduce one, with its writer and UI, from scratch.

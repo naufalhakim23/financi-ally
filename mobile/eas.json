@@ -19,7 +19,7 @@
       "distribution": "internal",
       "channel": "preview",
       "env": {
-        "EXPO_PUBLIC_API_URL": "http://localhost:8080"
+        "EXPO_PUBLIC_API_URL": "https://financially.invalid/api"
       },
       "android": {
         "buildType": "apk"
@@ -29,7 +29,7 @@
       "channel": "production",
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.financially.invalid"
+        "EXPO_PUBLIC_API_URL": "https://financially.invalid/api"
       }
     }
   },

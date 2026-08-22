@@ -188,7 +188,7 @@ export function Button({
   const s = BUTTON_STYLE[variant];
   const off = disabled || busy;
   const tertiary = variant === "tertiary";
-  const pad = tertiary ? "px-2 py-1" : "px-4 py-3.5 min-h-touch";
+  const pad = tertiary ? "px-2 min-h-touch" : "px-4 py-3.5 min-h-touch";
   const textColor = off ? s.disabledText : s.text;
   const { pressed, pressStyle, handlers } = usePressedScale("tapLight");
 

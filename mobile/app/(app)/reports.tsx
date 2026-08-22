@@ -179,6 +179,41 @@ export default function Reports() {
         </>
       ) : (
         <>
+          {cf && (
+            <Card hero className="mb-card-gap">
+              <SectionLabel>{s.reports.withCurrency(s.reports.cashFlow, base)}</SectionLabel>
+              {/* In and out are a pair, so they share a row; net is the
+                  conclusion drawn from them and sits under the rule. */}
+              <View className="flex-row pb-4 mt-3" style={{ gap: 16 }}>
+                <View className="flex-1">
+                  <SectionLabel>{s.reports.income}</SectionLabel>
+                  <Text className="text-success-strong text-amount font-mono-bold mt-1">
+                    {cf.income_minor.currency}&nbsp;
+                    {formatGrouped(cf.income_minor.currency, cf.income_minor.base_minor)}
+                  </Text>
+                </View>
+                <View className="flex-1">
+                  <SectionLabel>{s.reports.expenses}</SectionLabel>
+                  <Text className="text-error-strong text-amount font-mono-bold mt-1">
+                    {cf.expense_minor.currency}&nbsp;
+                    {formatGrouped(cf.expense_minor.currency, cf.expense_minor.base_minor)}
+                  </Text>
+                </View>
+              </View>
+              <View className="h-px bg-outline-variant" />
+              <View className="flex-row items-center justify-between pt-4">
+                <Text className="text-body-strong font-sans-semibold text-dim">{s.reports.net}</Text>
+                <Text
+                  className={`text-amount-lg font-mono-bold ${
+                    cf.net_minor >= 0 ? "text-success-strong" : "text-error-strong"
+                  }`}
+                >
+                  {base}&nbsp;{formatGrouped(base, cf.net_minor)}
+                </Text>
+              </View>
+            </Card>
+          )}
+
           <Card className="mb-card-gap">
             <SectionLabel>
               {s.reports.withCurrency(s.reports.netWorth, nw?.base_currency ?? base)}
@@ -208,77 +243,38 @@ export default function Reports() {
             </View>
           </Card>
 
-          {trend.length > 0 && (
-            <Card className="mb-card-gap">
-              <SectionLabel>
-                {s.reports.withCurrency(s.reports.monthlySpend, series?.base_currency ?? base)}
-              </SectionLabel>
-              <View className="mt-3">
-                <TrendBars
-                  points={trend}
-                  formatValue={(v) => formatGrouped(series?.base_currency ?? base, v)}
-                />
-              </View>
-            </Card>
-          )}
-
-          {cf && (
-            <Card className="mb-card-gap">
-              <SectionLabel>{s.reports.withCurrency(s.reports.cashFlow, base)}</SectionLabel>
-              <View className="flex-row mt-2" style={{ gap: 16 }}>
-                <View className="flex-1">
-                  <SectionLabel>{s.reports.income}</SectionLabel>
-                  <Text className="text-success text-amount font-mono-bold mt-1">
-                    {cf.income_minor.currency}&nbsp;
-                    {formatGrouped(cf.income_minor.currency, cf.income_minor.base_minor)}
-                  </Text>
-                </View>
-                <View className="flex-1">
-                  <SectionLabel>{s.reports.expenses}</SectionLabel>
-                  <Text className="text-error text-amount font-mono-bold mt-1">
-                    {cf.expense_minor.currency}&nbsp;
-                    {formatGrouped(cf.expense_minor.currency, cf.expense_minor.base_minor)}
-                  </Text>
-                </View>
-                <View className="flex-1">
-                  <SectionLabel>{s.reports.net}</SectionLabel>
-                  <Text
-                    className={`text-amount font-mono-bold mt-1 ${
-                      cf.net_minor >= 0 ? "text-success" : "text-error"
-                    }`}
-                  >
-                    {base}&nbsp;{formatGrouped(base, cf.net_minor)}
-                  </Text>
-                </View>
-              </View>
-            </Card>
-          )}
-
           {slices.length > 0 ? (
-            <Card>
+            <Card className="mb-card-gap">
               <SectionLabel>
                 {s.reports.withCurrency(s.reports.spendingByCategory, base)}
               </SectionLabel>
-              <View className="items-center mt-4 mb-2">
+              {/* Ring and legend side by side: the legend doubles as the value
+                  table, and the ramp's low-contrast slots are only legal
+                  alongside visible labels. The share column goes to make room. */}
+              <View className="flex-row items-center mt-4" style={{ gap: 16 }}>
                 <Donut
                   slices={slices}
+                  size={128}
+                  thickness={20}
                   center={
-                    <View className="items-center">
+                    <View className="items-center px-2">
                       <SectionLabel>{s.reports.total}</SectionLabel>
-                      <Text className="text-ink text-amount font-mono-bold mt-0.5">
+                      <Text
+                        className="text-ink text-amount-sm font-mono-bold mt-0.5"
+                        numberOfLines={1}
+                      >
                         {formatGrouped(base, totalSpent)}
                       </Text>
                     </View>
                   }
                 />
-              </View>
-              {/* Legend doubles as the value table — the ramp's low-contrast
-                  slots are only legal alongside visible labels. */}
-              <View className="mt-2">
-                <ChartLegend
-                  items={slices}
-                  formatValue={(v) => `${base} ${formatGrouped(base, v)}`}
-                />
+                <View className="flex-1 min-w-0">
+                  <ChartLegend
+                    items={slices}
+                    showShare={false}
+                    formatValue={(v) => formatGrouped(base, v)}
+                  />
+                </View>
               </View>
             </Card>
           ) : (
@@ -291,6 +287,20 @@ export default function Reports() {
                 onAction={() => router.push("/(app)/entry-new")}
               />
             )
+          )}
+
+          {trend.length > 0 && (
+            <Card className="mb-card-gap">
+              <SectionLabel>
+                {s.reports.withCurrency(s.reports.monthlySpend, series?.base_currency ?? base)}
+              </SectionLabel>
+              <View className="mt-3">
+                <TrendBars
+                  points={trend}
+                  formatValue={(v) => formatGrouped(series?.base_currency ?? base, v)}
+                />
+              </View>
+            </Card>
           )}
         </>
       )}

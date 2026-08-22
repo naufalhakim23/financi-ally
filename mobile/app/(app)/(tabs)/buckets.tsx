@@ -95,7 +95,6 @@ export default function BucketsScreen() {
     return (
       <ListRow
         glyph={accountGlyph(b.title, negative ? "liability" : "asset")}
-        slot={b.slot}
         title={b.title}
         titleSize="lg"
         subtitle={b.subtitle}
@@ -177,7 +176,6 @@ export default function BucketsScreen() {
                 the whole row, not a separate button below the breakdown. */}
             <ListRow
               glyph={accountGlyph("Spending", "expense")}
-              slot={byId("spending").slot}
               title={s.buckets.spending}
               titleSize="lg"
               subtitle={

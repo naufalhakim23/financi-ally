@@ -1,5 +1,5 @@
 /** @type {import('tailwindcss').Config} */
-// Token scale mirrors DESIGN.md v1.0 (project root). NativeWind consumes these
+// Token scale mirrors DESIGN.md v2.0 (project root). NativeWind consumes these
 // as bg-*/text-*/border-*/font-* utilities. When DESIGN.md changes, change it
 // here. Only SEMANTIC names live here — the raw ramps stay in DESIGN.md and in
 // src/components/ui/tokens.ts for the few places that need JS values.
@@ -23,6 +23,15 @@ module.exports = {
         "on-primary": "rgb(var(--on-primary) / <alpha-value>)",
         secondary: "rgb(var(--secondary) / <alpha-value>)",
         "on-secondary": "rgb(var(--on-secondary) / <alpha-value>)",
+
+        // Accent (v2.0 sea-glass) — chrome punctuation only, never on amounts.
+        // White text sits on accent-strong; the base fill is glyph-contrast only.
+        accent: "rgb(var(--accent) / <alpha-value>)",
+        "accent-strong": "rgb(var(--accent-strong) / <alpha-value>)",
+        "accent-pressed": "rgb(var(--accent-pressed) / <alpha-value>)",
+        "accent-wash": "rgb(var(--accent-wash) / <alpha-value>)",
+        "accent-edge": "rgb(var(--accent-edge) / <alpha-value>)",
+        "on-accent": "rgb(var(--on-accent) / <alpha-value>)",
 
         // Surfaces (tonal ladder, low → high)
         background: "rgb(var(--background) / <alpha-value>)",
@@ -101,11 +110,14 @@ module.exports = {
         "mono-bold": "Mono-Bold",
       },
       borderRadius: {
+        // v2.0: one step softer — buttons/inputs xl, cards/sheets 2xl, icon
+        // tiles their own step.
         sm: "6px",
         md: "8px",
         lg: "12px",
-        xl: "16px",
-        "2xl": "20px",
+        tile: "14px",
+        xl: "18px",
+        "2xl": "24px",
       },
       spacing: {
         // Named density steps from DESIGN.md → Layout & density.

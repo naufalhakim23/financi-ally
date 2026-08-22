@@ -5,7 +5,7 @@ import { ChevronLeft, Plus } from "lucide-react-native";
 import { usePressed, usePressedScale } from "./core";
 import { haptic } from "./haptics";
 import { AnimatedPressable } from "./motion";
-import { ICON, useTheme, type Glyph } from "./tokens";
+import { ICON, fabShadow, useTheme, type Glyph } from "./tokens";
 
 // ─── Navigation chrome (direction 2a) ───────────────────────────────────────
 // Five slots with the centre add affordance breaking the top edge. The FAB is
@@ -73,9 +73,9 @@ function TabItem({ slot, active, onPress }: { slot: TabSlot; active: boolean; on
       accessibilityLabel={label}
       className="flex-1 items-center min-h-touch justify-end"
     >
-      <G size={22} color={active ? C.primary : C.faint} strokeWidth={active ? 2 : 1.75} />
+      <G size={22} color={active ? C.accentStrong : C.faint} strokeWidth={active ? 2 : 1.75} />
       <Text
-        className={`text-overline font-sans-semibold mt-1 ${active ? "text-primary" : "text-faint"}`}
+        className={`text-overline font-sans-semibold mt-1 ${active ? "text-accent-strong" : "text-faint"}`}
       >
         {label}
       </Text>
@@ -84,7 +84,7 @@ function TabItem({ slot, active, onPress }: { slot: TabSlot; active: boolean; on
 }
 
 function Fab({ onPress, label }: { onPress: () => void; label: string }) {
-  const { C, ELEVATION } = useTheme();
+  const { C, ELEVATION, dark } = useTheme();
   const { pressed, pressStyle, handlers } = usePressedScale("tapLight");
   return (
     <AnimatedPressable
@@ -93,11 +93,11 @@ function Fab({ onPress, label }: { onPress: () => void; label: string }) {
       accessibilityLabel={label}
       {...handlers}
       className={`w-14 h-14 rounded-full items-center justify-center ${
-        pressed ? "bg-primary-pressed" : "bg-primary"
+        pressed ? "bg-accent-pressed" : "bg-accent"
       }`}
-      style={[{ marginTop: -28 }, ELEVATION.float, pressStyle]}
+      style={[{ marginTop: -28 }, fabShadow(C, ELEVATION, dark), pressStyle]}
     >
-      <Plus size={ICON.xxl} color={C.onPrimary} strokeWidth={1.75} />
+      <Plus size={ICON.xxl} color={C.onAccent} strokeWidth={1.75} />
     </AnimatedPressable>
   );
 }
@@ -138,9 +138,9 @@ export function ScreenHeader({
             accessibilityLabel={backAccessibilityLabel ?? backLabel}
             className="flex-row items-center min-h-touch"
           >
-            <ChevronLeft size={ICON.lg} color={C.info} strokeWidth={2} />
+            <ChevronLeft size={ICON.lg} color={C.accentStrong} strokeWidth={2} />
             {backLabel && (
-              <Text className="text-body-strong font-sans-semibold text-info ml-0.5">{backLabel}</Text>
+              <Text className="text-body-strong font-sans-semibold text-accent-strong ml-0.5">{backLabel}</Text>
             )}
           </Pressable>
         )}
@@ -157,7 +157,7 @@ export function ScreenHeader({
             accessibilityRole="button"
             className="min-h-touch justify-center"
           >
-            <Text className="text-body-strong font-sans-semibold text-info">{actionLabel}</Text>
+            <Text className="text-body-strong font-sans-semibold text-accent-strong">{actionLabel}</Text>
           </Pressable>
         )}
       </View>

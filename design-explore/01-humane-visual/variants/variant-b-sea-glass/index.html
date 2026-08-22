@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Variant B — Sea glass — Home</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F6F5F3; --surface:#FFFFFF; --well:#F1EFEC; --track:#E8E5E0;
+  --outline:#E5E2DD; --outline-2:#EFEDE9; --outline-strong:#CFCBC4;
+  --ink:#201E1B; --dim:#5D5952; --faint:#79746C; --disabled:#A8A29A;
+  --accent:#0E8A7B; --accent-strong:#0B7268; --accent-pressed:#0A675C;
+  --accent-wash:#EBF4F2; --accent-edge:#CDE4E0;
+  --success:#15803D; --success-mark:#16A34A; --success-wash:#ECFDF3; --success-edge:#BBF7D0;
+  --warning:#B45309; --warning-mark:#D97706; --warning-wash:#FFFBEB; --warning-edge:#FDE68A;
+  --error:#B91C1C; --error-mark:#DC2626; --error-wash:#FEF2F2; --error-edge:#FECACA;
+  --c1:#2a78d6; --c2:#eb6834; --c3:#1baf7a; --c4:#eda100; --c5:#e87ba4; --cx:#8A857D;
+}
+html{background:#E9E7E3}
+body{font-family:'Outfit',sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}
+.num{font-family:'IBM Plex Mono',monospace}
+.phone{width:390px;height:844px;border-radius:44px;background:var(--bg);overflow-y:auto;overflow-x:hidden;
+  box-shadow:0 0 0 10px #26241F,0 30px 70px rgba(32,30,27,.30);scrollbar-width:none;position:relative}
+.phone::-webkit-scrollbar{display:none}
+.card{background:var(--surface);border:1px solid var(--outline);border-radius:24px;
+  box-shadow:0 1px 4px rgba(32,30,27,.05)}
+.hero-card{background:linear-gradient(168deg,#FFFFFF 0%,#FCFDFC 55%,#F3F8F7 100%)}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+.chip{font-size:13px;font-weight:600;padding:6px 14px;border-radius:9999px;border:1px solid var(--outline);
+  background:var(--surface);color:var(--dim);cursor:pointer;transition:background .16s,border-color .16s}
+.chip:hover{background:var(--well)}
+.chip:active{background:var(--track);transform:scale(.97)}
+.chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.chip.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.chip.active:hover{background:var(--accent-strong)}
+.chip.active:active{background:var(--accent-pressed)}
+.row-press{transition:background .12s;cursor:pointer}
+.row-press:hover{background:#FAF9F7}
+.row-press:active{background:var(--well)}
+.row-press:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;border-radius:12px}
+.iconbtn{width:40px;height:40px;border-radius:9999px;display:flex;align-items:center;justify-content:center;
+  color:var(--dim);cursor:pointer;transition:background .16s}
+.iconbtn:hover{background:var(--track)}
+.iconbtn:active{background:var(--outline);transform:scale(.96)}
+.iconbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tab{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 0 2px;flex:1;color:var(--faint);
+  font-size:11px;font-weight:600;cursor:pointer;transition:color .16s;text-decoration:none}
+.tab:hover{color:var(--dim)}
+.tab.active{color:var(--accent-strong)}
+.tab:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;border-radius:10px}
+.fab{width:56px;height:56px;border-radius:9999px;background:var(--accent);color:#fff;display:flex;
+  align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(14,138,123,.35);cursor:pointer;
+  transition:background .16s,transform .09s}
+.fab:hover{background:var(--accent-strong)}
+.fab:active{background:var(--accent-pressed);transform:scale(.95)}
+.fab:focus-visible{outline:2px solid var(--accent-strong);outline-offset:3px}
+.textlink{color:var(--accent-strong);font-size:13px;font-weight:600;cursor:pointer;border-radius:6px;
+  text-decoration:none;transition:opacity .12s}
+.textlink:hover{text-decoration:underline}
+.textlink:active{opacity:.6}
+.textlink:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.floatnav{position:fixed;top:16px;right:16px;z-index:50;display:flex;flex-direction:column;gap:6px;
+  background:#FFFFFFEE;border:1px solid var(--outline);border-radius:16px;padding:10px 12px;
+  box-shadow:0 4px 16px rgba(32,30,27,.10);backdrop-filter:blur(8px)}
+.floatnav a{font-size:12px;font-weight:600;color:var(--dim);text-decoration:none;padding:3px 6px;border-radius:8px}
+.floatnav a:hover{background:var(--well);color:var(--ink)}
+.floatnav a:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.floatnav .navhead{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);padding:0 6px}
+</style>
+</head>
+<body class="min-h-screen flex items-center justify-center py-10">
+
+<nav class="floatnav" aria-label="Prototype navigation">
+  <span class="navhead">Variant B</span>
+  <a href="add-entry.html">Add entry</a>
+  <a href="reports.html">Reports</a>
+  <span class="navhead" style="margin-top:4px">Home in</span>
+  <a href="../variant-a-morning-air/index.html">Variant A</a>
+  <a href="../variant-c-plum-hearth/index.html">Variant C</a>
+</nav>
+
+<div class="phone">
+  <div class="px-4 pt-14 pb-32">
+
+    <!-- Top bar -->
+    <header class="flex items-center justify-between mb-6">
+      <button class="chip flex items-center gap-1.5" style="padding:7px 12px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+        Personal
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+      <div class="flex items-center gap-2">
+        <button class="iconbtn" aria-label="Search">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        </button>
+        <button class="iconbtn" style="background:var(--accent-wash);color:var(--accent-strong);font-size:13px;font-weight:600" aria-label="Profile">NA</button>
+      </div>
+    </header>
+
+    <!-- Greeting -->
+    <div class="mb-5 px-1">
+      <h1 class="text-[27px] font-semibold leading-tight tracking-[-0.02em]">Good evening</h1>
+      <p class="text-[13px] font-medium mt-0.5" style="color:var(--faint)">Sunday, August 17</p>
+    </div>
+
+    <!-- Hero -->
+    <section class="card hero-card p-5 mb-3">
+      <p class="eyebrow mb-2">Total money</p>
+      <div class="flex items-end justify-between gap-3">
+        <div>
+          <p class="num text-[30px] font-bold leading-none tracking-[-0.02em]">IDR&nbsp;128,450,000</p>
+          <p class="text-[13px] font-semibold mt-2 flex items-center gap-1" style="color:var(--success)">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>
+            <span class="num text-[12px] font-medium">+2.1%</span>&nbsp;this month
+          </p>
+        </div>
+        <!-- 6-month mini trend -->
+        <div class="flex items-end gap-[5px] h-[52px] pb-0.5" aria-label="Six month trend">
+          <div class="w-[9px] rounded-full" style="height:46%;background:var(--track)"></div>
+          <div class="w-[9px] rounded-full" style="height:56%;background:var(--track)"></div>
+          <div class="w-[9px] rounded-full" style="height:50%;background:var(--track)"></div>
+          <div class="w-[9px] rounded-full" style="height:68%;background:var(--track)"></div>
+          <div class="w-[9px] rounded-full" style="height:78%;background:var(--track)"></div>
+          <div class="w-[9px] rounded-full" style="height:100%;background:var(--ink)"></div>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 mt-5">
+        <button class="chip active">6M</button>
+        <button class="chip">1Y</button>
+        <button class="chip">All</button>
+      </div>
+      <p class="text-[12.5px] font-medium mt-4 pt-3.5" style="color:var(--dim);border-top:1px solid var(--outline-2)">Three weeks of logging without a gap.</p>
+    </section>
+
+    <!-- Safe to spend -->
+    <section class="card p-4 mb-6 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-[14px] flex items-center justify-center" style="background:var(--accent-wash);color:var(--accent-strong)">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg>
+        </div>
+        <div>
+          <p class="text-[14px] font-semibold">Safe to spend</p>
+          <p class="text-[12px] font-medium" style="color:var(--faint)">14 days left in August</p>
+        </div>
+      </div>
+      <p class="num text-[17px] font-bold">IDR&nbsp;2,150,000</p>
+    </section>
+
+    <!-- Buckets -->
+    <p class="eyebrow mb-2.5 px-1">Buckets</p>
+    <section class="card mb-3 overflow-hidden" style="padding:4px 0">
+
+      <!-- Cash and banks, expanded -->
+      <div class="row-press flex items-center justify-between px-4 py-3" tabindex="0">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-[14px] flex items-center justify-center" style="background:var(--well);color:var(--dim)">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 22h18"/><path d="M6 18v-7"/><path d="M10 18v-7"/><path d="M14 18v-7"/><path d="M18 18v-7"/><path d="m12 2 8 5H4Z"/></svg>
+          </div>
+          <p class="text-[15px] font-semibold">Cash and banks</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <p class="num text-[15px] font-medium">IDR&nbsp;94,200,000</p>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--outline-strong)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+        </div>
+      </div>
+      <div class="pl-[68px] pr-4 pb-2">
+        <div class="row-press flex items-center justify-between py-2" tabindex="0" style="border-top:1px solid var(--outline-2)">
+          <p class="text-[13.5px] font-medium" style="color:var(--dim)">BCA</p>
+          <p class="num text-[13px] font-medium">IDR&nbsp;62,400,000</p>
+        </div>
+        <div class="row-press flex items-center justify-between py-2" tabindex="0" style="border-top:1px solid var(--outline-2)">
+          <p class="text-[13.5px] font-medium" style="color:var(--dim)">Jago</p>
+          <p class="num text-[13px] font-medium">IDR&nbsp;24,800,000</p>
+        </div>
+        <div class="row-press flex items-center justify-between py-2" tabindex="0" style="border-top:1px solid var(--outline-2)">
+          <p class="text-[13.5px] font-medium" style="color:var(--dim)">Cash on hand</p>
+          <p class="num text-[13px] font-medium">IDR&nbsp;7,000,000</p>
+        </div>
+      </div>
+
+      <!-- Foreign -->
+      <div class="row-press flex items-center justify-between px-4 py-3" tabindex="0" style="border-top:1px solid var(--outline-2)">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-[14px] flex items-center justify-center" style="background:var(--well);color:var(--dim)">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+          </div>
+          <div>
+            <p class="text-[15px] font-semibold">Foreign</p>
+            <p class="num text-[10.5px] mt-0.5" style="color:var(--warning)">USD 1,150 · converted at cached rate</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <p class="num text-[15px] font-medium">≈&nbsp;IDR&nbsp;18,650,000</p>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--outline-strong)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        </div>
+      </div>
+
+      <!-- Spending this month -->
+      <div class="row-press px-4 py-3" tabindex="0" style="border-top:1px solid var(--outline-2)">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-[14px] flex items-center justify-center" style="background:var(--well);color:var(--dim)">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+            </div>
+            <p class="text-[15px] font-semibold">Spending this month</p>
+          </div>
+          <p class="num text-[13px] font-medium"><span class="font-bold">IDR&nbsp;6,850,000</span>&nbsp;<span style="color:var(--faint)">of 9,000,000</span></p>
+        </div>
+        <div class="ml-[52px] mt-2.5 h-1.5 rounded-full overflow-hidden" style="background:var(--track)">
+          <div class="h-full rounded-full" style="width:76%;background:var(--warning-mark)"></div>
+        </div>
+      </div>
+
+      <!-- Owed -->
+      <div class="row-press flex items-center justify-between px-4 py-3" tabindex="0" style="border-top:1px solid var(--outline-2)">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-[14px] flex items-center justify-center" style="background:var(--well);color:var(--dim)">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg>
+          </div>
+          <p class="text-[15px] font-semibold">Owed</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <p class="num text-[15px] font-medium" style="color:var(--error)">−IDR&nbsp;2,400,000</p>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--outline-strong)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        </div>
+      </div>
+    </section>
+
+    <!-- Recent -->
+    <div class="flex items-center justify-between mt-6 mb-2.5 px-1">
+      <p class="eyebrow">Recent</p>
+      <a href="#" class="textlink">See all</a>
+    </div>
+    <section class="card overflow-hidden" style="padding:4px 0">
+      <div class="row-press flex items-center justify-between px-4 py-3" tabindex="0">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-[14px] flex items-center justify-center" style="background:rgba(235,104,52,.12);color:var(--c2)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v2"/><path d="M14 2v2"/><path d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1"/><path d="M6 2v2"/></svg>
+          </div>
+          <div>
+            <p class="text-[14.5px] font-semibold">Kopi Tuku</p>
+            <p class="text-[12px] font-medium" style="color:var(--faint)">Eating out · 5:12 pm</p>
+          </div>
+        </div>
+        <p class="num text-[14px] font-medium" style="color:var(--error)">−IDR&nbsp;28,000</p>
+      </div>
+      <div class="row-press flex items-center justify-between px-4 py-3" tabindex="0" style="border-top:1px solid var(--outline-2)">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-[14px] flex items-center justify-center" style="background:rgba(27,175,122,.12);color:var(--c3)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>
+          </div>
+          <div>
+            <p class="text-[14.5px] font-semibold">Gojek</p>
+            <p class="text-[12px] font-medium" style="color:var(--faint)">Transport · 2:40 pm</p>
+          </div>
+        </div>
+        <p class="num text-[14px] font-medium" style="color:var(--error)">−IDR&nbsp;35,000</p>
+      </div>
+      <div class="row-press flex items-center justify-between px-4 py-3" tabindex="0" style="border-top:1px solid var(--outline-2)">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-[14px] flex items-center justify-center" style="background:rgba(42,120,214,.12);color:var(--c1)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+          </div>
+          <div>
+            <p class="text-[14.5px] font-semibold">Groceries at Superindo</p>
+            <p class="text-[12px] font-medium" style="color:var(--faint)">Groceries · yesterday</p>
+          </div>
+        </div>
+        <p class="num text-[14px] font-medium" style="color:var(--error)">−IDR&nbsp;214,500</p>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Tab bar -->
+  <nav class="sticky bottom-0 left-0 right-0" style="background:var(--surface);border-top:1px solid var(--outline)">
+    <div class="relative flex items-end px-2 pb-5 pt-1">
+      <a href="index.html" class="tab active">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>
+        Home
+      </a>
+      <a href="#" class="tab">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+        History
+      </a>
+      <div class="flex-1 flex justify-center" style="max-width:76px">
+        <a href="add-entry.html" class="fab absolute -top-6" aria-label="Add entry">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+        </a>
+      </div>
+      <a href="#" class="tab">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg>
+        Buckets
+      </a>
+      <a href="#" class="tab">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+        More
+      </a>
+    </div>
+  </nav>
+</div>
+
+</body>
+</html>

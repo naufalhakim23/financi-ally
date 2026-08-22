@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Variant B — Sea glass — Add entry</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F6F5F3; --surface:#FFFFFF; --well:#F1EFEC; --track:#E8E5E0;
+  --outline:#E5E2DD; --outline-2:#EFEDE9; --outline-strong:#CFCBC4;
+  --ink:#201E1B; --dim:#5D5952; --faint:#79746C; --disabled:#A8A29A;
+  --accent:#0E8A7B; --accent-strong:#0B7268; --accent-pressed:#0A675C;
+  --accent-wash:#EBF4F2; --accent-edge:#CDE4E0;
+  --success:#15803D; --success-mark:#16A34A; --success-wash:#ECFDF3; --success-edge:#BBF7D0;
+  --warning:#B45309; --warning-mark:#D97706; --warning-wash:#FFFBEB; --warning-edge:#FDE68A;
+  --error:#B91C1C; --error-mark:#DC2626; --error-wash:#FEF2F2; --error-edge:#FECACA;
+  --c1:#2a78d6; --c2:#eb6834; --c3:#1baf7a; --c4:#eda100; --c5:#e87ba4; --cx:#8A857D;
+}
+html{background:#E9E7E3}
+body{font-family:'Outfit',sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}
+.num{font-family:'IBM Plex Mono',monospace}
+.phone{width:390px;height:844px;border-radius:44px;background:var(--bg);overflow-y:auto;overflow-x:hidden;
+  box-shadow:0 0 0 10px #26241F,0 30px 70px rgba(32,30,27,.30);scrollbar-width:none;position:relative}
+.phone::-webkit-scrollbar{display:none}
+.card{background:var(--surface);border:1px solid var(--outline);border-radius:24px;
+  box-shadow:0 1px 4px rgba(32,30,27,.05)}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+.iconbtn{width:40px;height:40px;border-radius:9999px;display:flex;align-items:center;justify-content:center;
+  color:var(--dim);cursor:pointer;transition:background .16s}
+.iconbtn:hover{background:var(--track)}
+.iconbtn:active{background:var(--outline);transform:scale(.96)}
+.iconbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.seg{display:flex;background:var(--well);border-radius:9999px;padding:3px}
+.seg button{flex:1;font-size:13.5px;font-weight:600;padding:8px 0;border-radius:9999px;color:var(--faint);
+  cursor:pointer;transition:color .16s,background .16s;display:flex;align-items:center;justify-content:center;gap:6px}
+.seg button:hover{color:var(--dim)}
+.seg button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.seg button.active{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(32,30,27,.10)}
+.catchip{display:flex;align-items:center;gap:8px;padding:7px 14px 7px 8px;border-radius:9999px;
+  border:1px solid var(--outline);background:var(--surface);font-size:13px;font-weight:600;color:var(--dim);
+  white-space:nowrap;cursor:pointer;transition:background .16s,border-color .16s,box-shadow .16s;flex:none}
+.catchip:hover{background:#FAF9F7}
+.catchip:active{transform:scale(.97)}
+.catchip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.catchip.selected{border-color:var(--accent);color:var(--ink);box-shadow:0 0 0 1px var(--accent);background:var(--accent-wash)}
+.cattile{width:26px;height:26px;border-radius:9px;display:flex;align-items:center;justify-content:center}
+.key{height:60px;border-radius:18px;display:flex;align-items:center;justify-content:center;
+  font-size:22px;font-weight:500;color:var(--ink);cursor:pointer;background:var(--surface);
+  border:1px solid var(--outline);transition:background .12s,transform .09s}
+.key:hover{background:var(--well)}
+.key:active{background:var(--track);transform:scale(.96)}
+.key:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.disc-row{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;cursor:pointer;
+  transition:background .12s}
+.disc-row:hover{background:#FAF9F7}
+.disc-row:active{background:var(--well)}
+.disc-row:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;border-radius:12px}
+.savebtn{width:100%;padding:15px 0;border-radius:18px;background:var(--accent);color:#fff;font-size:15px;
+  font-weight:600;cursor:pointer;transition:background .16s,transform .09s;
+  box-shadow:0 4px 14px rgba(14,138,123,.28)}
+.savebtn:hover{background:var(--accent-strong)}
+.savebtn:active{background:var(--accent-pressed);transform:scale(.98)}
+.savebtn:focus-visible{outline:2px solid var(--accent-strong);outline-offset:3px}
+@keyframes blink{0%,55%{opacity:1}56%,100%{opacity:0}}
+.cursor{display:inline-block;width:2px;height:30px;background:var(--accent);margin-left:3px;
+  vertical-align:-4px;animation:blink 1.1s infinite}
+.floatnav{position:fixed;top:16px;right:16px;z-index:50;display:flex;flex-direction:column;gap:6px;
+  background:#FFFFFFEE;border:1px solid var(--outline);border-radius:16px;padding:10px 12px;
+  box-shadow:0 4px 16px rgba(32,30,27,.10);backdrop-filter:blur(8px)}
+.floatnav a{font-size:12px;font-weight:600;color:var(--dim);text-decoration:none;padding:3px 6px;border-radius:8px}
+.floatnav a:hover{background:var(--well);color:var(--ink)}
+.floatnav a:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.floatnav .navhead{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);padding:0 6px}
+.scroll-x{overflow-x:auto;scrollbar-width:none}
+.scroll-x::-webkit-scrollbar{display:none}
+</style>
+</head>
+<body class="min-h-screen flex items-center justify-center py-10">
+
+<nav class="floatnav" aria-label="Prototype navigation">
+  <span class="navhead">Variant B</span>
+  <a href="index.html">Home</a>
+  <a href="reports.html">Reports</a>
+  <span class="navhead" style="margin-top:4px">Add entry in</span>
+  <a href="../variant-a-morning-air/add-entry.html">Variant A</a>
+  <a href="../variant-c-plum-hearth/add-entry.html">Variant C</a>
+</nav>
+
+<div class="phone">
+  <div class="px-4 pt-12 pb-8 flex flex-col" style="min-height:100%">
+
+    <!-- Sheet header -->
+    <header class="flex items-center justify-between mb-4">
+      <h1 class="text-[19px] font-semibold tracking-[-0.01em]">Add entry</h1>
+      <a href="index.html" class="iconbtn" aria-label="Close">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </a>
+    </header>
+
+    <!-- Segmented control -->
+    <div class="seg mb-5" role="tablist" aria-label="Entry direction">
+      <button class="active" role="tab" aria-selected="true">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>
+        Out
+      </button>
+      <button role="tab" aria-selected="false">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 17H7V7"/><path d="M17 7 7 17"/></svg>
+        In
+      </button>
+      <button role="tab" aria-selected="false">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg>
+        Move
+      </button>
+    </div>
+
+    <!-- Amount well -->
+    <section class="card p-5 mb-4 text-center" style="background:linear-gradient(168deg,#FFFFFF 0%,#FCFDFC 55%,#F3F8F7 100%)">
+      <p class="eyebrow mb-2.5">Amount</p>
+      <p class="num text-[32px] font-bold tracking-[-0.02em] leading-none">
+        <span class="text-[16px] font-medium align-[6px]" style="color:var(--faint)">IDR</span>&nbsp;28,000<span class="cursor" aria-hidden="true"></span>
+      </p>
+    </section>
+
+    <!-- Category rail -->
+    <div class="scroll-x -mx-4 px-4 mb-3">
+      <div class="flex gap-2 w-max">
+        <button class="catchip selected">
+          <span class="cattile" style="background:rgba(235,104,52,.14);color:var(--c2)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>
+          </span>
+          Eating out
+        </button>
+        <button class="catchip">
+          <span class="cattile" style="background:rgba(42,120,214,.12);color:var(--c1)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+          </span>
+          Groceries
+        </button>
+        <button class="catchip">
+          <span class="cattile" style="background:rgba(27,175,122,.12);color:var(--c3)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>
+          </span>
+          Transport
+        </button>
+        <button class="catchip">
+          <span class="cattile" style="background:rgba(232,123,164,.14);color:var(--c5)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/></svg>
+          </span>
+          Fun
+        </button>
+        <button class="catchip">
+          <span class="cattile" style="background:rgba(237,161,0,.14);color:var(--c4)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M14 8H8"/><path d="M16 12H8"/><path d="M13 16H8"/></svg>
+          </span>
+          Bills
+        </button>
+        <button class="catchip">
+          <span class="cattile" style="background:var(--well);color:var(--faint)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+          </span>
+          New
+        </button>
+      </div>
+    </div>
+
+    <!-- Defaults chip + open disclosure -->
+    <section class="card overflow-hidden mb-4" style="padding:0">
+      <button class="disc-row w-full" style="border-bottom:1px solid var(--outline-2)" aria-expanded="true">
+        <span class="flex items-center gap-2 text-[13.5px] font-semibold" style="color:var(--dim)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+          from BCA · today
+        </span>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--outline-strong)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+      </button>
+      <div class="disc-row" tabindex="0">
+        <span class="flex items-center gap-3">
+          <span class="w-8 h-8 rounded-[11px] flex items-center justify-center" style="background:var(--well);color:var(--dim)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 22h18"/><path d="M6 18v-7"/><path d="M10 18v-7"/><path d="M14 18v-7"/><path d="M18 18v-7"/><path d="m12 2 8 5H4Z"/></svg>
+          </span>
+          <span class="text-[14px] font-medium" style="color:var(--faint)">Out of</span>
+        </span>
+        <span class="flex items-center gap-1.5 text-[14px] font-semibold">BCA
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--outline-strong)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        </span>
+      </div>
+      <div class="disc-row" style="border-top:1px solid var(--outline-2)" tabindex="0">
+        <span class="flex items-center gap-3">
+          <span class="w-8 h-8 rounded-[11px] flex items-center justify-center" style="background:var(--well);color:var(--dim)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>
+          </span>
+          <span class="text-[14px] font-medium" style="color:var(--faint)">Date</span>
+        </span>
+        <span class="flex items-center gap-1.5 text-[14px] font-semibold">Today
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--outline-strong)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        </span>
+      </div>
+      <div class="disc-row" style="border-top:1px solid var(--outline-2)" tabindex="0">
+        <span class="flex items-center gap-3">
+          <span class="w-8 h-8 rounded-[11px] flex items-center justify-center" style="background:var(--well);color:var(--dim)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/></svg>
+          </span>
+          <span class="text-[14px] font-medium" style="color:var(--faint)">Note</span>
+        </span>
+        <span class="text-[14px] font-medium" style="color:var(--disabled)">add a note</span>
+      </div>
+    </section>
+
+    <!-- Keypad -->
+    <div class="grid grid-cols-3 gap-2 mb-4 mt-auto" role="group" aria-label="Number pad">
+      <button class="key num">1</button>
+      <button class="key num">2</button>
+      <button class="key num">3</button>
+      <button class="key num">4</button>
+      <button class="key num">5</button>
+      <button class="key num">6</button>
+      <button class="key num">7</button>
+      <button class="key num">8</button>
+      <button class="key num">9</button>
+      <button class="key num text-[16px]">000</button>
+      <button class="key num">0</button>
+      <button class="key" aria-label="Delete last digit">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 5H9l-7 7 7 7h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2Z"/><path d="m12 9 6 6"/><path d="m18 9-6 6"/></svg>
+      </button>
+    </div>
+
+    <button class="savebtn">Save entry</button>
+  </div>
+</div>
+
+</body>
+</html>

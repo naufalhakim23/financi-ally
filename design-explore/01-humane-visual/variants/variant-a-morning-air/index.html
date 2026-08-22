@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Variant A — Morning air — Home</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['Outfit', 'sans-serif'],
+        mono: ['"IBM Plex Mono"', 'monospace'],
+      },
+      colors: {
+        desk: '#ECE6DA',
+        canvas: '#F8F5ED',
+        surface: '#FFFEFA',
+        well: '#F3EFE4',
+        track: '#EAE5D6',
+        ink: '#2A2822',
+        dim: '#5F5A4F',
+        faint: '#7C7566',
+        accent: '#5B5BD6',
+        'accent-deep': '#4A48C4',
+        'accent-press': '#4341B0',
+        'accent-wash': '#EDECFA',
+        'accent-edge': '#CFCEF1',
+        success: '#1E7A47',
+        'success-wash': '#E6F1E7',
+        expense: '#C23A2F',
+        'warning-text': '#8A5B00',
+        'warning-bar': '#E0A63A',
+        'warning-wash': '#FAF0DC',
+      },
+      borderRadius: {
+        card: '26px',
+        tile: '18px',
+      },
+    }
+  }
+}
+</script>
+<style>
+  body { background:
+    radial-gradient(1100px 600px at 20% -10%, #F2EDE2 0%, rgba(242,237,226,0) 60%),
+    #ECE6DA;
+  }
+  .num { font-family: "IBM Plex Mono", monospace; font-variant-ligatures: none; }
+  .phone { box-shadow: 0 24px 60px -24px rgba(58,52,38,.28), 0 2px 8px rgba(58,52,38,.08); }
+  .card-shadow { box-shadow: 0 10px 30px -18px rgba(74,72,140,.18), 0 1px 2px rgba(58,52,38,.04); }
+  .soft-shadow { box-shadow: 0 6px 20px -14px rgba(58,52,38,.22); }
+  .press:active { transform: scale(.97); }
+  .press { transition: transform .12s cubic-bezier(.2,0,0,1), background-color .15s ease; }
+  a:focus-visible, button:focus-visible {
+    outline: 2px solid #4A48C4; outline-offset: 2px; border-radius: 12px;
+  }
+  .row-hover { transition: background-color .15s ease; }
+  .row-hover:hover { background: #F6F2E8; }
+  .row-hover:active { background: #EFEADD; }
+  .chip { transition: background-color .15s ease, color .15s ease, border-color .15s ease; }
+  .navcard a { transition: color .15s ease, background-color .15s ease; }
+  .navcard a:hover { color: #4A48C4; background: #EDECFA; }
+</style>
+</head>
+<body class="min-h-screen font-sans text-ink antialiased">
+
+<!-- floating cross-nav -->
+<nav class="navcard fixed top-5 right-5 z-50 w-52 rounded-2xl bg-surface/95 backdrop-blur border border-track p-3 soft-shadow text-[13px]">
+  <p class="px-2 pb-1.5 font-semibold text-ink">A · Morning air</p>
+  <p class="px-2 pb-1 text-[11px] uppercase tracking-[0.08em] text-faint">This variant</p>
+  <a href="index.html" class="block px-2 py-1 rounded-lg font-semibold text-accent-deep bg-accent-wash">Home</a>
+  <a href="add-entry.html" class="block px-2 py-1 rounded-lg text-dim">Add entry</a>
+  <a href="reports.html" class="block px-2 py-1 rounded-lg text-dim">Reports</a>
+  <p class="px-2 pt-2 pb-1 text-[11px] uppercase tracking-[0.08em] text-faint">Home in</p>
+  <a href="../variant-b-sea-glass/index.html" class="block px-2 py-1 rounded-lg text-dim">B · Sea glass</a>
+  <a href="../variant-c-plum-hearth/index.html" class="block px-2 py-1 rounded-lg text-dim">C · Plum hearth</a>
+</nav>
+
+<!-- phone frame -->
+<main class="mx-auto my-10 w-[390px] min-h-[844px] phone rounded-[44px] bg-canvas overflow-hidden relative">
+  <div class="pb-32">
+
+    <!-- top bar -->
+    <header class="flex items-center gap-3 px-6 pt-8 pb-2">
+      <button class="press chip flex items-center gap-1.5 rounded-full bg-surface border border-track pl-3.5 pr-2.5 py-1.5 text-[13px] font-semibold text-ink hover:border-accent-edge">
+        Personal
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7C7566" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+      <div class="flex-1"></div>
+      <button aria-label="Search" class="press grid place-items-center w-9 h-9 rounded-full hover:bg-well">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#5F5A4F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      </button>
+      <button aria-label="Profile" class="press grid place-items-center w-9 h-9 rounded-full bg-accent-wash border border-accent-edge text-[12px] font-semibold text-accent-deep">NA</button>
+    </header>
+
+    <!-- greeting -->
+    <section class="px-6 pt-5 pb-1">
+      <h1 class="text-[36px] leading-[1.08] font-semibold tracking-[-0.025em] text-ink">Good evening</h1>
+      <p class="mt-1.5 text-[14px] text-dim">Sunday, August 17</p>
+    </section>
+
+    <!-- hero -->
+    <section class="px-6 pt-5">
+      <div class="rounded-card bg-surface card-shadow border border-track/70 px-6 pt-6 pb-5">
+        <p class="text-[12px] uppercase tracking-[0.1em] text-faint font-medium">Total money</p>
+        <p class="num mt-2 text-[30px] font-bold tracking-[-0.01em] text-ink">IDR 128,450,000</p>
+        <p class="num mt-1 text-[13px] font-medium text-success">+2.1% this month</p>
+
+        <!-- 6-month mini trend -->
+        <div class="mt-5 flex items-end gap-2 h-[52px]" aria-hidden="true">
+          <div class="flex-1 rounded-t-[6px] bg-accent/25" style="height:38%"></div>
+          <div class="flex-1 rounded-t-[6px] bg-accent/25" style="height:46%"></div>
+          <div class="flex-1 rounded-t-[6px] bg-accent/25" style="height:42%"></div>
+          <div class="flex-1 rounded-t-[6px] bg-accent/25" style="height:58%"></div>
+          <div class="flex-1 rounded-t-[6px] bg-accent/25" style="height:72%"></div>
+          <div class="flex-1 rounded-t-[6px] bg-accent" style="height:100%"></div>
+        </div>
+
+        <!-- range chips -->
+        <div class="mt-5 flex gap-2">
+          <button class="press chip rounded-full bg-accent-wash border border-accent-edge px-4 py-1.5 text-[13px] font-semibold text-accent-deep" aria-pressed="true">6M</button>
+          <button class="press chip rounded-full border border-transparent px-4 py-1.5 text-[13px] font-medium text-dim hover:bg-well">1Y</button>
+          <button class="press chip rounded-full border border-transparent px-4 py-1.5 text-[13px] font-medium text-dim hover:bg-well">All</button>
+        </div>
+      </div>
+      <p class="mt-4 px-1 text-[13px] text-faint">Three weeks of logging without a gap.</p>
+    </section>
+
+    <!-- buckets -->
+    <section class="px-6 pt-7">
+      <h2 class="px-1 text-[12px] uppercase tracking-[0.1em] text-faint font-medium">Buckets</h2>
+      <div class="mt-3 rounded-card bg-surface card-shadow border border-track/70 overflow-hidden">
+
+        <!-- Cash and banks, expanded -->
+        <button class="press row-hover w-full flex items-center gap-3.5 px-5 py-4 text-left" aria-expanded="true">
+          <span class="grid place-items-center w-10 h-10 rounded-tile bg-accent-wash">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#4A48C4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>
+          </span>
+          <span class="flex-1 text-[15px] font-semibold text-ink">Cash and banks</span>
+          <span class="num text-[15px] font-medium text-ink">IDR 94,200,000</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7C7566" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+        </button>
+        <div class="pl-[72px] pr-5 pb-3 -mt-1 space-y-2.5">
+          <div class="flex items-baseline justify-between">
+            <span class="text-[13px] text-dim">BCA</span>
+            <span class="num text-[13px] text-dim">62,400,000</span>
+          </div>
+          <div class="flex items-baseline justify-between">
+            <span class="text-[13px] text-dim">Jago</span>
+            <span class="num text-[13px] text-dim">24,800,000</span>
+          </div>
+          <div class="flex items-baseline justify-between">
+            <span class="text-[13px] text-dim">Cash on hand</span>
+            <span class="num text-[13px] text-dim">7,000,000</span>
+          </div>
+        </div>
+
+        <!-- Foreign, stale-rate warning -->
+        <button class="press row-hover w-full flex items-center gap-3.5 px-5 py-4 text-left border-t border-well">
+          <span class="grid place-items-center w-10 h-10 rounded-tile bg-[#E7EEF6]">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#3E6FB8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+          </span>
+          <span class="flex-1">
+            <span class="block text-[15px] font-semibold text-ink">Foreign</span>
+            <span class="num mt-1 block text-[11px] font-medium text-warning-text whitespace-nowrap">USD 1,150 · cached rate</span>
+          </span>
+          <span class="num text-[15px] font-medium text-ink">≈ IDR 18,650,000</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7C7566" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        </button>
+
+        <!-- Spending this month -->
+        <button class="press row-hover w-full px-5 py-4 text-left border-t border-well">
+          <span class="flex items-center gap-3.5">
+            <span class="grid place-items-center w-10 h-10 rounded-tile bg-[#F4E9E2]">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#B65C38" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+            </span>
+            <span class="flex-1 text-[15px] font-semibold text-ink">Spending this month</span>
+            <span class="num text-[15px] font-medium text-ink">IDR 6,850,000 <span class="text-[12px] text-faint font-normal">of 9,000,000</span></span>
+          </span>
+          <span class="mt-3 ml-[54px] block h-[7px] rounded-full bg-track overflow-hidden">
+            <span class="block h-full w-[76%] rounded-full bg-warning-bar"></span>
+          </span>
+        </button>
+
+        <!-- Owed -->
+        <button class="press row-hover w-full flex items-center gap-3.5 px-5 py-4 text-left border-t border-well">
+          <span class="grid place-items-center w-10 h-10 rounded-tile bg-well">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#5F5A4F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10h10M7 14h10"/><circle cx="12" cy="12" r="10"/></svg>
+          </span>
+          <span class="flex-1 text-[15px] font-semibold text-ink">Owed</span>
+          <span class="num text-[15px] font-medium text-ink">−IDR 2,400,000</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7C7566" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        </button>
+      </div>
+    </section>
+
+    <!-- safe to spend: the accent hero moment -->
+    <section class="px-6 pt-5">
+      <div class="rounded-card bg-accent-wash border border-accent-edge px-6 py-5 card-shadow">
+        <p class="text-[12px] uppercase tracking-[0.1em] text-accent-deep font-semibold">Safe to spend</p>
+        <div class="mt-1.5 flex items-baseline justify-between">
+          <p class="num text-[24px] font-bold text-ink">IDR 2,150,000</p>
+          <p class="text-[13px] text-dim">14 days left in August</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- recent -->
+    <section class="px-6 pt-7">
+      <h2 class="px-1 text-[12px] uppercase tracking-[0.1em] text-faint font-medium">Recent</h2>
+      <div class="mt-3 rounded-card bg-surface card-shadow border border-track/70 overflow-hidden">
+        <button class="press row-hover w-full flex items-center gap-3.5 px-5 py-4 text-left">
+          <span class="grid place-items-center w-10 h-10 rounded-tile bg-[#F4E9E2]">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#B65C38" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><path d="M6 2v2M10 2v2M14 2v2"/></svg>
+          </span>
+          <span class="flex-1">
+            <span class="block text-[15px] font-semibold text-ink">Kopi Tuku</span>
+            <span class="block mt-0.5 text-[12px] text-faint">Eating out · 5:12 pm</span>
+          </span>
+          <span class="num text-[15px] font-medium text-expense">−28,000</span>
+        </button>
+        <button class="press row-hover w-full flex items-center gap-3.5 px-5 py-4 text-left border-t border-well">
+          <span class="grid place-items-center w-10 h-10 rounded-tile bg-[#E7EEF6]">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#3E6FB8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5V14l-3-3 4-3 2 3h2"/></svg>
+          </span>
+          <span class="flex-1">
+            <span class="block text-[15px] font-semibold text-ink">Gojek</span>
+            <span class="block mt-0.5 text-[12px] text-faint">Transport · 2:40 pm</span>
+          </span>
+          <span class="num text-[15px] font-medium text-expense">−35,000</span>
+        </button>
+        <button class="press row-hover w-full flex items-center gap-3.5 px-5 py-4 text-left border-t border-well">
+          <span class="grid place-items-center w-10 h-10 rounded-tile bg-[#E8F0E4]">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#4C8A3F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 11 4-7h6l4 7"/><path d="M19 11H5l1.5 9a2 2 0 0 0 2 1.7h7a2 2 0 0 0 2-1.7Z"/><path d="M12 15v3"/></svg>
+          </span>
+          <span class="flex-1">
+            <span class="block text-[15px] font-semibold text-ink">Groceries at Superindo</span>
+            <span class="block mt-0.5 text-[12px] text-faint">Groceries · yesterday</span>
+          </span>
+          <span class="num text-[15px] font-medium text-expense">−214,500</span>
+        </button>
+      </div>
+    </section>
+  </div>
+
+  <!-- tab bar -->
+  <nav class="absolute bottom-0 inset-x-0 bg-surface/95 backdrop-blur border-t border-track px-2 pt-2 pb-6">
+    <div class="relative grid grid-cols-5 items-end">
+      <a href="index.html" class="press flex flex-col items-center gap-1 py-1 text-accent-deep" aria-current="page">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>
+        <span class="text-[11px] font-semibold">Home</span>
+      </a>
+      <a href="#" class="press flex flex-col items-center gap-1 py-1 text-faint hover:text-dim">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        <span class="text-[11px] font-medium">History</span>
+      </a>
+      <div class="relative flex justify-center">
+        <a href="add-entry.html" aria-label="Add entry" class="press absolute -top-9 grid place-items-center w-16 h-16 rounded-full bg-accent hover:bg-accent-deep active:bg-accent-press text-white soft-shadow" style="box-shadow: 0 12px 26px -10px rgba(91,91,214,.55);">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5v14"/></svg>
+        </a>
+      </div>
+      <a href="#" class="press flex flex-col items-center gap-1 py-1 text-faint hover:text-dim">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>
+        <span class="text-[11px] font-medium">Buckets</span>
+      </a>
+      <a href="#" class="press flex flex-col items-center gap-1 py-1 text-faint hover:text-dim">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+        <span class="text-[11px] font-medium">More</span>
+      </a>
+    </div>
+  </nav>
+</main>
+
+</body>
+</html>

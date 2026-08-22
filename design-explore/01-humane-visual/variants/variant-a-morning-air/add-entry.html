@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Variant A — Morning air — Add entry</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['Outfit', 'sans-serif'],
+        mono: ['"IBM Plex Mono"', 'monospace'],
+      },
+      colors: {
+        desk: '#ECE6DA',
+        canvas: '#F8F5ED',
+        surface: '#FFFEFA',
+        well: '#F3EFE4',
+        track: '#EAE5D6',
+        ink: '#2A2822',
+        dim: '#5F5A4F',
+        faint: '#7C7566',
+        accent: '#5B5BD6',
+        'accent-deep': '#4A48C4',
+        'accent-press': '#4341B0',
+        'accent-wash': '#EDECFA',
+        'accent-edge': '#CFCEF1',
+        success: '#1E7A47',
+        'success-wash': '#E6F1E7',
+        expense: '#C23A2F',
+        'warning-text': '#8A5B00',
+        'warning-bar': '#E0A63A',
+        'warning-wash': '#FAF0DC',
+      },
+      borderRadius: {
+        card: '26px',
+        tile: '18px',
+      },
+    }
+  }
+}
+</script>
+<style>
+  body { background:
+    radial-gradient(1100px 600px at 20% -10%, #F2EDE2 0%, rgba(242,237,226,0) 60%),
+    #ECE6DA;
+  }
+  .num { font-family: "IBM Plex Mono", monospace; font-variant-ligatures: none; }
+  .phone { box-shadow: 0 24px 60px -24px rgba(58,52,38,.28), 0 2px 8px rgba(58,52,38,.08); }
+  .card-shadow { box-shadow: 0 10px 30px -18px rgba(74,72,140,.18), 0 1px 2px rgba(58,52,38,.04); }
+  .soft-shadow { box-shadow: 0 6px 20px -14px rgba(58,52,38,.22); }
+  .press:active { transform: scale(.97); }
+  .press { transition: transform .12s cubic-bezier(.2,0,0,1), background-color .15s ease; }
+  a:focus-visible, button:focus-visible {
+    outline: 2px solid #4A48C4; outline-offset: 2px; border-radius: 12px;
+  }
+  .chip { transition: background-color .15s ease, color .15s ease, border-color .15s ease; }
+  .key { transition: background-color .12s ease, transform .12s cubic-bezier(.2,0,0,1); }
+  .key:hover { background: #FFFEFA; }
+  .key:active { background: #EDECFA; transform: scale(.95); }
+  .navcard a { transition: color .15s ease, background-color .15s ease; }
+  .navcard a:hover { color: #4A48C4; background: #EDECFA; }
+  @keyframes blink { 0%, 55% { opacity: 1; } 56%, 100% { opacity: 0; } }
+  .caret { animation: blink 1.1s infinite; }
+</style>
+</head>
+<body class="min-h-screen font-sans text-ink antialiased">
+
+<!-- floating cross-nav -->
+<nav class="navcard fixed top-5 right-5 z-50 w-52 rounded-2xl bg-surface/95 backdrop-blur border border-track p-3 soft-shadow text-[13px]">
+  <p class="px-2 pb-1.5 font-semibold text-ink">A · Morning air</p>
+  <p class="px-2 pb-1 text-[11px] uppercase tracking-[0.08em] text-faint">This variant</p>
+  <a href="index.html" class="block px-2 py-1 rounded-lg text-dim">Home</a>
+  <a href="add-entry.html" class="block px-2 py-1 rounded-lg font-semibold text-accent-deep bg-accent-wash">Add entry</a>
+  <a href="reports.html" class="block px-2 py-1 rounded-lg text-dim">Reports</a>
+  <p class="px-2 pt-2 pb-1 text-[11px] uppercase tracking-[0.08em] text-faint">Add entry in</p>
+  <a href="../variant-b-sea-glass/add-entry.html" class="block px-2 py-1 rounded-lg text-dim">B · Sea glass</a>
+  <a href="../variant-c-plum-hearth/add-entry.html" class="block px-2 py-1 rounded-lg text-dim">C · Plum hearth</a>
+</nav>
+
+<!-- phone frame -->
+<main class="mx-auto my-10 w-[390px] min-h-[844px] phone rounded-[44px] bg-canvas overflow-hidden relative flex flex-col">
+  <div class="flex-1 flex flex-col px-6 pt-8 pb-8">
+
+    <!-- header -->
+    <header class="flex items-center justify-between">
+      <button aria-label="Close" class="press grid place-items-center w-9 h-9 rounded-full hover:bg-well">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#5F5A4F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+      <!-- segmented control -->
+      <div class="flex rounded-full bg-well p-1" role="tablist" aria-label="Entry type">
+        <button role="tab" aria-selected="true" class="press chip rounded-full bg-surface px-5 py-1.5 text-[13px] font-semibold text-ink soft-shadow">Out</button>
+        <button role="tab" aria-selected="false" class="press chip rounded-full px-5 py-1.5 text-[13px] font-medium text-dim hover:text-ink">In</button>
+        <button role="tab" aria-selected="false" class="press chip rounded-full px-5 py-1.5 text-[13px] font-medium text-dim hover:text-ink">Move</button>
+      </div>
+      <span class="w-9"></span>
+    </header>
+
+    <!-- amount well -->
+    <section class="mt-8 text-center" aria-label="Amount">
+      <p class="text-[12px] uppercase tracking-[0.1em] text-faint font-medium">Amount</p>
+      <p class="num mt-2 text-[40px] font-bold tracking-[-0.01em] text-ink">
+        <span class="text-[20px] font-medium text-faint align-baseline mr-1.5">IDR</span>28,000<span class="caret inline-block w-[3px] h-[34px] align-[-4px] ml-1 rounded-full bg-accent"></span>
+      </p>
+    </section>
+
+    <!-- category rail -->
+    <section class="mt-7 -mx-6 px-6 overflow-x-auto" aria-label="Category">
+      <div class="flex gap-2.5 w-max">
+        <button class="press chip flex items-center gap-2 rounded-full bg-accent-wash border border-accent-edge pl-2 pr-4 py-1.5" aria-pressed="true">
+          <span class="grid place-items-center w-8 h-8 rounded-full bg-[#F4E9E2]">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B65C38" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><path d="M6 2v2M10 2v2M14 2v2"/></svg>
+          </span>
+          <span class="text-[13px] font-semibold text-accent-deep">Eating out</span>
+        </button>
+        <button class="press chip flex items-center gap-2 rounded-full bg-surface border border-track pl-2 pr-4 py-1.5 hover:border-accent-edge">
+          <span class="grid place-items-center w-8 h-8 rounded-full bg-[#E8F0E4]">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4C8A3F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 11 4-7h6l4 7"/><path d="M19 11H5l1.5 9a2 2 0 0 0 2 1.7h7a2 2 0 0 0 2-1.7Z"/><path d="M12 15v3"/></svg>
+          </span>
+          <span class="text-[13px] font-medium text-dim">Groceries</span>
+        </button>
+        <button class="press chip flex items-center gap-2 rounded-full bg-surface border border-track pl-2 pr-4 py-1.5 hover:border-accent-edge">
+          <span class="grid place-items-center w-8 h-8 rounded-full bg-[#E7EEF6]">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3E6FB8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5V14l-3-3 4-3 2 3h2"/></svg>
+          </span>
+          <span class="text-[13px] font-medium text-dim">Transport</span>
+        </button>
+        <button class="press chip flex items-center gap-2 rounded-full bg-surface border border-track pl-2 pr-4 py-1.5 hover:border-accent-edge">
+          <span class="grid place-items-center w-8 h-8 rounded-full bg-[#F6E8F0]">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B8578F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2M13 17v2M13 11v2"/></svg>
+          </span>
+          <span class="text-[13px] font-medium text-dim">Fun</span>
+        </button>
+        <button class="press chip flex items-center gap-2 rounded-full bg-surface border border-track pl-2 pr-4 py-1.5 hover:border-accent-edge">
+          <span class="grid place-items-center w-8 h-8 rounded-full bg-[#F1EBDD]">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8A6A2F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M8 7h8M8 11h8M8 15h5"/></svg>
+          </span>
+          <span class="text-[13px] font-medium text-dim">Bills</span>
+        </button>
+        <button class="press chip flex items-center gap-2 rounded-full bg-surface border border-dashed border-track pl-2 pr-4 py-1.5 hover:border-accent-edge">
+          <span class="grid place-items-center w-8 h-8 rounded-full bg-well">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7C7566" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5v14"/></svg>
+          </span>
+          <span class="text-[13px] font-medium text-dim">New</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- defaults chip + open disclosure -->
+    <section class="mt-6" aria-label="Details">
+      <button class="press chip w-full flex items-center justify-between rounded-tile bg-accent-wash/60 border border-accent-edge px-4 py-3" aria-expanded="true">
+        <span class="text-[13px] font-medium text-dim">from <span class="font-semibold text-ink">BCA</span> · today</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4A48C4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+      </button>
+      <div class="mt-2 rounded-card bg-surface card-shadow border border-track/70 overflow-hidden">
+        <button class="press w-full flex items-center gap-3.5 px-5 py-3.5 text-left hover:bg-well/60 active:bg-well">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#7C7566" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/></svg>
+          <span class="flex-1 text-[14px] text-dim">Out of</span>
+          <span class="text-[14px] font-semibold text-ink">BCA</span>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7C7566" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        </button>
+        <button class="press w-full flex items-center gap-3.5 px-5 py-3.5 text-left border-t border-well hover:bg-well/60 active:bg-well">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#7C7566" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+          <span class="flex-1 text-[14px] text-dim">Date</span>
+          <span class="text-[14px] font-semibold text-ink">Today</span>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7C7566" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        </button>
+        <button class="press w-full flex items-center gap-3.5 px-5 py-3.5 text-left border-t border-well hover:bg-well/60 active:bg-well">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#7C7566" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+          <span class="flex-1 text-[14px] text-dim">Note</span>
+          <span class="text-[14px] text-faint">add a note</span>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7C7566" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        </button>
+      </div>
+    </section>
+
+    <div class="flex-1"></div>
+
+    <!-- keypad -->
+    <section class="mt-6" aria-label="Keypad">
+      <div class="grid grid-cols-3 gap-2.5">
+        <button class="press key num rounded-tile bg-well py-3.5 text-[20px] font-medium text-ink">1</button>
+        <button class="press key num rounded-tile bg-well py-3.5 text-[20px] font-medium text-ink">2</button>
+        <button class="press key num rounded-tile bg-well py-3.5 text-[20px] font-medium text-ink">3</button>
+        <button class="press key num rounded-tile bg-well py-3.5 text-[20px] font-medium text-ink">4</button>
+        <button class="press key num rounded-tile bg-well py-3.5 text-[20px] font-medium text-ink">5</button>
+        <button class="press key num rounded-tile bg-well py-3.5 text-[20px] font-medium text-ink">6</button>
+        <button class="press key num rounded-tile bg-well py-3.5 text-[20px] font-medium text-ink">7</button>
+        <button class="press key num rounded-tile bg-well py-3.5 text-[20px] font-medium text-ink">8</button>
+        <button class="press key num rounded-tile bg-well py-3.5 text-[20px] font-medium text-ink">9</button>
+        <button class="press key num rounded-tile bg-well py-3.5 text-[17px] font-medium text-ink">000</button>
+        <button class="press key num rounded-tile bg-well py-3.5 text-[20px] font-medium text-ink">0</button>
+        <button aria-label="Backspace" class="press key rounded-tile bg-well py-3.5 grid place-items-center text-ink">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H7l-5 9 5 9h15a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2Z"/><path d="m18 9-6 6M12 9l6 6"/></svg>
+        </button>
+      </div>
+      <button class="press mt-4 w-full rounded-tile bg-accent hover:bg-accent-deep active:bg-accent-press py-4 text-[15px] font-semibold text-white" style="box-shadow: 0 12px 26px -12px rgba(91,91,214,.5);">Save entry</button>
+    </section>
+  </div>
+</main>
+
+</body>
+</html>

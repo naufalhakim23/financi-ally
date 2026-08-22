@@ -296,7 +296,7 @@ export default function EntryNew() {
           className="min-h-touch justify-center"
         >
           <Text
-            className={`text-body-strong font-sans-semibold ${missing ? "text-disabled" : "text-info"}`}
+            className={`text-body-strong font-sans-semibold ${missing ? "text-disabled" : "text-accent-strong"}`}
           >
             {s.entry.new.save}
           </Text>
@@ -350,7 +350,7 @@ export default function EntryNew() {
 
         {expanded ? (
           <>
-            <View className="border border-outline rounded-lg overflow-hidden">
+            <View className="border border-outline rounded-xl overflow-hidden">
               <PickerRow
                 label={mode === "in" ? s.entry.new.from : t("outOf").toLowerCase()}
                 account={from}
@@ -444,7 +444,7 @@ export default function EntryNew() {
           placeholder={s.entry.new.newCategoryPlaceholder}
           placeholderTextColor={C.disabled}
           autoFocus
-          className="bg-surface-container rounded-lg px-4 py-3 min-h-touch text-body font-sans-medium text-ink"
+          className="bg-surface-container rounded-xl px-4 py-3 min-h-touch text-body font-sans-medium text-ink"
         />
         <View className="mt-4">
           <Button
@@ -482,7 +482,7 @@ export default function EntryNew() {
           placeholder={s.entry.new.notePlaceholder}
           placeholderTextColor={C.disabled}
           autoFocus
-          className="bg-surface-container rounded-lg px-4 py-3 min-h-touch text-body font-sans-medium text-ink"
+          className="bg-surface-container rounded-xl px-4 py-3 min-h-touch text-body font-sans-medium text-ink"
         />
         <View className="mt-4">
           <Button label={s.common.done} onPress={() => setNoteOpen(false)} />

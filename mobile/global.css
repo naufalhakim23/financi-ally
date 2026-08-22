@@ -2,38 +2,47 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Semantic color tokens, mirrored from the Claude Design system's
-   tokens/colors.css. Light lives on :root, dark re-points the same names on
-   .dark:root — NativeWind swaps the active set from the device color scheme, so
-   no screen needs a `dark:` variant. Values are bare RGB channels rather than
-   hex so tailwind.config.js can wrap them as rgb(var(--name) / <alpha-value>) —
-   the form NativeWind documents for darkMode: "class". DESIGN.md stays the
-   human-readable source of truth. */
+/* Semantic color tokens, mirrored from DESIGN.md v2.0 (sea-glass). Light lives
+   on :root, dark re-points the same names on .dark:root — NativeWind swaps the
+   active set from the device color scheme, so no screen needs a `dark:`
+   variant. Values are bare RGB channels rather than hex so tailwind.config.js
+   can wrap them as rgb(var(--name) / <alpha-value>) — the form NativeWind
+   documents for darkMode: "class". DESIGN.md stays the human-readable source
+   of truth. */
 @layer base {
   :root {
-    --primary: 26 31 46;
-    --primary-pressed: 42 49 64;
+    --primary: 32 30 27;
+    --primary-pressed: 56 52 46;
     --on-primary: 255 255 255;
-    --secondary: 238 240 246;
-    --on-secondary: 26 31 46;
+    --secondary: 241 239 236;
+    --on-secondary: 32 30 27;
 
-    --background: 242 243 247;
+    /* Accent — brand punctuation only (FAB, tab-active, selected chips, links,
+       focus, switch-on). Never on amounts; white TEXT sits on accent-strong. */
+    --accent: 14 138 123;
+    --accent-strong: 11 114 104;
+    --accent-pressed: 10 103 92;
+    --accent-wash: 235 244 242;
+    --accent-edge: 205 228 224;
+    --on-accent: 255 255 255;
+
+    --background: 246 245 243;
     --surface: 255 255 255;
-    --surface-container: 240 241 246;
-    --surface-container-high: 232 234 242;
-    --surface-pressed: 238 240 246;
+    --surface-container: 241 239 236;
+    --surface-container-high: 232 229 224;
+    --surface-pressed: 239 237 233;
 
-    --ink: 26 31 46;
-    --dim: 90 99 121;
-    --faint: 115 124 145;
-    --disabled: 152 161 181;
-    --on-inverse: 247 248 251;
+    --ink: 32 30 27;
+    --dim: 93 89 82;
+    --faint: 114 108 100;
+    --disabled: 168 162 154;
+    --on-inverse: 250 249 247;
 
-    --outline: 226 230 240;
-    --outline-variant: 240 241 246;
-    --outline-strong: 192 199 218;
-    --chevron: 192 199 218;
-    --focus-ring: 37 99 235;
+    --outline: 229 226 221;
+    --outline-variant: 239 237 233;
+    --outline-strong: 207 203 196;
+    --chevron: 207 203 196;
+    --focus-ring: 14 138 123;
 
     --success: 22 163 74;
     --success-wash: 236 253 243;
@@ -58,31 +67,39 @@
   }
 
   /* Dark theme — same semantic names, re-pointed. Shadows go inert (see
-     ELEVATION in tokens.ts); depth comes from the tonal ladder + outline. */
+     ELEVATION in tokens.ts); depth comes from the tonal ladder + outline.
+     Accent lightens and converges with accent-strong, same rule as status. */
   .dark:root {
-    --primary: 238 240 246;
-    --primary-pressed: 192 199 218;
-    --on-primary: 19 23 34;
-    --secondary: 38 44 56;
-    --on-secondary: 237 239 244;
+    --primary: 237 234 229;
+    --primary-pressed: 207 203 196;
+    --on-primary: 21 19 17;
+    --secondary: 44 40 35;
+    --on-secondary: 237 234 229;
 
-    --background: 15 18 24;
-    --surface: 23 27 35;
-    --surface-container: 30 35 45;
-    --surface-container-high: 38 44 56;
-    --surface-pressed: 32 37 47;
+    --accent: 63 179 162;
+    --accent-strong: 63 179 162;
+    --accent-pressed: 88 196 180;
+    --accent-wash: 18 38 34;
+    --accent-edge: 30 65 59;
+    --on-accent: 21 19 17;
 
-    --ink: 237 239 244;
-    --dim: 167 175 192;
-    --faint: 138 147 168;
-    --disabled: 90 99 121;
-    --on-inverse: 19 23 34;
+    --background: 20 18 16;
+    --surface: 28 25 23;
+    --surface-container: 36 32 25;
+    --surface-container-high: 44 40 35;
+    --surface-pressed: 34 31 27;
 
-    --outline: 44 51 64;
-    --outline-variant: 35 41 53;
-    --outline-strong: 59 68 83;
-    --chevron: 90 99 121;
-    --focus-ring: 91 156 248;
+    --ink: 237 234 229;
+    --dim: 173 167 159;
+    --faint: 140 134 125;
+    --disabled: 93 89 82;
+    --on-inverse: 21 19 17;
+
+    --outline: 50 46 40;
+    --outline-variant: 42 38 32;
+    --outline-strong: 69 63 55;
+    --chevron: 93 89 82;
+    --focus-ring: 63 179 162;
 
     --success: 61 187 110;
     --success-wash: 18 39 28;

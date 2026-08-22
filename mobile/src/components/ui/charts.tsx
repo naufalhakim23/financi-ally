@@ -111,9 +111,12 @@ export type LegendItem = {
 export function ChartLegend({
   items,
   formatValue,
+  showShare = true,
 }: {
   items: LegendItem[];
   formatValue: (v: number) => string;
+  /** Off when the legend sits beside its chart — the share column has no room. */
+  showShare?: boolean;
 }) {
   const total = items.reduce((s, x) => s + x.value, 0);
   return (
@@ -136,7 +139,9 @@ export function ChartLegend({
                 </Text>
               )}
             </View>
-            <Text className="text-amount-sm font-mono-medium text-faint">{pct}%</Text>
+            {showShare && (
+              <Text className="text-amount-sm font-mono-medium text-faint">{pct}%</Text>
+            )}
             <Text className="text-amount-sm font-mono-bold text-ink">
               {formatValue(item.value)}
             </Text>
@@ -152,7 +157,7 @@ export type TrendPoint = { key: string; label: string; value: number; emphasized
 /**
  * Change-over-time bars for a single series. Plain Views — bars are rectangles,
  * and SVG buys nothing here. Heights are relative to the largest bar; the
- * emphasized point (the current period) carries the ink fill, the rest recede.
+ * emphasized point (the current period) carries the accent fill, the rest recede.
  * Single-series, so no ramp and no legend.
  */
 export function TrendBars({
@@ -180,7 +185,7 @@ export function TrendBars({
           return (
             <View
               key={p.key}
-              className={`flex-1 ${p.emphasized ? "bg-primary" : "bg-surface-container-high"}`}
+              className={`flex-1 ${p.emphasized ? "bg-accent" : "bg-surface-container-high"}`}
               style={{ height: h, borderRadius: BAR_RADIUS }}
             />
           );

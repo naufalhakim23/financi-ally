@@ -55,8 +55,8 @@ export function AuthScreen({
               className="flex-row items-center self-start min-h-touch px-2"
               hitSlop={4}
             >
-              <ChevronLeft size={ICON.xl} color={C.info} strokeWidth={2} />
-              <Text className="text-body-strong font-sans-semibold text-info ml-0.5">{s.common.back}</Text>
+              <ChevronLeft size={ICON.xl} color={C.accentStrong} strokeWidth={2} />
+              <Text className="text-body-strong font-sans-semibold text-accent-strong ml-0.5">{s.common.back}</Text>
             </Pressable>
           )}
         </View>

@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Variant A — Morning air — Reports</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['Outfit', 'sans-serif'],
+        mono: ['"IBM Plex Mono"', 'monospace'],
+      },
+      colors: {
+        desk: '#ECE6DA',
+        canvas: '#F8F5ED',
+        surface: '#FFFEFA',
+        well: '#F3EFE4',
+        track: '#EAE5D6',
+        ink: '#2A2822',
+        dim: '#5F5A4F',
+        faint: '#7C7566',
+        accent: '#5B5BD6',
+        'accent-deep': '#4A48C4',
+        'accent-press': '#4341B0',
+        'accent-wash': '#EDECFA',
+        'accent-edge': '#CFCEF1',
+        success: '#1E7A47',
+        'success-wash': '#E6F1E7',
+        expense: '#C23A2F',
+        'warning-text': '#8A5B00',
+        'warning-bar': '#E0A63A',
+        'warning-wash': '#FAF0DC',
+      },
+      borderRadius: {
+        card: '26px',
+        tile: '18px',
+      },
+    }
+  }
+}
+</script>
+<style>
+  body { background:
+    radial-gradient(1100px 600px at 20% -10%, #F2EDE2 0%, rgba(242,237,226,0) 60%),
+    #ECE6DA;
+  }
+  .num { font-family: "IBM Plex Mono", monospace; font-variant-ligatures: none; }
+  .phone { box-shadow: 0 24px 60px -24px rgba(58,52,38,.28), 0 2px 8px rgba(58,52,38,.08); }
+  .card-shadow { box-shadow: 0 10px 30px -18px rgba(74,72,140,.18), 0 1px 2px rgba(58,52,38,.04); }
+  .soft-shadow { box-shadow: 0 6px 20px -14px rgba(58,52,38,.22); }
+  .press:active { transform: scale(.97); }
+  .press { transition: transform .12s cubic-bezier(.2,0,0,1), background-color .15s ease; }
+  a:focus-visible, button:focus-visible {
+    outline: 2px solid #4A48C4; outline-offset: 2px; border-radius: 12px;
+  }
+  .row-hover { transition: background-color .15s ease; }
+  .row-hover:hover { background: #F6F2E8; }
+  .navcard a { transition: color .15s ease, background-color .15s ease; }
+  .navcard a:hover { color: #4A48C4; background: #EDECFA; }
+  .donut {
+    background: conic-gradient(
+      #4C8A3F 0% 35%,
+      #B65C38 35% 62%,
+      #3E6FB8 62% 75.9%,
+      #8A6A2F 75.9% 88.3%,
+      #B8578F 88.3% 95.6%,
+      #A29A89 95.6% 100%
+    );
+  }
+</style>
+</head>
+<body class="min-h-screen font-sans text-ink antialiased">
+
+<!-- floating cross-nav -->
+<nav class="navcard fixed top-5 right-5 z-50 w-52 rounded-2xl bg-surface/95 backdrop-blur border border-track p-3 soft-shadow text-[13px]">
+  <p class="px-2 pb-1.5 font-semibold text-ink">A · Morning air</p>
+  <p class="px-2 pb-1 text-[11px] uppercase tracking-[0.08em] text-faint">This variant</p>
+  <a href="index.html" class="block px-2 py-1 rounded-lg text-dim">Home</a>
+  <a href="add-entry.html" class="block px-2 py-1 rounded-lg text-dim">Add entry</a>
+  <a href="reports.html" class="block px-2 py-1 rounded-lg font-semibold text-accent-deep bg-accent-wash">Reports</a>
+  <p class="px-2 pt-2 pb-1 text-[11px] uppercase tracking-[0.08em] text-faint">Reports in</p>
+  <a href="../variant-b-sea-glass/reports.html" class="block px-2 py-1 rounded-lg text-dim">B · Sea glass</a>
+  <a href="../variant-c-plum-hearth/reports.html" class="block px-2 py-1 rounded-lg text-dim">C · Plum hearth</a>
+</nav>
+
+<!-- phone frame -->
+<main class="mx-auto my-10 w-[390px] min-h-[844px] phone rounded-[44px] bg-canvas overflow-hidden relative">
+  <div class="pb-32">
+
+    <!-- title -->
+    <header class="px-6 pt-10">
+      <h1 class="text-[32px] leading-[1.1] font-semibold tracking-[-0.02em] text-ink">Reports</h1>
+      <p class="mt-1 text-[14px] text-dim">August</p>
+    </header>
+
+    <!-- cash flow -->
+    <section class="px-6 pt-6">
+      <div class="rounded-card bg-surface card-shadow border border-track/70 px-6 py-5">
+        <p class="text-[12px] uppercase tracking-[0.1em] text-faint font-medium">Cash flow</p>
+        <div class="mt-4 grid grid-cols-2 gap-4">
+          <div>
+            <p class="text-[12px] text-faint">In</p>
+            <p class="num mt-1 text-[16px] font-medium text-success">+IDR 32,000,000</p>
+          </div>
+          <div>
+            <p class="text-[12px] text-faint">Out</p>
+            <p class="num mt-1 text-[16px] font-medium text-expense">−IDR 6,850,000</p>
+          </div>
+        </div>
+        <div class="mt-4 pt-4 border-t border-well flex items-baseline justify-between">
+          <p class="text-[13px] font-semibold text-ink">Net</p>
+          <p class="num text-[18px] font-bold text-ink">+IDR 25,150,000</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- spend by category -->
+    <section class="px-6 pt-5">
+      <div class="rounded-card bg-surface card-shadow border border-track/70 px-6 py-5">
+        <p class="text-[12px] uppercase tracking-[0.1em] text-faint font-medium">Spend by category</p>
+        <div class="mt-5 flex items-center gap-6">
+          <div class="donut relative w-[124px] h-[124px] rounded-full shrink-0" role="img" aria-label="Spend by category donut chart">
+            <div class="absolute inset-[26px] rounded-full bg-surface grid place-items-center">
+              <div class="text-center">
+                <p class="num text-[13px] font-bold text-ink leading-tight">6.85M</p>
+                <p class="text-[10px] text-faint">out</p>
+              </div>
+            </div>
+          </div>
+          <ul class="flex-1 space-y-2.5">
+            <li class="flex items-center gap-2.5">
+              <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:#4C8A3F"></span>
+              <span class="flex-1 text-[13px] text-dim">Groceries</span>
+              <span class="num text-[12px] font-medium text-ink">2,400,000</span>
+            </li>
+            <li class="flex items-center gap-2.5">
+              <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:#B65C38"></span>
+              <span class="flex-1 text-[13px] text-dim">Eating out</span>
+              <span class="num text-[12px] font-medium text-ink">1,850,000</span>
+            </li>
+            <li class="flex items-center gap-2.5">
+              <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:#3E6FB8"></span>
+              <span class="flex-1 text-[13px] text-dim">Transport</span>
+              <span class="num text-[12px] font-medium text-ink">950,000</span>
+            </li>
+            <li class="flex items-center gap-2.5">
+              <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:#8A6A2F"></span>
+              <span class="flex-1 text-[13px] text-dim">Bills</span>
+              <span class="num text-[12px] font-medium text-ink">850,000</span>
+            </li>
+            <li class="flex items-center gap-2.5">
+              <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:#B8578F"></span>
+              <span class="flex-1 text-[13px] text-dim">Fun</span>
+              <span class="num text-[12px] font-medium text-ink">500,000</span>
+            </li>
+            <li class="flex items-center gap-2.5">
+              <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:#A29A89"></span>
+              <span class="flex-1 text-[13px] text-dim">Everything else</span>
+              <span class="num text-[12px] font-medium text-ink">300,000</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- monthly trend -->
+    <section class="px-6 pt-5">
+      <div class="rounded-card bg-surface card-shadow border border-track/70 px-6 py-5">
+        <p class="text-[12px] uppercase tracking-[0.1em] text-faint font-medium">Monthly trend</p>
+        <div class="mt-5 flex items-end gap-3 h-[96px]">
+          <div class="flex-1 flex flex-col items-center gap-2 h-full justify-end">
+            <div class="w-full rounded-t-[8px] bg-accent/20 hover:bg-accent/35 transition-colors" style="height:52%"></div>
+            <span class="text-[11px] text-faint">Mar</span>
+          </div>
+          <div class="flex-1 flex flex-col items-center gap-2 h-full justify-end">
+            <div class="w-full rounded-t-[8px] bg-accent/20 hover:bg-accent/35 transition-colors" style="height:64%"></div>
+            <span class="text-[11px] text-faint">Apr</span>
+          </div>
+          <div class="flex-1 flex flex-col items-center gap-2 h-full justify-end">
+            <div class="w-full rounded-t-[8px] bg-accent/20 hover:bg-accent/35 transition-colors" style="height:44%"></div>
+            <span class="text-[11px] text-faint">May</span>
+          </div>
+          <div class="flex-1 flex flex-col items-center gap-2 h-full justify-end">
+            <div class="w-full rounded-t-[8px] bg-accent/20 hover:bg-accent/35 transition-colors" style="height:70%"></div>
+            <span class="text-[11px] text-faint">Jun</span>
+          </div>
+          <div class="flex-1 flex flex-col items-center gap-2 h-full justify-end">
+            <div class="w-full rounded-t-[8px] bg-accent/20 hover:bg-accent/35 transition-colors" style="height:58%"></div>
+            <span class="text-[11px] text-faint">Jul</span>
+          </div>
+          <div class="flex-1 flex flex-col items-center gap-2 h-full justify-end">
+            <div class="w-full rounded-t-[8px] bg-accent" style="height:82%"></div>
+            <span class="text-[11px] font-semibold text-accent-deep">Aug</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- net worth over time: empty state, layered tinted tiles -->
+    <section class="px-6 pt-5">
+      <div class="rounded-card bg-surface card-shadow border border-track/70 px-6 py-5 overflow-hidden">
+        <p class="text-[12px] uppercase tracking-[0.1em] text-faint font-medium">Net worth over time</p>
+        <div class="relative mt-5 h-[120px]" aria-hidden="true">
+          <!-- layered soft tiles suggesting a chart yet to come -->
+          <div class="absolute bottom-0 left-[2%] w-[20%] h-[34%] rounded-[16px] bg-well"></div>
+          <div class="absolute bottom-0 left-[18%] w-[22%] h-[52%] rounded-[18px] bg-accent-wash/70"></div>
+          <div class="absolute bottom-0 left-[36%] w-[24%] h-[44%] rounded-[18px] bg-[#F1EBDD]"></div>
+          <div class="absolute bottom-0 left-[55%] w-[22%] h-[66%] rounded-[20px] bg-accent-wash"></div>
+          <div class="absolute bottom-0 left-[74%] w-[24%] h-[54%] rounded-[20px] bg-well/80"></div>
+          <div class="absolute bottom-[10%] right-[4%] w-9 h-9 rounded-full bg-accent-wash border border-accent-edge grid place-items-center">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4A48C4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 7-8.5 8.5-5-5L2 17"/><path d="M16 7h6v6"/></svg>
+          </div>
+        </div>
+        <p class="mt-4 text-[13px] text-dim text-center">A few more weeks of entries and this chart draws itself.</p>
+      </div>
+    </section>
+  </div>
+
+  <!-- tab bar -->
+  <nav class="absolute bottom-0 inset-x-0 bg-surface/95 backdrop-blur border-t border-track px-2 pt-2 pb-6">
+    <div class="relative grid grid-cols-5 items-end">
+      <a href="index.html" class="press flex flex-col items-center gap-1 py-1 text-faint hover:text-dim">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>
+        <span class="text-[11px] font-medium">Home</span>
+      </a>
+      <a href="#" class="press flex flex-col items-center gap-1 py-1 text-faint hover:text-dim">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        <span class="text-[11px] font-medium">History</span>
+      </a>
+      <div class="relative flex justify-center">
+        <a href="add-entry.html" aria-label="Add entry" class="press absolute -top-9 grid place-items-center w-16 h-16 rounded-full bg-accent hover:bg-accent-deep active:bg-accent-press text-white" style="box-shadow: 0 12px 26px -10px rgba(91,91,214,.55);">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5v14"/></svg>
+        </a>
+      </div>
+      <a href="#" class="press flex flex-col items-center gap-1 py-1 text-faint hover:text-dim">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>
+        <span class="text-[11px] font-medium">Buckets</span>
+      </a>
+      <a href="#" class="press flex flex-col items-center gap-1 py-1 text-faint hover:text-dim">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+        <span class="text-[11px] font-medium">More</span>
+      </a>
+    </div>
+  </nav>
+</main>
+
+</body>
+</html>

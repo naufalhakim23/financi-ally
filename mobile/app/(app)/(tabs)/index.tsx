@@ -8,6 +8,7 @@ import {
   BarChart3,
   BookOpen,
   ChevronDown,
+  Lock,
   PieChart,
   Repeat,
   Search,
@@ -196,9 +197,7 @@ export default function HomeScreen() {
   // The greeting owns the title; anything needing attention takes the line
   // under it, where the date would otherwise sit.
   const subline =
-    sync.status === "error"
-      ? s.home.status.offline
-      : fxCaption && rateAge != null && rateAge > STALE_RATE_HOURS
+    fxCaption && rateAge != null && rateAge > STALE_RATE_HOURS
         ? s.home.status.staleRates
         : now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
 
@@ -266,9 +265,14 @@ export default function HomeScreen() {
               })
             }
           />
-          <View className="w-10 h-10 rounded-full bg-accent-wash items-center justify-center">
+          <Pressable
+            onPress={() => router.push("/(app)/(tabs)/more")}
+            accessibilityRole="button"
+            accessibilityLabel={s.home.avatar(user?.email ?? s.common.personalSpace)}
+            className="w-10 h-10 rounded-full bg-accent-wash items-center justify-center"
+          >
             <Text className="text-label font-sans-semibold text-accent-strong">{initials}</Text>
-          </View>
+          </Pressable>
         </View>
       </View>
 
@@ -429,7 +433,18 @@ export default function HomeScreen() {
                       : undefined
                 }
                 chevron
-                onPress={() => router.push("/(app)/(tabs)/buckets")}
+                onPress={() =>
+                  router.push(
+                    b.id === "spending" && !guest
+                      ? "/(app)/budgets"
+                      : {
+                          pathname: "/(app)/(tabs)/buckets",
+                          // Nonce: the tab stays mounted, so only a fresh value
+                          // re-opens a bucket the user has since collapsed.
+                          params: { open: b.id, n: String(Date.now()) },
+                        },
+                  )
+                }
               />
             ))}
         </Card>
@@ -441,10 +456,14 @@ export default function HomeScreen() {
               <SectionLabel>{s.home.planLabel}</SectionLabel>
               <Pressable
                 accessibilityRole="button"
+                accessibilityLabel={guest ? s.home.locked(s.home.seeAll) : s.home.seeAll}
                 hitSlop={12}
                 onPress={() => router.push(guest ? "/register" : "/(app)/budgets")}
+                className="flex-row items-center"
+                style={{ gap: 4 }}
               >
                 <Text className="text-label font-sans-semibold text-accent-strong">{s.home.seeAll}</Text>
+                {guest && <Lock size={ICON.sm} color={C.dim} strokeWidth={2} />}
               </Pressable>
             </View>
             <Card>
@@ -477,16 +496,19 @@ export default function HomeScreen() {
           <QuickAction
             glyph={PieChart}
             label={s.home.quick.plan}
+            locked={guest}
             onPress={() => router.push(guest ? "/register" : "/(app)/budgets")}
           />
           <QuickAction
             glyph={BarChart3}
             label={s.home.quick.reports}
+            locked={guest}
             onPress={() => router.push(guest ? "/register" : "/(app)/reports")}
           />
           <QuickAction
             glyph={Repeat}
             label={s.home.quick.repeating}
+            locked={guest}
             onPress={() => router.push(guest ? "/register" : "/(app)/recurring")}
           />
         </View>
@@ -495,22 +517,39 @@ export default function HomeScreen() {
   );
 }
 
-function QuickAction({ glyph: G, label, onPress }: { glyph: Glyph; label: string; onPress: () => void }) {
+function QuickAction({
+  glyph: G,
+  label,
+  locked = false,
+  onPress,
+}: {
+  glyph: Glyph;
+  label: string;
+  /** Server-backed and the viewer is a guest: say so before they tap. */
+  locked?: boolean;
+  onPress: () => void;
+}) {
   const { C, ELEVATION } = useTheme();
+  const s = useStrings();
   const { pressed, pressStyle, handlers } = usePressedScale("tap");
   return (
     <AnimatedPressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={locked ? s.home.locked(label) : label}
       {...handlers}
       className={`flex-1 items-center rounded-2xl border border-outline py-3 ${
         pressed ? "bg-surface-pressed" : "bg-surface"
       }`}
       style={[ELEVATION.card, pressStyle, { gap: 6 }]}
     >
-      <G size={ICON.xl} color={C.dim} strokeWidth={1.75} />
-      <Text className="text-label font-sans-semibold text-ink">{label}</Text>
+      <G size={ICON.xl} color={locked ? C.disabled : C.dim} strokeWidth={1.75} />
+      <View className="flex-row items-center" style={{ gap: 4 }}>
+        <Text className={`text-label font-sans-semibold ${locked ? "text-dim" : "text-ink"}`}>
+          {label}
+        </Text>
+        {locked && <Lock size={ICON.xs} color={C.disabled} strokeWidth={2} />}
+      </View>
     </AnimatedPressable>
   );
 }

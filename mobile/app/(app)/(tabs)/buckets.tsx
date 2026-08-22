@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { RefreshControl, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, ChevronUp, Plus } from "lucide-react-native";
 
@@ -24,7 +24,6 @@ import {
   BucketChildRow,
   Button,
   Card,
-  Chip,
   EmptyState,
   ListRow,
   ProgressBar,
@@ -46,7 +45,15 @@ export default function BucketsScreen() {
   const s = useStrings();
   const { C } = useTheme();
   const pull = useSyncRefresh();
-  const [open, setOpen] = useState<BucketId | null>("cash");
+  // Home's bucket rows each open their own bucket here rather than all landing
+  // on the same collapsed screen. The tab stays mounted across navigations, so
+  // the caller's nonce is what re-applies a repeat request.
+  const { open: openParam, n } = useLocalSearchParams<{ open?: string; n?: string }>();
+  const [open, setOpen] = useState<BucketId | null>((openParam as BucketId) ?? "cash");
+
+  useEffect(() => {
+    if (openParam) setOpen(openParam as BucketId);
+  }, [openParam, n]);
 
   const accountsObs = useMemo(() => database.get<Account>("accounts").query().observe(), []);
   const linesObs = useMemo(() => database.get<JournalLine>("journal_lines").query().observe(), []);
@@ -90,7 +97,7 @@ export default function BucketsScreen() {
 
   const toggle = (id: BucketId) => setOpen((cur) => (cur === id ? null : id));
 
-  function header(b: Bucket, expandable: boolean) {
+  function header(b: Bucket) {
     const negative = b.id === "owed";
     return (
       <ListRow
@@ -104,15 +111,15 @@ export default function BucketsScreen() {
         amountSize="lg"
         amountTone="neutral"
         meta={b.total == null ? s.buckets.rateUnavailable : undefined}
-        chevron={expandable}
+        chevron
         chevronGlyph={open === b.id ? ChevronUp : ChevronDown}
-        onPress={expandable ? () => toggle(b.id) : undefined}
+        onPress={() => toggle(b.id)}
       />
     );
   }
 
   const byId = (id: BucketId) => buckets.find((b) => b.id === id)!;
-  const moneyBuckets: BucketId[] = ["cash", "foreign"];
+  const moneyBuckets: BucketId[] = ["cash", "foreign", "owed"];
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-background">
@@ -124,12 +131,6 @@ export default function BucketsScreen() {
           onPress={() => router.push("/(app)/pocket-new")}
         />
       </TitleBar>
-
-      {/* Spaces are the sharing boundary in direction 2a but have no backend
-          concept yet, so only the one space a user has is offered. */}
-      <View className="flex-row px-4 pb-3" style={{ gap: 8 }}>
-        <Chip label={s.buckets.space} active onPress={() => {}} />
-      </View>
 
       <ScrollView
         className="flex-1"
@@ -153,7 +154,7 @@ export default function BucketsScreen() {
           const expanded = open === id;
           return (
             <Card key={id} padded={false}>
-              {header(b, true)}
+              {header(b)}
               {expanded &&
                 b.children.map((c) => (
                   <BucketChildRow
@@ -186,8 +187,12 @@ export default function BucketsScreen() {
                     )
                   : s.buckets.spendingThisMonth(formatGrouped(base, spent))
               }
-              chevron
-              onPress={() => router.push("/(app)/budgets")}
+              // The plan behind this row is a server read. A guest already has
+              // everything it could show — the figure, the bar and the
+              // breakdown are all right here — so the row simply does not
+              // navigate rather than leading to a sign-up wall.
+              chevron={!guest}
+              onPress={guest ? undefined : () => router.push("/(app)/budgets")}
             />
             <View className="px-4 pb-4">
               {planned > 0 && <ProgressBar pct={spendPct} />}
@@ -198,7 +203,7 @@ export default function BucketsScreen() {
                   return (
                     <View key={r.account.id} className="flex-row items-center" style={{ gap: 8 }}>
                       <View
-                        className="w-2.5 h-2.5 rounded-sm"
+                        className="w-2.5 h-2.5 rounded-full"
                         style={{ backgroundColor: slotColor(categorySlot(r.account.id)) }}
                       />
                       <Text
@@ -223,7 +228,6 @@ export default function BucketsScreen() {
           </Card>
         )}
 
-        {byId("owed").children.length > 0 && <Card padded={false}>{header(byId("owed"), false)}</Card>}
       </ScrollView>
     </SafeAreaView>
   );

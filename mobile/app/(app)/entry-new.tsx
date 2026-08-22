@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
@@ -20,6 +20,7 @@ import { Account, Budget, Entry, JournalLine } from "../../src/model/models";
 import {
   AmountWell,
   Button,
+  DateSheet,
   EmptyState,
   IconBox,
   Keypad,
@@ -31,8 +32,10 @@ import {
   accountGlyph,
   applyKey,
   categorySlot,
+  dayLabel,
   formatGrouped,
   haptic,
+  startOfDay,
   ICON,
   useTheme,
 } from "../../src/components/ui";
@@ -58,7 +61,16 @@ const NEED_HREF = {
 } as const;
 
 export default function EntryNew() {
-  const params = useLocalSearchParams<{ mode?: string; from?: string; to?: string; amount?: string }>();
+  const params = useLocalSearchParams<{
+    mode?: string;
+    from?: string;
+    to?: string;
+    amount?: string;
+    memo?: string;
+    date?: string;
+    /** Present when this screen is correcting an entry rather than adding one. */
+    edit?: string;
+  }>();
   const { guest, baseCurrency: base } = useAuth();
   const { t, showSides } = useWording();
   const s = useStrings();
@@ -73,8 +85,15 @@ export default function EntryNew() {
   const [digits, setDigits] = useState(params.amount ?? "");
   const [fromId, setFromId] = useState<string | null>(params.from ?? null);
   const [toId, setToId] = useState<string | null>(params.to ?? null);
-  const [memo, setMemo] = useState("");
+  const [memo, setMemo] = useState(params.memo ?? "");
+  // The day the money actually moved, at local midnight. Hardcoding this to
+  // "now" is why a batch of Sunday receipts logged on Monday all claimed to be
+  // Monday's.
+  const [txnDate, setTxnDate] = useState(() =>
+    startOfDay(params.date ? Number(params.date) : Date.now()),
+  );
   const [noteOpen, setNoteOpen] = useState(false);
+  const [dateOpen, setDateOpen] = useState(false);
   const [newCatOpen, setNewCatOpen] = useState(false);
   const [newCatName, setNewCatName] = useState("");
   const [newCatBusy, setNewCatBusy] = useState(false);
@@ -82,6 +101,11 @@ export default function EntryNew() {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // A rejection paints the amount well, which is off-screen once the user has
+  // scrolled down to the keypad — so a rejection scrolls back to it.
+  const scroller = useRef<ScrollView>(null);
+
+  const editId = params.edit ?? null;
 
   const accountsObs = useMemo(() => database.get<Account>("accounts").query().observe(), []);
   const linesObs = useMemo(() => database.get<JournalLine>("journal_lines").query().observe(), []);
@@ -144,15 +168,32 @@ export default function EntryNew() {
     return a.currency;
   }
 
-  const fromOptions = active.filter((a) => SIDES[mode].from.includes(a.type));
-  const toOptions = active.filter((a) => SIDES[mode].to.includes(a.type));
+  const allFrom = active.filter((a) => SIDES[mode].from.includes(a.type));
+  const allTo = active.filter((a) => SIDES[mode].to.includes(a.type));
 
-  // Switching mode changes what each side may be; a stale pick would silently
-  // post to the wrong account, so it is dropped rather than carried over.
+  // Both legs post in one currency, so the moment one side is picked the other
+  // side's mismatched accounts stop being valid. Hiding them is the whole fix
+  // for the old rejected-at-Save message: the pair can no longer be made, so
+  // there is nothing left to reject.
+  const pickedFrom = allFrom.find((a) => a.id === fromId) ?? null;
+  const pickedTo = allTo.find((a) => a.id === toId) ?? null;
+  const fromOptions = allFrom.filter((a) => !pickedTo || a.currency === pickedTo.currency);
+  const toOptions = allTo.filter((a) => !pickedFrom || a.currency === pickedFrom.currency);
+
+  // Switching mode changes what each side may be, so a stale pick is dropped
+  // rather than silently posting to the wrong account.
+  //
+  // Guarded on an actual mode change rather than running on every commit: the
+  // accounts observable delivers asynchronously, so on mount `active` is still
+  // empty and an unguarded pass cleared the ids that a deep link, Duplicate or
+  // Edit arrived with.
+  const lastMode = useRef(mode);
   useEffect(() => {
-    setFromId((cur) => (cur && fromOptions.some((a) => a.id === cur) ? cur : null));
-    setToId((cur) => (cur && toOptions.some((a) => a.id === cur) ? cur : null));
-  }, [mode, accounts]);
+    if (lastMode.current === mode) return;
+    lastMode.current = mode;
+    setFromId((cur) => (cur && allFrom.some((a) => a.id === cur) ? cur : null));
+    setToId((cur) => (cur && allTo.some((a) => a.id === cur) ? cur : null));
+  }, [mode]);
 
   // Fills a blank only: a deep-link param or the user's own pick always wins.
   // `fromId` is a dep, not just a guard: the effect above clears it in the same commit.
@@ -190,14 +231,6 @@ export default function EntryNew() {
       reject(s.entry.new.errors.sameAccount);
       return;
     }
-    // Both legs post in the source currency; cross-currency needs an fx_rate
-    // this screen does not collect yet, and the server rejects the entry.
-    if (from.currency !== to.currency) {
-      reject(
-        s.entry.new.errors.currencyMismatch(from.name, from.currency, to.name, to.currency),
-      );
-      return;
-    }
     const minor = Number(digits || "0");
     if (!Number.isSafeInteger(minor)) {
       reject(s.entry.new.errors.badAmount);
@@ -214,8 +247,16 @@ export default function EntryNew() {
       // source. Written locally first so it works offline; sync pushes it and
       // the server re-runs the balance invariant.
       await database.write(async () => {
+        // A posted entry is immutable server-side (sync push accepts only a
+        // memo relabel), so a correction is a delete plus a fresh post. Both
+        // happen in one write, so the ledger is never momentarily short.
+        if (editId) {
+          for (const l of lines.filter((l) => l.entryId === editId)) await l.markAsDeleted();
+          const old = entries.find((e) => e.id === editId);
+          if (old) await old.markAsDeleted();
+        }
         const entry = await database.get("entries").create((e: any) => {
-          e.txnDate = Date.now();
+          e.txnDate = txnDate;
           e.status = "posted";
           e.currency = currency;
           e.source = "manual";
@@ -263,15 +304,23 @@ export default function EntryNew() {
   }, [digits, currency, base, rates, s]);
 
   const pickOptions = picking === "from" ? fromOptions : toOptions;
+  // How many of this side's accounts the currency filter removed, so a short
+  // list never looks like the user's accounts went missing.
+  const otherSide = picking === "from" ? pickedTo : pickedFrom;
+  const hiddenByCurrency =
+    (picking === "from" ? allFrom.length : picking === "to" ? allTo.length : 0) -
+    pickOptions.length;
+
   // Which side is actually empty, not just "something is". Saying "set up a
   // pocket first" to someone who has three pockets and no categories sends them
-  // to create a fourth pocket and hit the same wall.
+  // to create a fourth pocket and hit the same wall. Counted before the
+  // currency filter, which empties a side for an entirely different reason.
   const missingKind =
-    fromOptions.length === 0
+    allFrom.length === 0
       ? mode === "in"
         ? ("income" as const)
         : ("pocket" as const)
-      : toOptions.length === 0
+      : allTo.length === 0
         ? mode === "out"
           ? ("expense" as const)
           : ("pocket" as const)
@@ -279,8 +328,18 @@ export default function EntryNew() {
   const missing = missingKind ? s.entry.new.need[missingKind] : null;
 
   // Out is expressible by rail + remembered pocket, so the rest folds. The other
-  // modes have no rail, so their destination needs the rows.
-  const expanded = detailsOpen || mode !== "out";
+  // modes have no rail, so their destination needs the rows. An edit always
+  // opens expanded: the point is to see and change what was posted.
+  const expanded = detailsOpen || mode !== "out" || !!editId;
+
+  // Two Save affordances, one set of preconditions. Everything past this — an
+  // unpicked side, a zero amount — stays an error message rather than a dead
+  // button, because a disabled button never says why.
+  const blocked = busy || !!missing;
+
+  useEffect(() => {
+    if (err) scroller.current?.scrollTo({ y: 0, animated: true });
+  }, [err]);
 
   return (
     <SafeAreaView edges={["bottom"]} className="flex-1 bg-surface">
@@ -288,15 +347,17 @@ export default function EntryNew() {
         <Pressable onPress={() => router.back()} accessibilityRole="button" className="min-h-touch justify-center">
           <Text className="text-body-strong font-sans-semibold text-dim">{s.common.cancel}</Text>
         </Pressable>
-        <Text className="text-headline font-sans-semibold text-ink">{t("addEntry")}</Text>
+        <Text className="text-headline font-sans-semibold text-ink">
+          {editId ? s.entry.new.editTitle : t("addEntry")}
+        </Text>
         <Pressable
           onPress={save}
-          disabled={busy || !!missing}
+          disabled={blocked}
           accessibilityRole="button"
           className="min-h-touch justify-center"
         >
           <Text
-            className={`text-body-strong font-sans-semibold ${missing ? "text-disabled" : "text-accent-strong"}`}
+            className={`text-body-strong font-sans-semibold ${blocked ? "text-disabled" : "text-accent-strong"}`}
           >
             {s.entry.new.save}
           </Text>
@@ -304,6 +365,7 @@ export default function EntryNew() {
       </View>
 
       <ScrollView
+        ref={scroller}
         className="flex-1"
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24, gap: 14 }}
         keyboardShouldPersistTaps="handled"
@@ -332,7 +394,8 @@ export default function EntryNew() {
         <AmountWell
           currency={currency}
           display={digits ? formatGrouped(currency, Number(digits)) : ""}
-          helper={err ?? converted ?? undefined}
+          helper={converted ?? undefined}
+          error={err}
         />
 
         {mode === "out" && toOptions.length > 0 && (
@@ -384,7 +447,12 @@ export default function EntryNew() {
             )}
 
             <View className="flex-row" style={{ gap: 8 }}>
-              <MetaChip glyph={Calendar} label={s.entry.new.today} active />
+              <MetaChip
+                glyph={Calendar}
+                label={dayLabel(txnDate)}
+                active
+                onPress={() => setDateOpen(true)}
+              />
               <MetaChip
                 glyph={Plus}
                 label={memo ? s.entry.new.noteAdded : s.entry.new.note}
@@ -396,6 +464,7 @@ export default function EntryNew() {
         ) : (
           <SummaryChip
             pocket={from?.name ?? null}
+            date={dayLabel(txnDate)}
             hasNote={!!memo}
             onPress={() => setDetailsOpen(true)}
           />
@@ -404,10 +473,10 @@ export default function EntryNew() {
         <Keypad onKey={(k: KeypadKey) => setDigits((d) => applyKey(d, k))} />
 
         <Button
-          label={s.entry.new.saveAction}
+          label={editId ? s.entry.new.saveChanges : s.entry.new.saveAction}
           onPress={save}
           busy={busy}
-          disabled={!!missing}
+          disabled={blocked}
         />
       </ScrollView>
 
@@ -416,6 +485,11 @@ export default function EntryNew() {
         onClose={() => setPicking(null)}
         title={picking === "from" ? s.entry.new.pickFrom : s.entry.new.pickTo}
       >
+        {hiddenByCurrency > 0 && otherSide && (
+          <Text className="text-caption font-sans-medium text-faint pb-2">
+            {s.entry.new.hiddenByCurrency(hiddenByCurrency, otherSide.currency)}
+          </Text>
+        )}
         {pickOptions.map((a, i) => (
           <ListRow
             key={a.id}
@@ -475,6 +549,17 @@ export default function EntryNew() {
         </View>
       </Sheet>
 
+      <DateSheet
+        visible={dateOpen}
+        value={txnDate}
+        onClose={() => setDateOpen(false)}
+        onSelect={(ms) => {
+          haptic.tap();
+          setTxnDate(ms);
+          setDateOpen(false);
+        }}
+      />
+
       <Sheet visible={noteOpen} onClose={() => setNoteOpen(false)} title={s.entry.new.note}>
         <TextInput
           value={memo}
@@ -496,10 +581,12 @@ export default function EntryNew() {
 // stands between a remembered default and a posted entry.
 function SummaryChip({
   pocket,
+  date,
   hasNote,
   onPress,
 }: {
   pocket: string | null;
+  date: string;
   hasNote: boolean;
   onPress: () => void;
 }) {
@@ -507,7 +594,7 @@ function SummaryChip({
   const s = useStrings();
   const parts = [
     pocket ? s.entry.new.summary.from(pocket) : s.entry.new.summary.noPocket,
-    s.entry.new.summary.today,
+    date.toLowerCase(),
     ...(hasNote ? [s.entry.new.summary.hasNote] : []),
   ];
 
@@ -519,9 +606,7 @@ function SummaryChip({
       className="flex-row items-center bg-surface-container rounded-full pl-4 pr-3 py-2.5 min-h-touch self-start"
       style={{ gap: 6 }}
     >
-      <Text className={`text-label font-sans-semibold ${pocket ? "text-ink" : "text-error-strong"}`}>
-        {parts.join(" · ")}
-      </Text>
+      <Text className="text-label font-sans-semibold text-ink">{parts.join(" · ")}</Text>
       <ChevronRight size={ICON.md} color={C.dim} strokeWidth={2} />
     </Pressable>
   );

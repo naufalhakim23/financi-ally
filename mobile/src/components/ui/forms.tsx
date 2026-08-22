@@ -379,17 +379,25 @@ export function AmountWell({
   currency,
   display,
   helper,
+  error,
   onPressCurrency,
 }: {
   currency: string;
   /** Already grouped for display — the keypad owns the raw digits. */
   display: string;
   helper?: string;
+  /** Why the entry was rejected. Takes the helper's place and colors the well. */
+  error?: string | null;
   onPressCurrency?: () => void;
 }) {
   const { C } = useTheme();
   return (
-    <View className="bg-surface-container rounded-lg px-4 py-4 items-center" style={{ gap: 6 }}>
+    <View
+      className={`bg-surface-container rounded-lg px-4 py-4 items-center ${
+        error ? "border border-error-edge" : ""
+      }`}
+      style={{ gap: 6 }}
+    >
       <Pressable
         onPress={onPressCurrency}
         disabled={!onPressCurrency}
@@ -402,7 +410,15 @@ export function AmountWell({
         {onPressCurrency && <ChevronDown size={13} color={C.dim} strokeWidth={2} />}
       </Pressable>
       <Text className="text-amount-hero font-mono-bold text-ink">{display || "0"}</Text>
-      {helper && <Text className="text-mono-meta font-mono text-faint">{helper}</Text>}
+      {/* An error is not a hint: it gets body weight and the error tone, so it
+          cannot be mistaken for the passive conversion line it replaces. */}
+      {error ? (
+        <Text className="text-body-strong font-sans-semibold text-error text-center" accessibilityRole="alert">
+          {error}
+        </Text>
+      ) : (
+        helper && <Text className="text-mono-meta font-mono text-faint">{helper}</Text>
+      )}
     </View>
   );
 }

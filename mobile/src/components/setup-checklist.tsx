@@ -66,7 +66,7 @@ export function SetupChecklist({
           <View key={item.key} className="flex-row items-center py-2" style={{ gap: 10 }}>
             <View
               className={`w-5 h-5 rounded-full items-center justify-center border ${
-                item.done ? "bg-success border-success" : "border-outline"
+                item.done ? "bg-primary border-primary" : "border-outline"
               }`}
             >
               {item.done && <Check size={ICON.xs} color={C.onPrimary} strokeWidth={3} />}

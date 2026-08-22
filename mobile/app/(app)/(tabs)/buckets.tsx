@@ -198,7 +198,7 @@ export default function BucketsScreen() {
                   return (
                     <View key={r.account.id} className="flex-row items-center" style={{ gap: 8 }}>
                       <View
-                        className="w-2.5 h-2.5 rounded-sm"
+                        className="w-2.5 h-2.5 rounded-full"
                         style={{ backgroundColor: slotColor(categorySlot(r.account.id)) }}
                       />
                       <Text

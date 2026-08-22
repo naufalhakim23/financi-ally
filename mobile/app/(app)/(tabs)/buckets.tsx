@@ -187,8 +187,12 @@ export default function BucketsScreen() {
                     )
                   : s.buckets.spendingThisMonth(formatGrouped(base, spent))
               }
-              chevron
-              onPress={() => router.push("/(app)/budgets")}
+              // The plan behind this row is a server read. A guest already has
+              // everything it could show — the figure, the bar and the
+              // breakdown are all right here — so the row simply does not
+              // navigate rather than leading to a sign-up wall.
+              chevron={!guest}
+              onPress={guest ? undefined : () => router.push("/(app)/budgets")}
             />
             <View className="px-4 pb-4">
               {planned > 0 && <ProgressBar pct={spendPct} />}
